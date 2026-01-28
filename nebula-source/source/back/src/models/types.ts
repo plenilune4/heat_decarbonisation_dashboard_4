@@ -1,0 +1,212 @@
+import { IUser } from './user.model'
+
+// Auth Types
+
+export type AuthToken = {
+    accessToken: string
+    refreshToken: string
+    tokenType: string
+    expiresAt: number // milliseconds timestamp
+}
+
+export type Whoami = {
+    isLoggedIn: boolean
+    user?: IUser
+}
+
+// Business Logic Types
+
+export type InputType = 'exogenous' | 'lever'
+
+export type SamplingStrategy =
+    | {
+          sampleMethod: 'full-factorial'
+      }
+    | {
+          sampleMethod: 'latin-hypercube'
+          numHypercubeSamples: number
+      }
+
+export type VariationMethod =
+    | 'specific-value'
+    | 'constant-value'
+    | 'list'
+    | 'stepped'
+    | 'distribution-normal'
+    | 'distribution-uniform'
+    | 'distribution-lognormal'
+    | 'from-csv'
+    | 'geometric-random-walk'
+
+export type ParetoSense = 'maximise' | 'minimise' | 'ignore'
+
+export type AnalysisInputVariable =
+    | {
+          type: 'scalar-continuous'
+          variationMethod: 'distribution-normal'
+          mean: number
+          std: number
+          numSamples: number
+      }
+    | {
+          type: 'scalar-continuous'
+          variationMethod: 'distribution-uniform'
+          min: number
+          max: number
+          numSamples: number
+      }
+    | {
+          type: 'scalar-continuous'
+          variationMethod: 'distribution-lognormal'
+          mu: number
+          sigma: number
+          numSamples: number
+      }
+    | {
+          type: 'scalar-continuous'
+          variationMethod: 'specific-value'
+          value: number
+      }
+    | {
+          type: 'scalar-continuous'
+          variationMethod: 'stepped'
+          min: number
+          max: number
+          step: number
+      }
+    | {
+          type: 'scalar-continuous'
+          variationMethod: 'list'
+          values: number[]
+      }
+    | {
+          type: 'scalar-integer'
+          variationMethod: 'specific-value'
+          value: number
+      }
+    | {
+          type: 'scalar-integer'
+          variationMethod: 'stepped'
+          min: number
+          max: number
+          step: number
+      }
+    | {
+          type: 'scalar-integer'
+          variationMethod: 'list'
+          values: number[]
+      }
+    | {
+          type: 'scalar-binary'
+          variationMethod: 'specific-value'
+          value: boolean
+      }
+    | {
+          type: 'scalar-binary'
+          variationMethod: 'list'
+          values: boolean[]
+      }
+    | {
+          type: 'scalar-discreet'
+          variationMethod: 'specific-value'
+          options: string[]
+          value: string
+      }
+    | {
+          type: 'scalar-discreet'
+          variationMethod: 'list'
+          options: string[]
+          values: string[]
+      }
+    | {
+          type: 'time-series-continuous'
+          variationMethod: 'geometric-random-walk'
+          /** Drift (expected return), per year (e.g., 0.05 for 5% annual drift) */
+          annualDrift: number
+          /** Volatility (standard deviation), per year (e.g., 0.2 for 20% annual volatility) */
+          annualVolatility: number
+          /** Starting value (> 0) */
+          initialValue: number
+          /** ISO string for the start time (e.g., '2024-01-01T00:00:00Z') */
+          startTimeISO: string
+          /** Time step in seconds (> 0) */
+          timeStepSeconds: number
+          /** Number of time steps */
+          numSteps: number
+      }
+    | {
+          type: 'time-series-any'
+          variationMethod: 'constant-value'
+          initialTime: string
+          timeStepSeconds: number
+          timeStepCount: number
+          value: any
+      }
+    | {
+          type: 'time-series-any'
+          variationMethod: 'from-csv'
+          csvColumns: string[]
+          csv: string
+      }
+
+export type AnalysisOutputVariable =
+    | {
+          type: 'scalar'
+          value: number
+      }
+    | {
+          type: 'time-series'
+          values: [string, unknown][]
+      }
+
+export type AnalysisOutputVariableType = AnalysisOutputVariable['type']
+
+// Scenario Configuration Types
+
+export type ScenarioScalar = {
+    reference: string
+    type: 'float' | 'int' | 'str' | 'bool'
+    value: number | boolean | string
+}
+
+export type ScenarioArrayScalar = {
+    reference: string
+    type: 'float' | 'int' | 'str' | 'bool'
+    value: number[] | boolean[] | string[]
+}
+
+export type ScenarioTimeSeries = {
+    reference: string
+    type: 'array'
+    value:
+        | { date: string; [key: string]: number | string | boolean }[]
+        | { date: string; [key: string]: number | string | boolean }[][]
+}
+
+export interface ScenarioConfiguration {
+    [reference: string]: ScenarioScalar | ScenarioArrayScalar | ScenarioTimeSeries
+}
+
+// Simulation Result Types
+
+export type SimulationEvent = {
+    inputs: ScenarioConfiguration
+}
+
+export type SimulationError = SimulationEvent & {
+    error: string
+}
+
+export type SimulationLog = SimulationEvent & {
+    log: string
+}
+
+export type SimulationSetup = SimulationEvent & {
+    numberOfScenarios?: number
+    installingPackages?: string[]
+}
+
+export type SimulationResult = SimulationEvent & {
+    result: Record<string, any>
+    index: number
+}

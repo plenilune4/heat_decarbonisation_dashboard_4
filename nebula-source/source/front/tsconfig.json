@@ -1,0 +1,32 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "ESNext",
+        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+        "jsx": "react-jsx",
+        "outDir": "dist",
+        "noEmit": true,
+        "useDefineForClassFields": true,
+        "strict": false,
+        "moduleResolution": "bundler",
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["./src/*"],
+            "@/MODELS/*": ["../back/src/models/*"],
+            "@/ROUTES": ["../back/src/routes/_endpoints"]
+        },
+        "types": ["node", "vite/client"],
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "allowImportingTsExtensions": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true
+    },
+    "include": ["./src"],
+    "exclude": ["./public"],
+    "references": [
+        {
+            "path": "./tsconfig.node.json"
+        }
+    ]
+}

@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "commonjs",
+        "outDir": "dist",
+        "strict": false,
+        "baseUrl": ".",
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "paths": {},
+        "useUnknownInCatchVariables": false
+    },
+    "include": ["src/**/*.ts", "spec/**/*.ts", "src/routes/_endpoints.ts"],
+    "exclude": ["src/public/"]
+}
