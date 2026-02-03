@@ -42,6 +42,7 @@ export type SelectFieldProps<FormValuesType> = {
     onChange?: (value: string) => void
     //
     label?: string | boolean
+    placeholder?: string
     containerClass?: string
     labelClass?: string
     inputClass?: string
