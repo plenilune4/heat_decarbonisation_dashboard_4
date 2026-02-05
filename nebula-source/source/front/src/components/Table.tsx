@@ -174,7 +174,7 @@ export default function Table<Datum extends object>(props: {
                     onShouldSearch={async (q) => setGlobalFilter(q)}
                     containerClass={cn('max-w-3xl', props?.hideSearch && 'hidden')}
                     inputWrapperClass='rounded-lg'
-                    placeholder={props?.searchPlaceholder ?? 'Search...'}
+                    label={props?.searchPlaceholder ?? 'Search...'}
                 />
                 {props?.exportColumns?.length && (
                     <Button.Outline onClick={exportToCsv}>
