@@ -23,6 +23,12 @@ if (process.env.NODE_ENV === 'staging') {
     app.use(helmet())
 }
 
+//Temporary debug:
+app.use((req, _res, next) => {
+  console.log(req.method, req.path);
+  next();
+});
+
 // Routes
 app.use('/api', BaseRouter)
 app.use('/api/s3', s3Router)

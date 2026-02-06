@@ -34,7 +34,8 @@ export class DockerServiceImplementation implements IDockerService {
 
     constructor(defaultImage: string = 'python:3.11-slim') {
         this.defaultImage = defaultImage
-        this.docker = new Docker()
+        // this.docker = new Docker()
+        this.docker = new Docker({socketPath: '/var/run/docker.sock'})
     }
 
     private formatContainerConfig(config: ContainerConfig): Docker.ContainerCreateOptions {
@@ -66,6 +67,17 @@ export class DockerServiceImplementation implements IDockerService {
 
     async createContainer(config: ContainerConfig): Promise<string> {
         try {
+
+            console.log('RUNNING AS UID:', process.getuid?.())
+            console.log('DOCKER SOCK EXISTS:', fs.existsSync('/var/run/docker.sock'))
+            console.log('DOCKER SOCK STAT:', (() => {
+              try { return fs.statSync('/var/run/docker.sock') }
+              catch (e) { return e }
+            })())
+
+
+
+
             // Use default Python image if none specified
             if (!config.image) {
                 config.image = this.defaultImage

@@ -7,7 +7,7 @@ const external = Object.keys(dependencies)
 
 async function preBuildOperations() {
     const distPath = path.resolve(__dirname, 'dist')
-    const envFilePath = path.resolve(__dirname, './src/.env.production')
+    const envFilePath = path.resolve(__dirname, './src/.env')
     const emailTemplatesPath = path.resolve(__dirname, './src/services/email-templates')
 
     try {
