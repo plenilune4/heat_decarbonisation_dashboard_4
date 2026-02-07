@@ -19,16 +19,16 @@ export default function AnalysisInputField({
     inputValue,
     setInputValue,
     functionInput,
-    samplingStrategy,
-    setSamplingStrategy,
+    // samplingStrategy,
+    // setSamplingStrategy,
 }: {
     variationMethod: VariationMethod
     setVariationMethod: (variationMethod: VariationMethod) => void
     inputValue: ModifiableAnalysisInput<AnalysisInputVariable>
     setInputValue: (inputValue: ModifiableAnalysisInput<AnalysisInputVariable>) => void
     functionInput: FunctionInput
-    samplingStrategy: SamplingStrategy
-    setSamplingStrategy: (samplingStrategy: SamplingStrategy) => void
+    // samplingStrategy: SamplingStrategy
+    // setSamplingStrategy: (samplingStrategy: SamplingStrategy) => void
 }) {
     const [isExpanded, setIsExpanded] = useState(false)
 
@@ -70,12 +70,12 @@ export default function AnalysisInputField({
                         inputValue={inputValue as ModifiableAnalysisInput<AnalysisInputVariable>}
                         setInputValue={(next) => setInputValue(next)}
                     />
-                    <SelectSamplingStrategyField
+                    {/* <SelectSamplingStrategyField
                         label='Sampling Strategy'
                         value={samplingStrategy}
                         onChange={(next) => setSamplingStrategy(next as any)}
                         variationMethod={variationMethod}
-                    />
+                    /> */}
                 </div>
             )}
         </li>

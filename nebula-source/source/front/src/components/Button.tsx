@@ -1,7 +1,7 @@
 import { ArrowLeftIcon } from '@heroicons/react/20/solid'
 import { ChevronLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
 import React, { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { To, useLocation, useNavigate } from 'react-router'
 import { Link } from 'react-router-dom'
 
 import { cn } from '@/utils/cn'
@@ -156,10 +156,10 @@ function Back({ text = 'Back', ...props }: { text?: string } & ButtonProps) {
         </Outline>
     )
 }
-function BackArrow({ ...props }: ButtonProps) {
+function BackArrow({ to = -1 as To, ...props }: ButtonProps & { to?: To }) {
     const navigate = useNavigate()
     return (
-        <button onClick={() => navigate(-1)}>
+        <button onClick={() => navigate(to)}>
             <ArrowLeftIcon className='w-6 h-6 shrink-0 hover:-translate-x-1' />
         </button>
     )

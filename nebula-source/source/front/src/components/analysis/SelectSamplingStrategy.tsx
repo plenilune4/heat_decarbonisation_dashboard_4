@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { NumberField, SelectField } from '@/form-control/fields'
+import { NumberField, SelectField, SliderField } from '@/form-control/fields'
 
 import { SamplingStrategy, VariationMethod } from '@/MODELS/types'
 
@@ -71,6 +71,51 @@ export default function SelectSamplingStrategyField({
             {value.sampleMethod === 'latin-hypercube' && (
                 <NumberField
                     value={value.numHypercubeSamples}
+                    onChange={(next) => onChange({ ...value, numHypercubeSamples: next })}
+                    label='Number of Samples'
+                    required={required}
+                />
+            )}
+        </>
+    )
+}
+
+export function SelectCombinedSamplingStrategyField({
+    value,
+    onChange,
+    variationMethods,
+    label = 'Sampling Strategy',
+    required = true,
+}: {
+    value: SamplingStrategy
+    onChange: (value: SamplingStrategy) => void
+    variationMethods: VariationMethod[]
+    label?: string
+    required?: boolean
+}) {
+    return (
+        <>
+            <SliderField
+                value={value?.sampleMethod ?? undefined}
+                onChange={(next) => {
+                    switch (next) {
+                        case 'full-factorial':
+                            onChange({ sampleMethod: 'full-factorial' })
+                            break
+                        case 'latin-hypercube':
+                            onChange({ sampleMethod: 'latin-hypercube', numHypercubeSamples: 10 })
+                    }
+                }}
+                options={[
+                    { value: 'full-factorial', text: 'Full Factorial' },
+                    { value: 'latin-hypercube', text: 'Latin Hypercube' },
+                ]}
+                label={label}
+                required={required}
+            />
+            {value?.sampleMethod === 'latin-hypercube' && (
+                <NumberField
+                    value={value?.numHypercubeSamples}
                     onChange={(next) => onChange({ ...value, numHypercubeSamples: next })}
                     label='Number of Samples'
                     required={required}

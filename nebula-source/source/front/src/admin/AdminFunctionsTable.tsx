@@ -59,6 +59,8 @@ export default function AdminFunctionsTable() {
                         ),
                     },
                 ]}
+                defaultSortColumn='Last Modified'
+                defaultSortDirection='desc'
                 tableClass='overflow-visible'
                 onRowClick={(func) => navigate(`/admin/functions/${func._id}`)}
                 searchPlaceholder='Search by name, description, inputs, or outputs'

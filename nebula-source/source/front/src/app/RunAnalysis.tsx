@@ -15,17 +15,19 @@ import { useAuth } from '@/services/authentication.service'
 import { ParetoService } from '@/services/pareto.service'
 import { useResource } from '@/services/resource.service'
 
+import { SelectCombinedSamplingStrategyField } from '@/components/analysis/SelectSamplingStrategy'
 import Button from '@/components/Button'
+import ChartSandbox from '@/components/chart-sandbox/ChartSandbox'
 import Confirm from '@/components/ConfirmModal'
 import EditableTitle from '@/components/EditableTitle'
 import ErrorAlert from '@/components/ErrorAlert'
+import FilterControls from '@/components/FilterControls'
 import FrameworkBadge from '@/components/FrameworkBadge'
 import Loading from '@/components/Loading'
 import Modal from '@/components/Modal'
 
 import AnalysisInputField from '../components/analysis/AnalysisInputField'
 import { ModifiableAnalysisInput } from '../components/analysis/AnalysisVariableInputField'
-import TabbedChartSandbox from '../components/chart-sandbox/TabbedChartSandbox'
 
 export default function ManageAnalysis() {
     const { user } = useAuth()
@@ -147,7 +149,7 @@ function RunAnalysis({
     }
 
     return (
-        <section className='flex flex-col flex-1 gap-10 w-full'>
+        <section className='flex flex-col flex-1 gap-10 w-full' onSubmit={(e) => e.preventDefault()}>
             <header className='flex flex-row flex-wrap gap-y-2 justify-between items-center'>
                 <h2 className='flex flex-wrap text-3xl font-semibold'>
                     <span className='mr-2 text-3xl font-light text-gray-500'>#{analysisState.reference}</span>
@@ -245,7 +247,7 @@ function InputPanel({
         const exogenous = []
         const levers = []
 
-        for (const input of analysis.evaluationFunction.inputs) {
+        for (const input of analysis.scenarioInputs) {
             switch (input.inputType) {
                 case 'exogenous':
                     exogenous.push(input)
@@ -257,7 +259,7 @@ function InputPanel({
         }
 
         return { exogenous, levers }
-    }, [analysis.evaluationFunction.inputs])
+    }, [analysis.scenarioInputs])
 
     function handleSetVariationMethod(
         next: VariationMethod,
@@ -329,7 +331,10 @@ function InputPanel({
     }
 
     return (
-        <section className='flex flex-col gap-5 px-2 py-5 h-fit card bg-gray-800/70'>
+        <section
+            className='flex flex-col gap-5 px-2 py-5 h-fit card bg-gray-800/70'
+            onSubmit={(e) => e.preventDefault()}
+        >
             <header className='flex flex-row gap-2 items-center px-3 pb-3'>
                 <FrameworkBadge component='relationship' className='px-4 text-2xl' />
                 <h3 className='font-mono text-2xl font-semibold'>{analysis.evaluationFunction.name}</h3>
@@ -337,6 +342,12 @@ function InputPanel({
             <div className='grid gap-5 md:grid-cols-2'>
                 <ol className='flex flex-col gap-2'>
                     <h4 className='text-lg font-semibold text-center'>Exogenous Variables</h4>
+                    <SelectCombinedSamplingStrategyField
+                        label='Sampling Strategy'
+                        value={analysis.exogenousSamplingStrategy}
+                        onChange={(next) => updateAnalysis({ exogenousSamplingStrategy: next as any })}
+                        variationMethods={exogenous.map((input) => input.variationMethod as any)}
+                    />
                     {exogenous.map((fxInput) => {
                         const scenarioInputIndex = analysis.scenarioInputs.findIndex(
                             (input) => input.reference === fxInput.reference
@@ -356,14 +367,14 @@ function InputPanel({
                                 setInputValue={(inputValue: ModifiableAnalysisInput<AnalysisInputVariable>) =>
                                     handleSetInputValue(inputValue, scenarioInputIndex, fxInput, scenarioInput)
                                 }
-                                samplingStrategy={
-                                    scenarioInput?.sampleMethod === 'latin-hypercube'
-                                        ? scenarioInput
-                                        : { sampleMethod: 'full-factorial' }
-                                }
-                                setSamplingStrategy={(next: SamplingStrategy) =>
-                                    handleSetSamplingStrategy(next, scenarioInputIndex, fxInput, scenarioInput)
-                                }
+                                // samplingStrategy={
+                                //     scenarioInput?.sampleMethod === 'latin-hypercube'
+                                //         ? scenarioInput
+                                //         : { sampleMethod: 'full-factorial' }
+                                // }
+                                // setSamplingStrategy={(next: SamplingStrategy) =>
+                                //     handleSetSamplingStrategy(next, scenarioInputIndex, fxInput, scenarioInput)
+                                // }
                             />
                         )
                     })}
@@ -371,6 +382,12 @@ function InputPanel({
                 </ol>
                 <ol className='flex flex-col gap-2'>
                     <h4 className='text-lg font-semibold text-center'>Lever Variables</h4>
+                    <SelectCombinedSamplingStrategyField
+                        label='Sampling Strategy'
+                        value={analysis.leverSamplingStrategy}
+                        onChange={(next) => updateAnalysis({ leverSamplingStrategy: next as any })}
+                        variationMethods={levers.map((input) => input.variationMethod as any)}
+                    />
                     {levers.map((fxInput) => {
                         const scenarioInputIndex = analysis.scenarioInputs.findIndex(
                             (input) => input.reference === fxInput.reference
@@ -390,14 +407,14 @@ function InputPanel({
                                 setInputValue={(inputValue: ModifiableAnalysisInput<AnalysisInputVariable>) =>
                                     handleSetInputValue(inputValue, scenarioInputIndex, fxInput, scenarioInput)
                                 }
-                                samplingStrategy={
-                                    scenarioInput?.sampleMethod === 'latin-hypercube'
-                                        ? scenarioInput
-                                        : { sampleMethod: 'full-factorial' }
-                                }
-                                setSamplingStrategy={(next: SamplingStrategy) =>
-                                    handleSetSamplingStrategy(next, scenarioInputIndex, fxInput, scenarioInput)
-                                }
+                                // samplingStrategy={
+                                //     scenarioInput?.sampleMethod === 'latin-hypercube'
+                                //         ? scenarioInput
+                                //         : { sampleMethod: 'full-factorial' }
+                                // }
+                                // setSamplingStrategy={(next: SamplingStrategy) =>
+                                //     handleSetSamplingStrategy(next, scenarioInputIndex, fxInput, scenarioInput)
+                                // }
                             />
                         )
                     })}
@@ -407,8 +424,8 @@ function InputPanel({
             <hr className='border-gray-700' />
             <footer className='flex gap-5 justify-between px-3'>
                 <div className='flex flex-row gap-2 items-center px-5 py-2 rounded-xl bg-gray-900/50'>
-                    <h4 className='text-lg font-semibold text-gray-400'>Number of Scenarios</h4>
-                    <p className='text-2xl font-semibold'>{runner.numberOfScenarios}</p>
+                    <h4 className='text-lg font-semibold text-gray-400'>Number of Runs</h4>
+                    <p className='text-2xl font-semibold'>{new Intl.NumberFormat().format(runner.numberOfScenarios)}</p>
                 </div>
                 <div className='flex flex-row flex-1 gap-2 justify-end items-center'>
                     {runner.isRunning && (
@@ -420,7 +437,7 @@ function InputPanel({
                         </>
                     )}
                     {!runner.isRunning && (
-                        <Button.Success onClickAsync={async () => runner.run()} className='ml-auto'>
+                        <Button.Success type='submit' onClickAsync={async () => runner.run()} className='ml-auto'>
                             <ForwardIcon className='w-4 h-4' />
                             Run
                         </Button.Success>
@@ -440,25 +457,6 @@ function ResultsPanel({
     runner: Runner
     updateAnalysis: (update: Partial<IAnalysis>) => void
 }) {
-    const paretoService = useMemo(() => new ParetoService(), [])
-    const [paretoResults, setParetoResults] = useState<SimulationResult[]>([])
-
-    useEffect(() => {
-        if (runner.results && runner.results.length > 0) {
-            // Build sense object from output variables' paretoSense
-            const sense: Record<string, number> = {}
-            analysis.evaluationFunction.outputs.forEach((output: any) => {
-                // output.paretoSense: 'maximise' | 'minimise' | 'ignore'
-                if (output.paretoSense === 'maximise') sense[output.reference] = 1
-                else if (output.paretoSense === 'minimise') sense[output.reference] = -1
-                else sense[output.reference] = 0
-            })
-            setParetoResults(paretoService.getParetoEfficientSolutions(runner.results, sense))
-        } else {
-            setParetoResults([])
-        }
-    }, [runner.results, analysis.evaluationFunction.outputs, paretoService])
-
     return (
         <section className='flex flex-col flex-1 gap-5 overflow-clip card bg-gray-800/70 h-fit min-h-[300px]'>
             <header className='flex flex-row gap-x-2 items-center px-5 pt-5'>
@@ -478,7 +476,7 @@ function ResultsPanel({
             {!!runner.errors?.length && (
                 <div className='flex flex-col gap-2 px-5'>
                     <ErrorAlert
-                        title='Something went wrong'
+                        title='Errors during evaluation'
                         messages={runner.errors.map((error) => error.error)}
                         onClose={() => runner.clearErrors()}
                     />
@@ -492,16 +490,29 @@ function ResultsPanel({
                     </Button.Success>
                 )}
                 {!!runner.results?.length && (
-                    <TabbedChartSandbox
-                        evaluationFunction={analysis.evaluationFunction}
-                        simulationResults={runner.results}
-                        analysisCharts={
-                            analysis.charts?.length > 0 ? analysis.charts : [analysis.evaluationFunction.defaultChart]
-                        }
-                        setAnalysisCharts={(charts: IAnalysisChart[]) => updateAnalysis({ charts })}
-                        isRunningAnalysis={runner.isRunning}
-                        paretoResults={paretoResults}
-                    />
+                    <>
+                        <FilterControls
+                            evaluationFunction={analysis.evaluationFunction}
+                            results={runner.results}
+                            filters={analysis.filters}
+                            setFilters={(filters) => updateAnalysis({ filters })}
+                        />
+                        <ChartSandbox
+                            evaluationFunction={analysis.evaluationFunction}
+                            simulationResults={runner.results}
+                            filters={analysis.filters}
+                            analysisCharts={
+                                analysis.charts?.length > 0
+                                    ? analysis.charts
+                                    : analysis.evaluationFunction.defaultChart
+                                      ? [analysis.evaluationFunction.defaultChart]
+                                      : []
+                            }
+                            setAnalysisCharts={(charts: IAnalysisChart[]) => updateAnalysis({ charts })}
+                            isRunningAnalysis={runner.isRunning}
+                            onDownloadCSV={() => downloadAnalysis(analysis)}
+                        />
+                    </>
                 )}
                 {!!runner.results?.length && (
                     <div className='flex flex-row gap-2 justify-end'>

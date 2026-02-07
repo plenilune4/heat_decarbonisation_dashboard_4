@@ -143,7 +143,7 @@ const BaseRoutes = (router: Router, config: RouteConfig) => {
                             : res.locals.sessionUser._id
                     }
                     const created = await new model({ ...req.body, _id: undefined }).save()
-                    return res.status(201).json({ message: 'successfully created', data: created })
+                    return res.status(201).json({ created })
                 } else {
                     const updatableProperties = excludeProperties(req.body, excludedUpdateProperties)
                     if (userSpecific) {

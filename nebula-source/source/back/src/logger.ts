@@ -125,8 +125,6 @@ logRouter.post('', async (req: Request, res: Response) => {
 })
 
 logRouter.post('/crash-report', async (req: Request, res: Response) => {
-    console.log({ ...req.body })
-
     const { id, message, error, data } = req.body
 
     if (id && id !== 'new') {

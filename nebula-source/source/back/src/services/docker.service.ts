@@ -5,7 +5,7 @@ import * as tar from 'tar-stream'
 
 import LoggingService from './logging.service'
 
-interface ContainerConfig {4,416.70
+interface ContainerConfig {
     image: string
     name: string
     volumes?: { [hostPath: string]: string } // host:container paths
@@ -34,8 +34,7 @@ export class DockerServiceImplementation implements IDockerService {
 
     constructor(defaultImage: string = 'python:3.11-slim') {
         this.defaultImage = defaultImage
-        // this.docker = new Docker()
-        this.docker = new Docker({socketPath: '/var/run/docker.sock'})
+        this.docker = new Docker()
     }
 
     private formatContainerConfig(config: ContainerConfig): Docker.ContainerCreateOptions {
@@ -67,17 +66,6 @@ export class DockerServiceImplementation implements IDockerService {
 
     async createContainer(config: ContainerConfig): Promise<string> {
         try {
-
-            console.log('RUNNING AS UID:', process.getuid?.())
-            console.log('DOCKER SOCK EXISTS:', fs.existsSync('/var/run/docker.sock'))
-            console.log('DOCKER SOCK STAT:', (() => {
-              try { return fs.statSync('/var/run/docker.sock') }
-              catch (e) { return e }
-            })())
-
-
-
-
             // Use default Python image if none specified
             if (!config.image) {
                 config.image = this.defaultImage
@@ -190,18 +178,91 @@ export class DockerServiceImplementation implements IDockerService {
             })
 
             const stream = await exec.start({ hijack: true })
-            let output = ''
 
             return new Promise((resolve, reject) => {
+                let stdout = ''
+                let stderr = ''
+                let buffer = Buffer.alloc(0) // Buffer to accumulate partial chunks
+
                 stream.on('data', (chunk: Buffer) => {
-                    output += chunk.toString()
+                    // console.log(`[docker][executeCommand] Received chunk of ${chunk.length} bytes`)
+                    // Add chunk to buffer
+                    buffer = Buffer.concat([buffer, chunk] as any)
+                    // console.log(`[docker][executeCommand] Buffer length: ${buffer.length}`)
+
+                    // Check if this looks like a multiplexed stream (starts with 0x01 or 0x02)
+                    if (buffer.length >= 8 && (buffer[0] === 0x01 || buffer[0] === 0x02)) {
+                        // console.log(`[docker][executeCommand] Detected multiplexed stream`)
+
+                        // Demultiplex Docker stream
+                        let offset = 0
+                        while (offset < buffer.length) {
+                            if (offset + 8 > buffer.length) break
+
+                            const header = buffer.slice(offset, offset + 8)
+                            const streamType = header[0]
+                            const payloadLength = header.readUInt32BE(4)
+
+                            // console.log(
+                            //     `[docker][executeCommand] Stream type: ${streamType}, Payload length: ${payloadLength}, Offset: ${offset}, Buffer length: ${buffer.length}`
+                            // )
+
+                            if (offset + 8 + payloadLength > buffer.length) {
+                                // console.log(
+                                //     `[docker][executeCommand] Payload extends beyond buffer, waiting for more data`
+                                // )
+                                break
+                            }
+
+                            const payload = buffer.slice(offset + 8, offset + 8 + payloadLength)
+
+                            if (streamType === 1) {
+                                // stdout
+                                const payloadText = payload.toString('utf8')
+                                stdout += payloadText
+                                // console.log(`[docker][executeCommand] Added ${payload.length} bytes to stdout`)
+                                // console.log(`[docker][executeCommand] Current stdout length: ${stdout.length}`)
+                            } else if (streamType === 2) {
+                                // stderr
+                                const payloadText = payload.toString('utf8')
+                                stderr += payloadText
+                                // console.log(`[docker][executeCommand] Added ${payload.length} bytes to stderr`)
+                                // console.log(`[docker][executeCommand] Current stderr length: ${stderr.length}`)
+                            } else {
+                                // console.log(`[docker][executeCommand] Unknown stream type: ${streamType}, skipping`)
+                            }
+
+                            offset += 8 + payloadLength
+                        }
+
+                        // Remove processed data from buffer
+                        if (offset > 0) {
+                            buffer = buffer.slice(offset)
+                            // console.log(
+                            //     `[docker][executeCommand] Removed ${offset} bytes from buffer, remaining: ${buffer.length}`
+                            // )
+                        }
+                    } else {
+                        const bufferText = buffer.toString('utf8')
+                        stdout += bufferText
+                        // console.log(`[docker][executeCommand] Added ${buffer.length} bytes to stdout as raw data`)
+                        // console.log(`[docker][executeCommand] Raw data preview: ${bufferText.substring(0, 100)}...`)
+                        buffer = Buffer.alloc(0) // Clear buffer
+                    }
                 })
 
                 stream.on('end', () => {
-                    resolve(output.trim())
+                    // console.log(
+                    //     `[docker][executeCommand] Stream ended. stdout length: ${stdout.length}, stderr length: ${stderr.length}`
+                    // )
+                    if (stderr.trim()) {
+                        console.warn(`[docker] stderr: ${stderr.trim()}`)
+                    }
+                    resolve(stdout)
                 })
 
                 stream.on('error', (error) => {
+                    console.error(`[docker][executeCommand] Stream error:`, error)
                     reject(new Error(`Failed to execute command: ${error.message}`))
                 })
             })
@@ -211,79 +272,57 @@ export class DockerServiceImplementation implements IDockerService {
     }
 
     /**
-     * Read a file from a container in chunks to handle large files
+     * Read a file from a container, optimized for JSONL format
      * @param containerId The ID of the container
      * @param filePath The path of the file to read
      * @returns The content of the file
      */
     async readFileFromContainer(containerId: string, filePath: string): Promise<string> {
+        console.log(`[docker][readFile][info] PATH: ${filePath}`)
         try {
-            // Check if file exists
+            // Check if file exists and get its size
+            let fileSize = 0
             try {
                 await this.executeCommand(containerId, ['test', '-f', filePath])
+                fileSize = await this.getFileSize(containerId, filePath)
+                console.log(`[docker][readFile][info] SIZE: ${fileSize} bytes`)
             } catch (error) {
-                console.error(`File ${filePath} does not exist in container ${containerId}`)
+                console.error(
+                    `[docker][readFile][error] File ${filePath} does not exist or cannot be accessed in container ${containerId}`
+                )
+
+                // Debug: List files in the directory to see what's actually there
+                try {
+                    const parentDir = filePath.substring(0, filePath.lastIndexOf('/'))
+                    const files = await this.executeCommand(containerId, ['ls', '-la', parentDir])
+                    console.log(`[docker][readFile][debug] Files in ${parentDir}:`, files)
+                } catch (debugError) {
+                    console.warn(`[docker][readFile][debug] Could not list directory contents:`, debugError.message)
+                }
+
                 throw new Error(`File ${filePath} does not exist in container`)
             }
 
-            // Try to get file size using stat
-            let fileSize: number
+            // For JSONL files, we can use cat directly since each line is a complete JSON object
+            // This is more efficient than chunking and avoids splitting JSON lines
             try {
-                const fileSizeStr = await this.executeCommand(containerId, ['stat', '--format=%s', filePath])
-                fileSize = parseInt(fileSizeStr, 10)
-
-                if (isNaN(fileSize)) {
-                    console.warn(`Could not parse file size for ${filePath}, falling back to cat`)
-                    return await this.executeCommand(containerId, ['cat', filePath])
-                }
-
-                console.log(`File size of ${filePath}: ${fileSize} bytes`)
-            } catch (error) {
-                console.warn(
-                    `Could not determine file size for ${filePath} using stat, falling back to cat: ${error.message}`
-                )
-                return await this.executeCommand(containerId, ['cat', filePath])
-            }
-
-            // If file is small enough, use cat directly
-            if (fileSize < 1024 * 1024) {
-                // Less than 1MB
-                return await this.executeCommand(containerId, ['cat', filePath])
-            }
-
-            // For larger files, try to read in chunks
-            try {
-                const CHUNK_SIZE = 500000 // 500KB chunks
-                let content = ''
-                let bytesRead = 0
-
-                while (bytesRead < fileSize) {
-                    const remainingBytes = fileSize - bytesRead
-                    const bytesToRead = Math.min(remainingBytes, CHUNK_SIZE)
-
-                    // Use dd to read a chunk of the file
-                    const chunkContent = await this.executeCommand(containerId, [
-                        'dd',
-                        `if=${filePath}`,
-                        'bs=1',
-                        `skip=${bytesRead}`,
-                        `count=${bytesToRead}`,
-                        'status=none',
-                    ])
-
-                    content += chunkContent
-                    bytesRead += bytesToRead
-
-                    console.log(`Read ${bytesRead} of ${fileSize} bytes from ${filePath}`)
+                // console.log(`[docker][readFile][debug] Using simple cat to read file ${filePath}`)
+                const content = await this.executeCommand(containerId, ['cat', filePath])
+                // Check if content is valid JSON
+                if (content.length === 0 || !content.startsWith('{')) {
+                    console.log(`[docker][readFile][debug] Content appears truncated or invalid`)
+                    console.log(
+                        `[docker][readFile][debug] File size reported: ${fileSize} bytes, but read: ${content.length} characters`
+                    )
                 }
 
                 return content
             } catch (error) {
-                console.warn(`Failed to read file in chunks, falling back to cat: ${error.message}`)
-                return await this.executeCommand(containerId, ['cat', filePath])
+                console.error(`[docker][readFile][error] Failed to read file ${filePath}:`, error)
+                throw new Error(`Failed to read file from container: ${error.message}`)
             }
         } catch (error) {
-            console.error(`Failed to read file ${filePath} from container:`, error)
+            console.error(`[docker][readFile][error] Failed to read file ${filePath} from container:`, error)
             throw new Error(`Failed to read file from container: ${error.message}`)
         }
     }
@@ -316,6 +355,54 @@ export class DockerServiceImplementation implements IDockerService {
         pack.entry({ name: fileName }, fs.readFileSync(localPath))
         pack.finalize()
         await container.putArchive(pack, { path: require('path').dirname(containerPath) })
+    }
+
+    private async getFileSize(containerId: string, filePath: string): Promise<number> {
+        // Try stat first (your existing method)
+        try {
+            const fileSizeStr = await this.executeCommand(containerId, ['stat', '--format=%s', filePath])
+            const fileSize = parseInt(fileSizeStr, 10)
+            if (!isNaN(fileSize)) return fileSize
+        } catch (e) {
+            console.warn(`stat command failed for ${filePath}: ${e.message}`)
+        }
+
+        // Try wc next
+        try {
+            const fileSizeStr = await this.executeCommand(containerId, [
+                'bash',
+                '-c',
+                `wc -c < "${filePath}" | tr -d ' '`,
+            ])
+            const fileSize = parseInt(fileSizeStr, 10)
+            if (!isNaN(fileSize)) return fileSize
+        } catch (e) {
+            console.warn(`wc command failed for ${filePath}: ${e.message}`)
+        }
+
+        // Try du as another alternative
+        try {
+            const fileSizeStr = await this.executeCommand(containerId, ['bash', '-c', `du -b "${filePath}" | cut -f1`])
+            const fileSize = parseInt(fileSizeStr, 10)
+            if (!isNaN(fileSize)) return fileSize
+        } catch (e) {
+            console.warn(`du command failed for ${filePath}: ${e.message}`)
+        }
+
+        // Last resort: use ls
+        try {
+            const lsOutput = await this.executeCommand(containerId, ['ls', '-l', filePath])
+            const parts = lsOutput.trim().split(/\s+/)
+            if (parts.length >= 5) {
+                const fileSize = parseInt(parts[4], 10)
+                if (!isNaN(fileSize)) return fileSize
+            }
+        } catch (e) {
+            console.warn(`ls command failed for ${filePath}: ${e.message}`)
+        }
+
+        // If all methods fail, throw an error
+        throw new Error(`Failed to determine file size for ${filePath} using any method`)
     }
 }
 

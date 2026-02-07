@@ -134,7 +134,7 @@ export default function LoadPreviousAnalysis() {
             </section>
             <section className='grid [grid-template-columns:repeat(auto-fill,minmax(350px,1fr))] gap-2'>
                 {sortedAnalyses.map((analysis) => (
-                    <AnalysisCard key={analysis._id} analysis={analysis} />
+                    <AnalysisCard key={analysis._id} analysis={analysis} onDelete={() => AnalysisResource.get()} />
                 ))}
             </section>
             {AnalysisResource.isLoading && <Loading mode='block' text='Loading analyses...' />}

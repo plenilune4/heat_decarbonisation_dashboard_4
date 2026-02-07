@@ -1,14 +1,14 @@
-import { CheckIcon, TrashIcon } from '@heroicons/react/20/solid'
-import React, { DetailedHTMLProps, TextareaHTMLAttributes, useRef, useState } from 'react'
+import { DetailedHTMLProps, TextareaHTMLAttributes, useRef, useState } from 'react'
 import { useFormValidation, useInputLabel, useInputValue } from '@/form-control'
 
 import { cn } from '@/utils/cn'
 
-import Button from '@/components/Button'
-
 import { FieldProps } from './BaseField'
 
-type CSVFileFieldProps<FormValuesType> = Omit<FieldProps<string, FormValuesType>, 'rest'> &
+type CSVFileFieldProps<FormValuesType> = Omit<
+    FieldProps<{ csv: string; csvFilename: string }, FormValuesType>,
+    'rest'
+> &
     Omit<DetailedHTMLProps<TextareaHTMLAttributes<HTMLTextAreaElement>, HTMLTextAreaElement>, 'value' | 'onChange'>
 
 export default function CSVFileField<FormValuesType = any>({
@@ -34,7 +34,7 @@ export default function CSVFileField<FormValuesType = any>({
     const { isValid, ValidationPrompt } = useFormValidation(formValues ?? {}, inputValue, field, formOptions)
 
     const inputRef = useRef<HTMLInputElement>(null)
-    const [hasUploaded, setHasUploaded] = useState(false)
+    const [hasUploaded, setHasUploaded] = useState(inputValue?.csvFilename ? true : false)
 
     return (
         <div className={cn('field-container', containerClass)}>
@@ -47,7 +47,7 @@ export default function CSVFileField<FormValuesType = any>({
                 className={cn(
                     'flex gap-3 items-center field-input',
                     inputClass,
-                    isValid ? '' : 'ring-amber-600 focus-within:ring-amber-600'
+                    isValid ? '':'ring-amber-600 focus-within:ring-amber-600'
                 )}
             >
                 {/* Hidden native file input */}
@@ -64,7 +64,7 @@ export default function CSVFileField<FormValuesType = any>({
                                 let text = e.target?.result as string
                                 // Normalize all line endings to \n
                                 text = text.replace(/\r\n|\r/g, '\n')
-                                handleChange(text)
+                                handleChange({ csv: text, csvFilename: file.name })
                                 setHasUploaded(true)
                                 if (inputRef.current) inputRef.current.value = ''
                             }
@@ -85,7 +85,7 @@ export default function CSVFileField<FormValuesType = any>({
                 </button>
                 {/* Custom status text */}
                 <span className={hasUploaded ? 'text-sm text-green-600' : 'text-sm text-gray-400'}>
-                    {hasUploaded ? 'File uploaded' : 'No file uploaded'}
+                    {hasUploaded ? `File uploaded: ${inputValue?.csvFilename}` : 'No file uploaded'}
                 </span>
             </div>
             <ValidationPrompt />

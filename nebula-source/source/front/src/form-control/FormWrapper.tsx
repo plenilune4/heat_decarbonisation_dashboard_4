@@ -1,5 +1,5 @@
 import { CheckIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
-import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 import { api, api_no_auth, ApiResponse } from '@/services/api.service'
@@ -8,7 +8,7 @@ import { InputLabelCase, RecursiveKeyOf } from '@/utils/scary-utils'
 
 import Button, { ButtonStyleSuccess, ButtonStyleWarning } from '@/components/Button'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import Loading from '@/components/Loading'
+import Loading, { LoadingProps } from '@/components/Loading'
 
 import { ValidationRule } from './form-validation'
 
@@ -96,7 +96,7 @@ type FormWrapperProps<FormValuesType> = {
         formValues?: DeepPartial<FormValuesType>
         setFormValues?: React.Dispatch<React.SetStateAction<DeepPartial<FormValuesType>>>
         formOptions?: FormWrapperInputOptions
-    }) => Promise<void>
+    }) => void
     //
     // pass in some error messages for particular error codes
     // hierarchy of message displayed is:
@@ -169,9 +169,13 @@ type FormWrapperProps<FormValuesType> = {
                   formValues: DeepPartial<FormValuesType>
                   setFormValues: React.Dispatch<React.SetStateAction<DeepPartial<FormValuesType>>>
                   formOptions?: FormWrapperInputOptions<FormValuesType>
-                  submit: () => Promise<void>
+                  submit: (values?: DeepPartial<FormValuesType>) => Promise<void>
                   submissionStatus: FormSubmissionStatus
                   error: string | null
+                  checkValidation: (formValues: DeepPartial<FormValuesType>) => {
+                      isValid: boolean
+                      errors: ValidationRule[]
+                  }
               }
           ) => React.ReactNode
       }
@@ -190,9 +194,13 @@ type FormWrapperProps<FormValuesType> = {
                   formValues: DeepPartial<FormValuesType>
                   setFormValues: React.Dispatch<React.SetStateAction<DeepPartial<FormValuesType>>>
                   formOptions?: FormWrapperInputOptions<FormValuesType>
-                  submit: () => Promise<void>
+                  submit: (values?: DeepPartial<FormValuesType>) => Promise<void>
                   submissionStatus: FormSubmissionStatus
                   error: string | null
+                  checkValidation: (formValues: DeepPartial<FormValuesType>) => {
+                      isValid: boolean
+                      errors: ValidationRule[]
+                  }
               }
           ) => React.ReactNode[]
       }
@@ -307,14 +315,12 @@ export default function FormWrapper<FormValuesType>({
 
     // Handles validation and submission state, allows for custom onSubmit
     // async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    async function handleSubmit(e?: React.SyntheticEvent<Element, Event>) {
+    async function handleSubmit(values?: DeepPartial<FormValuesType>) {
         if (formOptions?.logging?.wrapperFunctions) {
-            console.log('[ Form ] handleSubmit()', { event: e })
+            console.log('[ Form ] handleSubmit()', { values })
         }
 
-        if (e) e.preventDefault()
-
-        let { isValid } = checkValidation(formValues)
+        let { isValid } = checkValidation(values ?? formValues)
         if (!isValid) {
             setSubmissionStatus('invalid')
             setError('Please check for errors')
@@ -325,57 +331,72 @@ export default function FormWrapper<FormValuesType>({
         }
 
         setSubmissionStatus('pending')
-
-        const makeRequest = onSubmit ?? api_function
-        const _endpoint = includeIdInPost && id ? `${endpoint}/${id}` : (endpoint ?? '')
-
-        try {
-            let res: ApiResponse<unknown>
-            if (onSubmit) {
-                res = await onSubmit({ ...formValues, ...insertIntoPostBody }, e)
-            } else {
-                res = await makeRequest<unknown>(
+        if (onSubmit) {
+            await onSubmit(values ?? formValues)
+                .then((res) => {
+                    setSubmissionStatus('success')
+                    if (callbackAfterSubmit) {
+                        callbackAfterSubmit({
+                            postResponse: res,
+                            formValues,
+                            setFormValues,
+                            formOptions,
+                        })
+                    }
+                })
+                .catch((err) => {
+                    setSubmissionStatus('fail')
+                    if (typeof err === 'string') {
+                        setError(err)
+                    } else if (typeof err === 'object') {
+                        const { status, error } = err
+                        if (status && errorMessages && errorMessages[status]) {
+                            setError(errorMessages[status])
+                        } else if (error) {
+                            setError(error)
+                        } else {
+                            setError('Something went wrong...')
+                        }
+                    }
+                })
+        } else {
+            let _endpoint = includeIdInPost && id ? `${endpoint}/${id}` : (endpoint ?? '')
+            try {
+                const res = await api_function<FormValuesType>(
                     _endpoint,
                     { ...formValues, ...insertIntoPostBody },
                     formOptions?.logging?.requests
                 )
-            }
-
-            if (res?.error) {
-                throw {
-                    status: res.status,
-                    error: res.error,
+                if (res?.error) {
+                    throw {
+                        status: res.status,
+                        error: res.error,
+                    }
+                }
+                setSubmissionStatus('success')
+                if (callbackAfterSubmit) {
+                    callbackAfterSubmit({
+                        postResponse: res,
+                        formValues,
+                        setFormValues,
+                        formOptions,
+                    })
+                }
+            } catch (err) {
+                setSubmissionStatus('fail')
+                if (typeof err === 'string') {
+                    setError(err)
+                } else if (typeof err === 'object') {
+                    const { status, error } = err
+                    if (status && errorMessages && errorMessages[status]) {
+                        setError(errorMessages[status])
+                    } else if (error) {
+                        setError(error)
+                    } else {
+                        setError('Something went wrong...')
+                    }
                 }
             }
-
-            if (callbackAfterSubmit) {
-                await callbackAfterSubmit({
-                    postResponse: res,
-                    formValues,
-                    setFormValues,
-                    formOptions,
-                })
-            }
-
-            setSubmissionStatus('success')
-        } catch (err) {
-            setSubmissionStatus('fail')
-            if (typeof err === 'string') {
-                setError(err)
-                return
-            }
-            if (typeof err === 'object') {
-                const { status, error } = err
-                if (status && errorMessages && errorMessages[status]) {
-                    setError(errorMessages[status])
-                    return
-                }
-                if (typeof error === 'string') {
-                    setError(error)
-                    return
-                }
-            }
-            setError('Something went wrong...')
         }
     }
 
@@ -413,7 +434,7 @@ export default function FormWrapper<FormValuesType>({
             return { isValid: true, errors: [] }
         }
 
-        let errors = []
+        let errors: ValidationRule[] = []
         for (const rule of validationRules) {
             if (rule.isValid(values[rule.field], formValues) === false) {
                 errors.push(rule)
@@ -475,6 +496,7 @@ export default function FormWrapper<FormValuesType>({
     return (
         <form
             onSubmit={async (e) => {
+                e.preventDefault()
                 if (
                     multipart &&
                     formPart + 1 <
@@ -482,22 +504,23 @@ export default function FormWrapper<FormValuesType>({
                             formValues,
                             setFormValues,
                             formOptions,
+                            submit: (values?: DeepPartial<FormValuesType>) => handleSubmit(values),
                             submissionStatus,
                             error,
-                            submit: () => handleSubmit(),
+                            checkValidation,
                         }).length
                 ) {
                     e.preventDefault()
                     setFormPart((p) => p + 1)
                 } else {
-                    await handleSubmit(e)
+                    await handleSubmit()
                 }
             }}
             className={cn(
                 displayAs === 'standalone-card' && 'form-standalone',
                 displayAs === 'inline-card' && 'form-inline',
-                className,
-                submitButtonAlignment?.startsWith('top') && 'flex flex-col-reverse'
+                submitButtonAlignment?.startsWith('top') && 'flex flex-col-reverse',
+                className
             )}
         >
             <ErrorBoundary componentName='FormWrapper children'>
@@ -507,9 +530,10 @@ export default function FormWrapper<FormValuesType>({
                             formValues,
                             setFormValues,
                             formOptions,
+                            submit: (values?: DeepPartial<FormValuesType>) => handleSubmit(values),
                             submissionStatus,
                             error,
-                            submit: () => handleSubmit(),
+                            checkValidation,
                         }).map((part, index, arr) => {
                             if (index !== formPart) {
                                 return <Fragment key={index} />
@@ -560,9 +584,10 @@ export default function FormWrapper<FormValuesType>({
                             formValues,
                             setFormValues,
                             formOptions,
+                            submit: (values?: DeepPartial<FormValuesType>) => handleSubmit(values),
                             submissionStatus,
                             error,
-                            submit: () => handleSubmit(),
+                            checkValidation,
                         })}
                         {!hideSubmitButton && (
                             <SubmissionRow
@@ -584,7 +609,7 @@ export default function FormWrapper<FormValuesType>({
 /*
     Submit button with submission status and error communication
 */
-function SubmissionRow({
+export function SubmissionRow({
     submitButtonAlignment,
     submitButtonText,
     submitButtonClass,
@@ -729,4 +754,117 @@ function SubmissionRow({
             </div>
         </div>
     )
+}
+
+/*
+    Debounced submission component
+
+    Add to a form with the required props and this will handle the submission and loading state
+*/
+export function DebouncedSubmission<FormValuesType>({
+    formValues,
+    submit,
+    loadingProps = undefined,
+    debounceTime = 500,
+    children = undefined,
+}: {
+    formValues: DeepPartial<FormValuesType>
+    submit: () => Promise<void>
+    loadingProps?: LoadingProps
+    debounceTime?: number
+    children?: ({ isSubmitting }: { isSubmitting: boolean }) => React.ReactNode
+}) {
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const debouncedSubmit = () => {
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current)
+        }
+
+        timeoutRef.current = setTimeout(() => {
+            submit().finally(() => {
+                timeoutRef.current = null
+                setIsSubmitting(false)
+            })
+        }, debounceTime)
+    }
+
+    useEffect(() => {
+        if (formValues && Object.keys(formValues).length > 0) {
+            setIsSubmitting(true)
+            debouncedSubmit()
+        }
+
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current)
+            }
+        }
+    }, [formValues])
+
+    if (children) {
+        return children({ isSubmitting })
+    }
+
+    return <Loading isLoading={isSubmitting} text='Saving...' textPosition='left' {...loadingProps} />
+}
+
+/*
+    Display validation status of a form
+
+    If the form is valid, the validComponent will be displayed
+    If the form is invalid, the invalidComponent will be displayed
+    If the form is invalid and no invalidComponent is provided, the defaultMessage will be displayed
+*/
+export function FormValidationStatus<FormValuesType>({
+    formValues,
+    formOptions,
+    checkValidation,
+    className,
+    defaultMessage = 'Please check your submission and try again',
+    children = undefined,
+}: {
+    formValues: DeepPartial<FormValuesType>
+    formOptions?: FormWrapperInputOptions<FormValuesType>
+    checkValidation: (formValues: DeepPartial<FormValuesType>) => {
+        isValid: boolean
+        errors: ValidationRule[]
+    }
+    className?: string
+    defaultMessage?: string
+    children?: ({
+        isValid,
+        failingRules,
+        showingErrors,
+    }: {
+        isValid: boolean
+        failingRules: ValidationRule[]
+        showingErrors: boolean
+    }) => React.ReactNode
+}) {
+    const { isValid, errors } = checkValidation(formValues)
+    const showingErrors = useMemo(
+        () => formOptions?.validationMode === 'on-input' || formOptions?.showValidationErrors,
+        [formOptions]
+    )
+
+    if (children) {
+        return children({ isValid, failingRules: errors, showingErrors })
+    }
+
+    if (isValid) {
+        return null
+    }
+
+    if (showingErrors) {
+        return (
+            <div className={cn('flex gap-2 items-center', className)}>
+                <ExclamationCircleIcon className='w-6 h-6 text-amber-500' />
+                <p className='text-base text-amber-500'>{errors[0]?.prompt ?? defaultMessage}</p>
+            </div>
+        )
+    }
+
+    return null
 }

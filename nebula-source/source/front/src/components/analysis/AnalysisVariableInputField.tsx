@@ -1,5 +1,8 @@
+import { CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useMemo } from 'react'
+import { toast } from 'react-toastify'
 import { ArrayFieldWrapper } from '@/form-control'
-import { DateField, NumberField, SelectField, SliderField, TextAreaField } from '@/form-control/fields'
+import { DateField, NumberField, SelectField, SliderField } from '@/form-control/fields'
 import CSVFileField from '@/form-control/fields/CSVFileField'
 
 import { AnalysisInput } from '@/MODELS/analysis.model'
@@ -649,7 +652,7 @@ function ScalarDiscreetSpecificValueField({
 }) {
     return (
         <SelectField
-            label='Discreet Value'
+            label='Discrete Value'
             value={inputValue?.value}
             onChange={(next) => setInputValue({ ...inputValue, value: next })}
             required={required}
@@ -674,6 +677,8 @@ function ScalarDiscreetListField({
         setInputValue({ ...inputValue, values: nextValues.values })
     }
 
+    console.log('ScalarDiscreetListField', { inputValue })
+
     return (
         <ArrayFieldWrapper<string, { values: string[] }>
             field='values'
@@ -690,21 +695,21 @@ function ScalarDiscreetListField({
                 return <Button.Outline onClick={() => addItem('')}>Add Value</Button.Outline>
             }}
         >
-            {(x, { itemValues, setItemValues, deleteItem, itemIndex }) => (
-                <div className='flex flex-row gap-2'>
-                    <SelectField
-                        label={'Discreet Value ' + (itemIndex + 1)}
-                        value={itemValues}
-                        onChange={(next) => setItemValues(next)}
-                        required={required}
-                        options={inputValue?.options
-                            .filter((option) => !inputValue.values.includes(option))
-                            .map((option) => ({ text: option, value: option }))}
-                        inputClass='w-[20ch]'
-                    />
-                    <Button.Trash onClick={() => deleteItem()} />
-                </div>
-            )}
+            {(x, { itemValues, setItemValues, deleteItem, itemIndex }) => {
+                return (
+                    <div className='flex flex-row gap-2'>
+                        <SelectField
+                            label={'Discrete Value ' + (itemIndex + 1)}
+                            value={itemValues}
+                            onChange={(next) => setItemValues(next)}
+                            required={required}
+                            options={(inputValue?.options ?? []).map((option) => ({ text: option, value: option }))}
+                            inputClass='w-[20ch]'
+                        />
+                        <Button.Trash onClick={() => deleteItem()} />
+                    </div>
+                )
+            }}
         </ArrayFieldWrapper>
     )
 }
@@ -727,23 +732,53 @@ function TimeSeriesContinuousGeometricRandomWalkField({
 }) {
     return (
         <div className='flex flex-col gap-2'>
-            <NumberField
-                label='Annual Drift'
-                value={inputValue?.annualDrift}
-                onChange={(next) => setInputValue({ ...inputValue, annualDrift: next })}
-                required={required}
-            />
-            <NumberField
-                label='Annual Volatility'
-                value={inputValue?.annualVolatility}
-                onChange={(next) => setInputValue({ ...inputValue, annualVolatility: next })}
-                required={required}
-            />
+            <div>
+                <NumberField
+                    label='Annual Drift'
+                    value={inputValue?.annualDrift}
+                    onChange={(next) => {
+                        if (next < 0) {
+                            toast.error('Annual drift must be non-negative')
+                        } else {
+                            setInputValue({ ...inputValue, annualDrift: next })
+                        }
+                    }}
+                    required={required}
+                />
+                <p className='text-sm italic text-gray-500'>
+                    Annualised growth or drift rate (e.g. 0.05 for 5% annual drift).
+                </p>
+            </div>
+            <div>
+                <NumberField
+                    label='Annual Volatility'
+                    value={inputValue?.annualVolatility}
+                    onChange={(next) => {
+                        if (next < 0) {
+                            toast.error('Annual volatility must be non-negative')
+                        } else {
+                            setInputValue({ ...inputValue, annualVolatility: next })
+                        }
+                    }}
+                    required={required}
+                    min={0}
+                />
+                <p className='text-sm italic text-gray-500'>
+                    Annualised volatility (e.g. 0.2 for 20% annual volatility).
+                </p>
+            </div>
             <NumberField
                 label='Initial Value'
                 value={inputValue?.initialValue}
-                onChange={(next) => setInputValue({ ...inputValue, initialValue: next })}
+                onChange={(next) => {
+                    if (next <= 0) {
+                        toast.error('Initial value must be positive')
+                    } else {
+                        setInputValue({ ...inputValue, initialValue: next })
+                    }
+                }}
                 required={required}
+                min={1}
             />
             <DateField
                 label='Start Time'
@@ -827,17 +862,51 @@ function TimeSeriesFromCsvField({
         <div className='flex flex-col gap-2'>
             <CSVFileField
                 label='CSV File'
-                value={inputValue?.csv}
-                onChange={(next) => setInputValue({ ...inputValue, csv: next })}
+                value={{
+                    csv: inputValue?.csv?.trim(),
+                    csvFilename: inputValue?.csvFilename,
+                }}
+                onChange={(next) => {
+                    setInputValue({ ...inputValue, csv: next.csv.trim(), csvFilename: next.csvFilename })
+                }}
                 required={required}
             />
-            <p>Your CSV should contain the following data columns: {inputValue?.csvColumns?.join(', ')}</p>
-            {/* <TextAreaField
-                label='CSV'
-                value={inputValue?.csv}
-                onChange={(next) => setInputValue({ ...inputValue, csv: next })}
-                required={required}
-            /> */}
+            <ul className='list-disc list-inside text-gray-400'>
+                <li>Column 0 should always be the date column</li>
+                <li>Each value column will be evaluated as a separate input</li>
+                <li>{inputValue?.csvColumns}</li>
+            </ul>
         </div>
     )
+}
+
+function CsvColumnCheck({ csv, required }: { csv: string; required: string[] }) {
+    const uploadedColumns = useMemo(() => {
+        return Array.from(csv?.trim().split('\n')[0].split(',') ?? [])
+    }, [csv])
+
+    if (csv) {
+        return (
+            <div>
+                <h4 className='text-lg font-semibold'>Required Columns</h4>
+                {required.map((col) => {
+                    const isUploaded = uploadedColumns.includes(col)
+                    const numberOfColumns = uploadedColumns.filter((c) => c === col).length
+                    return (
+                        <div key={col} className='flex flex-row gap-2 items-center'>
+                            {isUploaded ? (
+                                <CheckIcon className='w-4 h-4 text-green-500' />
+                            ) : (
+                                <XMarkIcon className='w-4 h-4 text-red-500' />
+                            )}
+                            {col}
+                            {numberOfColumns > 1 && <span className='text-base'>x {numberOfColumns}</span>}
+                        </div>
+                    )
+                })}
+            </div>
+        )
+    }
+
+    return <p>Your CSV should contain the following data columns: {required.join(', ')}</p>
 }

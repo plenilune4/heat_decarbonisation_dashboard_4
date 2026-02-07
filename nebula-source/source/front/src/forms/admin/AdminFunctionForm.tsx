@@ -1,325 +1,384 @@
-import { ChevronDownIcon, ChevronUpIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
-import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router'
+import { ChevronDownIcon, ExclamationCircleIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
+import { useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 import { toast } from 'react-toastify'
 import { ArrayFieldWrapper, FormWrapper, ValidationPrompt } from '@/form-control'
-import {
-    CheckboxField,
-    SelectField,
-    SelectManyField,
-    SliderField,
-    TextAreaField,
-    TextField,
-} from '@/form-control/fields'
+import { CheckboxField, SelectField, SliderField, TextAreaField, TextField } from '@/form-control/fields'
 import CommaSeparatedListInput from '@/form-control/fields/CommaSeparatedListInput'
-import { DeepPartial } from '@/form-control/FormWrapper'
+import { DeepPartial, FormValidationStatus } from '@/form-control/FormWrapper'
 import ROUTES from '@/ROUTES'
 
 import { IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
 
+import { api } from '@/services/api.service'
 import { cn } from '@/utils/cn'
 
 import AnalysisVariableInputField from '@/components/analysis/AnalysisVariableInputField'
 import SelectVariationMethodField from '@/components/analysis/SelectVariationMethodField'
 import Button from '@/components/Button'
-import ErrorBoundary from '@/components/ErrorBoundary'
 import FrameworkBadge from '@/components/FrameworkBadge'
 import PythonEditor from '@/components/PythonEditor'
-import PythonViewer from '@/components/PythonViewer'
 
 export default function AdminFunctionForm(props: { id?: string }) {
     const params = useParams()
     const id = props?.id ?? params?.id ?? 'new'
+    const navigate = useNavigate()
 
     return (
-        <ErrorBoundary componentName='X'>
-            <div className='flex flex-col gap-5 py-10'>
-                <header className='flex flex-row gap-5 items-center'>
-                    <Button.BackArrow />
-                    <div>
-                        <h2 className='text-xl text-gray-400'>Function Management</h2>
-                        <h1 className='text-4xl font-semibold text-gray-100'>
-                            {id === 'new' ? 'Create a' : 'Edit'} Function
-                        </h1>
-                    </div>
-                </header>
-
-                <FormWrapper<IEvaluationFunction>
-                    endpoint={ROUTES.admin.evaluationFunction}
-                    id={id}
-                    defaultValues={{
-                        script: '',
-                    }}
-                    className='flex flex-col gap-10 p-10 rounded-2xl bg-gray-700/30'
-                    callbackAfterSubmit={async () => {
-                        toast.success('Function saved')
-                    }}
-                    redirectAfterSubmit
-                    validationRules={[
-                        {
-                            field: 'script',
-                            isValid: (script) => {
-                                if (!script) return false
-                                return true
-                            },
-                            prompt: 'Please enter a Python script',
-                        },
-                        {
-                            field: 'inputs',
-                            isValid: (inputs, formValues) => {
-                                const references = [
-                                    ...(formValues?.inputs?.map((input) => input.reference) ?? []),
-                                    ...(formValues?.outputs?.map((output) => output.reference) ?? []),
-                                ]
-                                const uniqueReferences = new Set(references)
-                                return references.length === uniqueReferences.size
-                            },
-                            prompt: 'All variable references must be unique.',
-                        },
-                        {
-                            field: 'outputs',
-                            isValid: (outputs, formValues) => {
-                                const references = [
-                                    ...(formValues?.inputs?.map((input) => input.reference) ?? []),
-                                    ...(formValues?.outputs?.map((output) => output.reference) ?? []),
-                                ]
-                                const uniqueReferences = new Set(references)
-                                return references.length === uniqueReferences.size
-                            },
-                            prompt: 'All variable references must be unique.',
-                        },
-                    ]}
-                >
-                    {(f, { formValues, setFormValues, formOptions }) => (
-                        <>
-                            {/* Function Description */}
-                            <section className='flex flex-col gap-3'>
-                                <h3 className='text-3xl font-semibold'>Function Description</h3>
-                                <div className='grid gap-x-5 md:grid-cols-2'>
-                                    <TextField {...f('name')} label='Function Name' required />
-                                    <CheckboxField
-                                        {...f('isAvailable')}
-                                        label='Available to users'
-                                        display='inline-reverse'
-                                        labelClass='text-gray-100 text-xl text-end'
-                                        containerClass='w-fit mx-auto mt-auto h-10 mb-2 flex flex-row items-center'
-                                        inputClass='w-8 h-8'
-                                    />
-                                    <TextAreaField
-                                        {...f('description')}
-                                        label='Description'
-                                        containerClass='md:col-span-2'
-                                        rows={5}
-                                        placeholder='Describe the function in detail...'
-                                    />
-                                </div>
-                            </section>
-                            <hr className='border-gray-600' />
-                            {/* Required Packages */}
-                            <section className='flex flex-col gap-3'>
-                                <h3 className='text-2xl font-semibold'>Required Packages</h3>
-                                <ArrayFieldWrapper<{ name: string; alias?: string; version?: string }>
-                                    {...f('requiredPackages')}
-                                    listClass='flex flex-col'
-                                    itemClass='rounded-xl flex flex-row items-center gap-2'
-                                    customAddButtonText='Add Package'
-                                    defaultNewItemValue={{ name: '' }}
+        <FormWrapper<IEvaluationFunction>
+            endpoint={ROUTES.admin.evaluationFunction}
+            id={id}
+            defaultValues={{
+                script: '',
+            }}
+            className='flex flex-col gap-5 py-10'
+            callbackAfterSubmit={async () => {
+                toast.success('Function saved')
+            }}
+            validationRules={[
+                {
+                    field: 'script',
+                    isValid: (script) => {
+                        if (!script) return false
+                        return true
+                    },
+                    prompt: 'Please enter a Python script',
+                },
+                {
+                    field: 'inputs',
+                    isValid: (inputs, formValues) => {
+                        const references = [
+                            ...(formValues?.inputs?.map((input) => input.reference) ?? []),
+                            ...(formValues?.outputs?.map((output) => output.reference) ?? []),
+                        ]
+                        const uniqueReferences = new Set(references)
+                        return references.length === uniqueReferences.size
+                    },
+                    prompt: 'All variable references must be unique.',
+                },
+                {
+                    field: 'outputs',
+                    isValid: (outputs, formValues) => {
+                        const references = [
+                            ...(formValues?.inputs?.map((input) => input.reference) ?? []),
+                            ...(formValues?.outputs?.map((output) => output.reference) ?? []),
+                        ]
+                        const uniqueReferences = new Set(references)
+                        return references.length === uniqueReferences.size
+                    },
+                    prompt: 'All variable references must be unique.',
+                },
+            ]}
+            hideSubmitButton
+        >
+            {(f, { formValues, setFormValues, formOptions, submit, checkValidation }) => (
+                <>
+                    <header className='flex flex-row gap-5 items-center'>
+                        <Button.BackArrow to='/admin/functions' />
+                        <div>
+                            <h2 className='text-xl text-gray-400'>Function Management</h2>
+                            <h1 className='text-4xl font-semibold text-gray-100'>
+                                {id === 'new' ? 'Create a' : 'Edit'} Function
+                            </h1>
+                        </div>
+                        <div className='flex-1' />
+                        <div className='flex flex-row gap-2 justify-end items-center'>
+                            <FormValidationStatus
+                                formValues={formValues}
+                                formOptions={formOptions}
+                                checkValidation={checkValidation}
+                            >
+                                {({ isValid, failingRules, showingErrors }) =>
+                                    showingErrors &&
+                                    !isValid && (
+                                        <div className='flex gap-2 justify-end items-center'>
+                                            <p className='text-base text-amber-500'>
+                                                {failingRules[0]?.prompt ??
+                                                    'Please check your submission and try again'}
+                                            </p>
+                                            <ExclamationCircleIcon className='w-6 h-6 text-amber-500' />
+                                        </div>
+                                    )
+                                }
+                            </FormValidationStatus>
+                            <Button.Success onClick={() => submit()}>Save</Button.Success>
+                            <Button.Primary onClick={() => submit().then(() => navigate(-1))}>
+                                Save & Close
+                            </Button.Primary>
+                            {id !== 'new' && (
+                                <Button.Primary
+                                    onClickAsync={async () => {
+                                        const response = await api<{ created: IEvaluationFunction }>(
+                                            ROUTES.admin.evaluationFunction,
+                                            {
+                                                ...formValues,
+                                                _id: 'new',
+                                                name: `${formValues.name} Copy`,
+                                                createdAt: new Date(),
+                                                updatedAt: new Date(),
+                                            }
+                                        )
+                                        navigate(`/admin/functions/${response.data?.created._id}`)
+                                        toast.success('Function copied')
+                                    }}
                                 >
-                                    {(pkgFields, { itemValues, setItemValues, deleteItem }) => (
-                                        <>
-                                            <span className='mt-auto mb-2 leading-10 text-gray-300'>import</span>
-                                            <TextField
-                                                {...pkgFields('name')}
-                                                placeholder='eg. numpy, pandas, etc'
-                                                containerClass='min-w-[40ch]'
-                                                required
-                                                label='Package Name'
-                                            />
-                                            <span className='mt-auto mb-2 leading-10 text-gray-300'>as</span>
-                                            <TextField
-                                                {...pkgFields('alias')}
-                                                placeholder='eg. np, pd, etc'
-                                                label='Alias (optional)'
-                                            />
-                                            <div className='h-full border-r border-gray-500' />
-                                            <TextField
-                                                {...pkgFields('version')}
-                                                placeholder='eg. 1.2.3'
-                                                label='Version (optional)'
-                                            />
-                                            <Button.Trash onClick={() => deleteItem()} />
-                                        </>
+                                    Copy
+                                </Button.Primary>
+                            )}
+                        </div>
+                    </header>
+                    <div className='flex flex-col gap-10 p-10 rounded-2xl bg-gray-700/30'>
+                        {/* Function Description */}
+                        <section className='flex flex-col gap-3'>
+                            <h3 className='text-3xl font-semibold'>Function Description</h3>
+                            <div className='grid gap-x-5 md:grid-cols-2'>
+                                <TextField {...f('name')} label='Function Name' required />
+                                <CheckboxField
+                                    {...f('isAvailable')}
+                                    label='Available to users'
+                                    display='inline-reverse'
+                                    labelClass='text-gray-100 text-xl text-end'
+                                    containerClass='w-fit mx-auto mt-auto h-10 mb-2 flex flex-row items-center'
+                                    inputClass='w-8 h-8'
+                                />
+                                <TextAreaField
+                                    {...f('description')}
+                                    label='Description'
+                                    containerClass='md:col-span-2'
+                                    rows={5}
+                                    placeholder='Describe the function in detail...'
+                                />
+                            </div>
+                        </section>
+                        <hr className='border-gray-600' />
+                        {/* Required Packages */}
+                        <section className='flex flex-col gap-3'>
+                            <h3 className='text-2xl font-semibold'>Required Packages</h3>
+                            <ArrayFieldWrapper<{ name: string; alias?: string; version?: string }>
+                                {...f('requiredPackages')}
+                                listClass='flex flex-col'
+                                itemClass='rounded-xl flex flex-row items-center gap-2'
+                                customAddButtonText='Add Package'
+                                defaultNewItemValue={{ name: '' }}
+                            >
+                                {(pkgFields, { itemValues, setItemValues, deleteItem }) => (
+                                    <>
+                                        <span className='mt-auto mb-2 leading-10 text-gray-300'>import</span>
+                                        <TextField
+                                            {...pkgFields('name')}
+                                            placeholder='eg. numpy, pandas, etc'
+                                            containerClass='min-w-[40ch]'
+                                            required
+                                            label='Package Name'
+                                        />
+                                        <span className='mt-auto mb-2 leading-10 text-gray-300'>as</span>
+                                        <TextField
+                                            {...pkgFields('alias')}
+                                            placeholder='eg. np, pd, etc'
+                                            label='Alias (optional)'
+                                        />
+                                        <div className='h-full border-r border-gray-500' />
+                                        <TextField
+                                            {...pkgFields('version')}
+                                            placeholder='eg. 1.2.3'
+                                            label='Version (optional)'
+                                        />
+                                        <Button.Trash onClick={() => deleteItem()} />
+                                    </>
+                                )}
+                            </ArrayFieldWrapper>
+                        </section>
+                        <hr className='border-gray-600' />
+                        <div className='grid gap-10 lg:grid-cols-2'>
+                            {/* Input Configuration */}
+                            <section className='flex flex-col gap-5 p-5 bg-gray-800 rounded-xl border border-gray-700'>
+                                <header>
+                                    <h3 className='text-2xl font-semibold'>Input Configuration</h3>
+                                </header>
+                                <ArrayFieldWrapper<IEvaluationFunction['inputs'][number]>
+                                    {...f('inputs')}
+                                    listClass='flex flex-col gap-y-3'
+                                    customAddButton={(addItem) => (
+                                        <Button.Secondary
+                                            onClick={() => addItem({ inputType: 'exogenous' })}
+                                            className='mt-2'
+                                        >
+                                            <PlusIcon className='w-5 h-5' />
+                                            Add another input
+                                        </Button.Secondary>
+                                    )}
+                                >
+                                    {(itemFields, { itemIndex, deleteItem }) => (
+                                        <FunctionInputItem
+                                            itemFields={itemFields}
+                                            itemIndex={itemIndex}
+                                            deleteItem={deleteItem}
+                                            allReferences={
+                                                new Set([
+                                                    ...(formValues?.inputs
+                                                        ?.filter((d, i) => i !== itemIndex)
+                                                        ?.map((input) => input.reference) ?? []),
+                                                    ...(formValues?.outputs?.map((output) => output.reference) ?? []),
+                                                ])
+                                            }
+                                        />
                                     )}
                                 </ArrayFieldWrapper>
                             </section>
-                            <hr className='border-gray-600' />
-                            <div className='grid gap-10 lg:grid-cols-2'>
-                                {/* Input Configuration */}
-                                <section className='flex flex-col gap-5 p-5 bg-gray-800 rounded-xl border border-gray-700'>
-                                    <header>
-                                        <h3 className='text-2xl font-semibold'>Input Configuration</h3>
-                                    </header>
-                                    <ArrayFieldWrapper<IEvaluationFunction['inputs'][number]>
-                                        {...f('inputs')}
-                                        listClass='flex flex-col gap-y-3'
-                                        customAddButton={(addItem) => (
-                                            <Button.Secondary
-                                                onClick={() => addItem({ inputType: 'exogenous' })}
-                                                className='mt-2'
-                                            >
-                                                <PlusIcon className='w-5 h-5' />
-                                                Add another input
-                                            </Button.Secondary>
-                                        )}
-                                    >
-                                        {(itemFields, { itemIndex, deleteItem }) => (
-                                            <FunctionInputItem
-                                                itemFields={itemFields}
-                                                itemIndex={itemIndex}
-                                                deleteItem={deleteItem}
-                                                allReferences={
-                                                    new Set([
-                                                        ...(formValues?.inputs
-                                                            ?.filter((d, i) => i !== itemIndex)
-                                                            ?.map((input) => input.reference) ?? []),
-                                                        ...(formValues?.outputs?.map((output) => output.reference) ??
-                                                            []),
-                                                    ])
-                                                }
-                                            />
-                                        )}
-                                    </ArrayFieldWrapper>
-                                </section>
-                                {/* Output Configuration */}
-                                <section className='flex flex-col gap-5 p-5 bg-gray-800 rounded-xl border border-gray-700'>
-                                    <header>
-                                        <h3 className='text-2xl font-semibold'>Output Configuration</h3>
-                                    </header>
-                                    <ArrayFieldWrapper<IEvaluationFunction['outputs'][number]>
-                                        {...f('outputs')}
-                                        listClass='flex flex-col gap-y-3'
-                                        customAddButton={(addItem) => (
-                                            <Button.Secondary onClick={() => addItem()} className='mt-2'>
-                                                <PlusIcon className='w-5 h-5' />
-                                                Add another output
-                                            </Button.Secondary>
-                                        )}
-                                    >
-                                        {(itemFields, { itemIndex, deleteItem }) => (
-                                            <FunctionOutputItem
-                                                itemFields={itemFields}
-                                                itemIndex={itemIndex}
-                                                deleteItem={deleteItem}
-                                                allReferences={
-                                                    new Set([
-                                                        ...(formValues?.inputs?.map((input) => input.reference) ?? []),
-                                                        ...(formValues?.outputs
-                                                            ?.filter((d, i) => i !== itemIndex)
-                                                            ?.map((output) => output.reference) ?? []),
-                                                    ])
-                                                }
-                                            />
-                                        )}
-                                    </ArrayFieldWrapper>
-                                </section>
-                            </div>
+                            {/* Output Configuration */}
+                            <section className='flex flex-col gap-5 p-5 bg-gray-800 rounded-xl border border-gray-700'>
+                                <header>
+                                    <h3 className='text-2xl font-semibold'>Output Configuration</h3>
+                                </header>
+                                <ArrayFieldWrapper<IEvaluationFunction['outputs'][number]>
+                                    {...f('outputs')}
+                                    listClass='flex flex-col gap-y-3'
+                                    customAddButton={(addItem) => (
+                                        <Button.Secondary onClick={() => addItem()} className='mt-2'>
+                                            <PlusIcon className='w-5 h-5' />
+                                            Add another output
+                                        </Button.Secondary>
+                                    )}
+                                >
+                                    {(itemFields, { itemIndex, deleteItem }) => (
+                                        <FunctionOutputItem
+                                            itemFields={itemFields}
+                                            itemIndex={itemIndex}
+                                            deleteItem={deleteItem}
+                                            allReferences={
+                                                new Set([
+                                                    ...(formValues?.inputs?.map((input) => input.reference) ?? []),
+                                                    ...(formValues?.outputs
+                                                        ?.filter((d, i) => i !== itemIndex)
+                                                        ?.map((output) => output.reference) ?? []),
+                                                ])
+                                            }
+                                        />
+                                    )}
+                                </ArrayFieldWrapper>
+                            </section>
+                        </div>
 
-                            <hr className='border-gray-600' />
-                            {/* Python Code */}
-                            <section className='flex flex-col gap-3'>
-                                <h3 className='text-2xl font-semibold'>Python Script</h3>
-                                <div className='grid gap-2 p-5 rounded-xl md:grid-cols-2 bg-gray-900/50'>
-                                    <div className='flex flex-col gap-2'>
-                                        {formValues?.inputs?.map((input) => (
-                                            <div className='flex flex-row gap-2 items-center'>
-                                                <FrameworkBadge component={input.inputType} />
-                                                <span className='font-mono'>input.{input.reference}</span>
-                                                <span className='text-gray-500'>{input.type}</span>
-                                            </div>
-                                        ))}
-                                        {/* <div className='flex-1' />
+                        <hr className='border-gray-600' />
+                        {/* Python Code */}
+                        <section className='flex flex-col gap-3'>
+                            <h3 className='text-2xl font-semibold'>Python Script</h3>
+                            <div className='grid gap-2 p-5 rounded-xl md:grid-cols-2 bg-gray-900/50'>
+                                <div className='flex flex-col gap-2'>
+                                    {formValues?.inputs?.map((input) => (
+                                        <div className='flex flex-row gap-2 items-center'>
+                                            <FrameworkBadge component={input.inputType} />
+                                            <span className='font-mono'>input.{input.reference}</span>
+                                            <span className='text-gray-500'>{input.type}</span>
+                                        </div>
+                                    ))}
+                                    {/* <div className='flex-1' />
                                     <PythonViewer
                                         code={`input = {\n\t'${formValues.inputs[0].reference}': 0,\n}`}
                                         height='200px'
                                     /> */}
-                                    </div>
-                                    <div className='flex flex-col gap-2'>
-                                        {formValues?.outputs?.map((output) => (
-                                            <div className='flex flex-row gap-2 items-center'>
-                                                <FrameworkBadge component='measure' />
-                                                <span className='font-mono'>output.{output.reference}</span>
-                                                <span className='text-gray-500'>{String(output.dataType)}</span>
-                                            </div>
-                                        ))}
-                                        {/* <div className='flex-1' />
+                                </div>
+                                <div className='flex flex-col gap-2'>
+                                    {formValues?.outputs?.map((output) => (
+                                        <div className='flex flex-row gap-2 items-center'>
+                                            <FrameworkBadge component='measure' />
+                                            <span className='font-mono'>output.{output.reference}</span>
+                                            <span className='text-gray-500'>{String(output.dataType)}</span>
+                                        </div>
+                                    ))}
+                                    {/* <div className='flex-1' />
                                     <PythonViewer
                                         code={`output = {\n\t'${formValues.outputs[0].reference}': 0,\n}`}
                                         height='200px'
                                     /> */}
-                                    </div>
                                 </div>
-                                <ValidationPrompt field='script' formValues={formValues} formOptions={formOptions} />
-                                <PythonEditor
-                                    code={formValues.script}
-                                    setCode={(next) => setFormValues((prev) => ({ ...prev, script: next }))}
+                            </div>
+                            <ValidationPrompt field='script' formValues={formValues} formOptions={formOptions} />
+                            <PythonEditor
+                                code={formValues.script}
+                                setCode={(next) => setFormValues((prev) => ({ ...prev, script: next }))}
+                            />
+                            <ul className='p-5 rounded-xl bg-gray-900/50'>
+                                <li>
+                                    Use <code className='text-purple-400'>print("PYLOG: &lt;message&gt;")</code> to
+                                    surface logs to the browser console
+                                </li>
+                                <li>
+                                    Use <code className='text-purple-400'>print("PYERR: &lt;message&gt;")</code> to
+                                    surface an error to the user
+                                </li>
+                            </ul>
+                        </section>
+                        <hr className='border-gray-600' />
+                        <section className='flex flex-col gap-3'>
+                            <h3 className='text-2xl font-semibold'>Default Chart</h3>
+                            <div className='grid gap-x-5 md:grid-cols-2'>
+                                <TextField {...f('defaultChart.label')} label='Label' />
+                                <SelectField
+                                    {...f('defaultChart.chartType')}
+                                    label='Chart Type'
+                                    options={[
+                                        { value: 'histogram', text: 'Histogram' },
+                                        { value: 'line', text: 'Line' },
+                                        { value: 'scatter', text: 'Scatter' },
+                                        { value: 'time-series', text: 'Time Series' },
+                                    ]}
                                 />
-                                <ul className='p-5 rounded-xl bg-gray-900/50'>
-                                    <li>
-                                        Use <code className='text-purple-400'>print("PYLOG: &lt;message&gt;")</code> to
-                                        surface logs to the browser console
-                                    </li>
-                                    <li>
-                                        Use <code className='text-purple-400'>print("PYERR: &lt;message&gt;")</code> to
-                                        surface an error to the user
-                                    </li>
-                                </ul>
-                            </section>
-                            <hr className='border-gray-600' />
-                            <section className='flex flex-col gap-3'>
-                                <h3 className='text-2xl font-semibold'>Default Chart</h3>
-                                <div className='grid gap-x-5 md:grid-cols-2'>
-                                    <TextField {...f('defaultChart.label')} label='Label' />
+                                {['line', 'scatter', 'histogram'].includes(
+                                    formValues?.defaultChart?.chartType ?? ''
+                                ) && (
                                     <SelectField
-                                        {...f('defaultChart.chartType')}
-                                        label='Chart Type'
-                                        options={[
-                                            { value: 'histogram', text: 'Histogram' },
-                                            { value: 'line', text: 'Line' },
-                                            { value: 'scatter', text: 'Scatter' },
-                                            { value: 'time-series', text: 'Time Series' },
-                                        ]}
+                                        {...f('defaultChart.xAxisReference')}
+                                        label='X Axis'
+                                        options={getAxisReferenceOptions(
+                                            formValues?.inputs ?? [],
+                                            formValues?.outputs ?? []
+                                        )}
                                     />
-                                    {['line', 'scatter', 'histogram'].includes(
-                                        formValues?.defaultChart?.chartType ?? ''
-                                    ) && (
-                                        <SelectField
-                                            {...f('defaultChart.xAxisReference')}
-                                            label='X Axis'
-                                            options={getAxisReferenceOptions(
-                                                formValues?.inputs ?? [],
-                                                formValues?.outputs ?? []
-                                            )}
-                                        />
-                                    )}
-                                    {['line', 'scatter', 'time-series'].includes(
-                                        formValues?.defaultChart?.chartType ?? ''
-                                    ) && (
-                                        <SelectField
-                                            {...f('defaultChart.yAxisReference')}
-                                            label='Y Axis'
-                                            options={getAxisReferenceOptions(
-                                                formValues?.inputs ?? [],
-                                                formValues?.outputs ?? []
-                                            )}
-                                        />
-                                    )}
-                                </div>
-                            </section>
-                        </>
-                    )}
-                </FormWrapper>
-            </div>
-        </ErrorBoundary>
+                                )}
+                                {['line', 'scatter', 'time-series'].includes(
+                                    formValues?.defaultChart?.chartType ?? ''
+                                ) && (
+                                    <SelectField
+                                        {...f('defaultChart.yAxisReference')}
+                                        label='Y Axis'
+                                        options={getAxisReferenceOptions(
+                                            formValues?.inputs ?? [],
+                                            formValues?.outputs ?? []
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        </section>
+
+                        <div className='flex flex-row gap-2 justify-end items-center'>
+                            <FormValidationStatus
+                                formValues={formValues}
+                                formOptions={formOptions}
+                                checkValidation={checkValidation}
+                            >
+                                {({ isValid, failingRules, showingErrors }) =>
+                                    showingErrors &&
+                                    !isValid && (
+                                        <div className='flex gap-2 justify-end items-center'>
+                                            <p className='text-base text-amber-500'>
+                                                {failingRules[0]?.prompt ??
+                                                    'Please check your submission and try again'}
+                                            </p>
+                                            <ExclamationCircleIcon className='w-6 h-6 text-amber-500' />
+                                        </div>
+                                    )
+                                }
+                            </FormValidationStatus>
+                            <Button.Success onClick={() => submit()}>Save</Button.Success>
+                            <Button.Primary onClick={() => submit().then(() => navigate(-1))}>
+                                Save & Close
+                            </Button.Primary>
+                        </div>
+                    </div>
+                </>
+            )}
+        </FormWrapper>
     )
 }
 
@@ -427,7 +486,7 @@ function FunctionInputItem({
                             options={[
                                 { value: 'scalar-continuous', text: 'Scalar - Continuous' },
                                 { value: 'scalar-integer', text: 'Scalar - Integer' },
-                                { value: 'scalar-discreet', text: 'Scalar - Discreet' },
+                                { value: 'scalar-discreet', text: 'Scalar - Discrete' },
                                 { value: 'scalar-binary', text: 'Scalar - Binary' },
                                 { value: 'time-series-any', text: 'Time Series - Any' },
                                 {
@@ -440,13 +499,13 @@ function FunctionInputItem({
                         {itemFields('x').formValues?.type === 'scalar-discreet' && (
                             <>
                                 <CommaSeparatedListInput
-                                    value={itemFields('x').formValues?.values}
-                                    onChange={(next) => itemFields('x').setFormValues((p) => ({ ...p, values: next }))}
-                                    label='Discreet Value Options'
+                                    value={itemFields('x').formValues?.options}
+                                    onChange={(next) => itemFields('x').setFormValues((p) => ({ ...p, options: next }))}
+                                    label='Discrete Value Options'
                                     placeholder='Enter values separated by commas, then press Enter'
                                 />
                                 <ul>
-                                    {itemFields('x').formValues?.values?.map((value, index) => (
+                                    {itemFields('x').formValues?.options?.map((value, index) => (
                                         <li className='flex flex-row gap-2' key={index}>
                                             <TextField
                                                 label={false}
@@ -454,7 +513,7 @@ function FunctionInputItem({
                                                 onChange={(next) =>
                                                     itemFields('x').setFormValues((p) => ({
                                                         ...p,
-                                                        values: p.values?.map((v, i) => (i === index ? next : v)),
+                                                        options: p.options?.map((v, i) => (i === index ? next : v)),
                                                     }))
                                                 }
                                                 required
@@ -463,7 +522,7 @@ function FunctionInputItem({
                                                 onClick={() =>
                                                     itemFields('x').setFormValues((p) => ({
                                                         ...p,
-                                                        values: p.values?.filter((v, i) => i !== index),
+                                                        options: p.options?.filter((v, i) => i !== index),
                                                     }))
                                                 }
                                             />
@@ -501,15 +560,15 @@ function FunctionInputItem({
                         />
                         {itemFields('x').formValues?.variationMethod === 'from-csv' && (
                             <>
-                                <CommaSeparatedListInput
+                                <TextAreaField
                                     value={itemFields('x').formValues?.csvColumns}
                                     onChange={(next) =>
                                         itemFields('x').setFormValues((p) => ({ ...p, csvColumns: next }))
                                     }
-                                    label='CSV Columns'
-                                    placeholder='Enter expected column names separated by commas, then press Enter'
+                                    label='CSV Description'
+                                    placeholder='Describe the data required from the CSV file'
                                 />
-                                <ul>
+                                {/* <ul>
                                     {itemFields('x').formValues?.csvColumns?.map((value, index) => (
                                         <li className='flex flex-row gap-2' key={index}>
                                             <TextField
@@ -535,7 +594,7 @@ function FunctionInputItem({
                                             />
                                         </li>
                                     ))}
-                                </ul>
+                                </ul> */}
                             </>
                         )}
                         <AnalysisVariableInputField

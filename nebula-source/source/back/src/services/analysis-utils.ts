@@ -1,4 +1,4 @@
-import { AnalysisInput } from '../models/analysis.model'
+import { AnalysisInput, IAnalysis } from '../models/analysis.model'
 import {
     SamplingStrategy,
     ScenarioArrayScalar,
@@ -9,158 +9,330 @@ import {
 
 // Make all simulation configurations
 
-export function computeScenarios(inputs: AnalysisInput[]): ScenarioConfiguration[] {
-    const timeSeries: ScenarioTimeSeries[] = []
-    const csvTimeSeries: ScenarioTimeSeries[] = []
-    const constantScalars: ScenarioScalar[] = []
-    const arrayScalars: ScenarioArrayScalar[] = []
+export function computeScenarios(
+    inputs: AnalysisInput[],
+    exogenousSamplingStrategy: SamplingStrategy,
+    leverSamplingStrategy: SamplingStrategy
+): [ScenarioConfiguration[], Error | null] {
+    try {
+        const exogenousInputs = inputs.filter((input) => input.inputType === 'exogenous')
+        const leverInputs = inputs.filter((input) => input.inputType === 'lever')
 
-    inputs.forEach((input) => {
-        if (input.type.startsWith('time-series')) {
-            if (input.variationMethod === 'from-csv') {
-                const series = transformScenarioInputs(input) as ScenarioTimeSeries | ScenarioTimeSeries[]
-                if (Array.isArray(series)) {
-                    csvTimeSeries.push(...series)
-                } else {
-                    csvTimeSeries.push(series)
-                }
-            } else {
-                const series = transformScenarioInputs(input) as ScenarioTimeSeries | ScenarioTimeSeries[]
-                if (Array.isArray(series)) {
-                    timeSeries.push(...series)
-                } else {
-                    timeSeries.push(series)
-                }
-            }
-        } else {
-            const scalar = transformScenarioInputs(input) as ScenarioScalar | ScenarioArrayScalar
-            if (Array.isArray(scalar.value)) {
-                arrayScalars.push(scalar as ScenarioArrayScalar)
-            } else {
-                constantScalars.push(scalar as ScenarioScalar)
-            }
+        // Process each group independently
+        const [exogenousScenarios, exogenousError] = computeScenariosForGroup(
+            exogenousInputs,
+            exogenousSamplingStrategy
+        )
+        if (exogenousError) {
+            return [null, exogenousError]
         }
-    })
 
-    // console.log(
-    //     'arrayScalars',
-    //     arrayScalars.map((d) => d.value.length)
-    // )
-    // console.log('constantScalars', constantScalars.length)
-    // console.log('timeSeries', timeSeries.length)
-    // console.log('csvTimeSeries', csvTimeSeries.length)
-
-    let baseConfiguration: ScenarioConfiguration = {}
-
-    for (const input of timeSeries) {
-        baseConfiguration[input.reference] = {
-            reference: input.reference,
-            type: 'array',
-            value: input.value,
+        const [leverScenarios, leverError] = computeScenariosForGroup(leverInputs, leverSamplingStrategy)
+        if (leverError) {
+            return [null, leverError]
         }
-    }
 
-    for (const input of constantScalars) {
-        baseConfiguration[input.reference] = {
-            reference: input.reference,
-            type: input.type,
-            value: input.value,
+        // Combine using full-factorial
+        return combineScenarios(exogenousScenarios, leverScenarios)
+    } catch (error) {
+        return [null, error as Error]
+    }
+}
+
+function computeScenariosForGroup(
+    inputs: AnalysisInput[],
+    groupSamplingStrategy: SamplingStrategy
+): [ScenarioConfiguration[], Error | null] {
+    try {
+        switch (groupSamplingStrategy.sampleMethod) {
+            case 'latin-hypercube':
+                return generateLatinHypercubeScenarios(inputs, groupSamplingStrategy.numHypercubeSamples)
+            case 'full-factorial':
+                return generateFullFactorialScenarios(inputs, groupSamplingStrategy)
+            default:
+                return [null, new Error('Invalid sampling strategy')]
         }
+    } catch (error) {
+        return [null, error as Error]
     }
+}
 
-    if (!csvTimeSeries.length && arrayScalars.length === 0) {
-        return [baseConfiguration]
-    }
+function combineScenarios(
+    exogenousScenarios: ScenarioConfiguration[],
+    leverScenarios: ScenarioConfiguration[]
+): [ScenarioConfiguration[], Error | null] {
+    try {
+        const configurations: ScenarioConfiguration[] = []
 
-    const configurations: ScenarioConfiguration[] = []
-
-    function cartesianProduct<T>(arrays: T[][]): T[][] {
-        return arrays.reduce<T[][]>((a, b) => a.flatMap((d) => b.map((e) => [...d, e])), [[]])
-    }
-    const valueArrays: (number[] | boolean[] | string[])[] = arrayScalars.map((scalar) => scalar.value)
-    const combos = cartesianProduct<any>(valueArrays)
-
-    if (csvTimeSeries.length) {
-        for (const csvSeries of csvTimeSeries) {
-            for (const combo of combos) {
-                let config: ScenarioConfiguration = {
-                    ...baseConfiguration,
-                }
-                config[csvSeries.reference] = {
-                    reference: csvSeries.reference,
-                    type: csvSeries.type,
-                    value: csvSeries.value,
-                }
-                arrayScalars.forEach((scalar, i) => {
-                    config[scalar.reference] = {
-                        reference: scalar.reference,
-                        type: scalar.type,
-                        value: combo[i],
-                    }
+        for (const exogenousConfig of exogenousScenarios) {
+            for (const leverConfig of leverScenarios) {
+                configurations.push({
+                    ...exogenousConfig,
+                    ...leverConfig,
                 })
-                configurations.push(config)
             }
         }
-        console.log('configurations w/ csv', configurations.length)
-        return configurations
-    }
 
-    for (const combo of combos) {
-        let config: ScenarioConfiguration = {
-            ...baseConfiguration,
-        }
-        arrayScalars.forEach((scalar, i) => {
-            config[scalar.reference] = {
-                reference: scalar.reference,
-                type: scalar.type,
-                value: combo[i],
+        return [configurations, null]
+    } catch (error) {
+        return [null, error as Error]
+    }
+}
+
+function generateFullFactorialScenarios(
+    inputs: AnalysisInput[],
+    groupSamplingStrategy: SamplingStrategy
+): [ScenarioConfiguration[], Error | null] {
+    try {
+        const timeSeries: ScenarioTimeSeries[] = []
+        const csvTimeSeries: ScenarioTimeSeries[] = []
+        const constantScalars: ScenarioScalar[] = []
+        const arrayScalars: ScenarioArrayScalar[] = []
+
+        inputs.forEach((input) => {
+            if (input.type.startsWith('time-series')) {
+                if (input.variationMethod === 'from-csv') {
+                    const series = transformScenarioInputs(input, groupSamplingStrategy) as
+                        | ScenarioTimeSeries
+                        | ScenarioTimeSeries[]
+                    if (Array.isArray(series)) {
+                        csvTimeSeries.push(...series)
+                    } else {
+                        csvTimeSeries.push(series)
+                    }
+                } else {
+                    const series = transformScenarioInputs(input, groupSamplingStrategy) as
+                        | ScenarioTimeSeries
+                        | ScenarioTimeSeries[]
+                    if (Array.isArray(series)) {
+                        timeSeries.push(...series)
+                    } else {
+                        timeSeries.push(series)
+                    }
+                }
+            } else {
+                const scalar = transformScenarioInputs(input, groupSamplingStrategy) as
+                    | ScenarioScalar
+                    | ScenarioArrayScalar
+                if (Array.isArray(scalar.value)) {
+                    arrayScalars.push(scalar as ScenarioArrayScalar)
+                } else {
+                    constantScalars.push(scalar as ScenarioScalar)
+                }
             }
         })
-        configurations.push(config)
+
+        let baseConfiguration: ScenarioConfiguration = {}
+
+        for (const input of timeSeries) {
+            baseConfiguration[input.reference] = {
+                reference: input.reference,
+                type: 'array',
+                value: input.value,
+            }
+        }
+
+        for (const input of constantScalars) {
+            baseConfiguration[input.reference] = {
+                reference: input.reference,
+                type: input.type,
+                value: input.value,
+            }
+        }
+
+        if (!csvTimeSeries.length && arrayScalars.length === 0) {
+            return [[baseConfiguration], null]
+        }
+
+        const configurations: ScenarioConfiguration[] = []
+
+        function cartesianProduct<T>(arrays: T[][]): T[][] {
+            return arrays.reduce<T[][]>((a, b) => a.flatMap((d) => b.map((e) => [...d, e])), [[]])
+        }
+        const valueArrays: (number[] | boolean[] | string[])[] = arrayScalars.map((scalar) => scalar.value)
+        const combos = cartesianProduct<any>(valueArrays)
+
+        if (csvTimeSeries.length) {
+            // Group CSV time series by their reference to handle multiple series from same input
+            const csvSeriesByReference = new Map<string, ScenarioTimeSeries[]>()
+            csvTimeSeries.forEach((series) => {
+                if (!csvSeriesByReference.has(series.reference)) {
+                    csvSeriesByReference.set(series.reference, [])
+                }
+                csvSeriesByReference.get(series.reference)!.push(series)
+            })
+
+            // Create arrays of all possible values for each CSV reference
+            const csvValueArrays: ScenarioTimeSeries[][][] = []
+            csvSeriesByReference.forEach((seriesArray) => {
+                csvValueArrays.push(seriesArray.map((series) => [series]))
+            })
+
+            // Generate cartesian product of all CSV series combinations
+            const csvCombos = cartesianProduct(csvValueArrays)
+
+            for (const csvCombo of csvCombos) {
+                for (const combo of combos) {
+                    let config: ScenarioConfiguration = {
+                        ...baseConfiguration,
+                    }
+
+                    // Add each CSV series from the combination
+                    csvCombo.forEach((seriesArray) => {
+                        seriesArray.forEach((series) => {
+                            config[series.reference] = {
+                                reference: series.reference,
+                                type: series.type,
+                                value: series.value,
+                            }
+                        })
+                    })
+
+                    // Add array scalars
+                    arrayScalars.forEach((scalar, i) => {
+                        config[scalar.reference] = {
+                            reference: scalar.reference,
+                            type: scalar.type,
+                            value: combo[i],
+                        }
+                    })
+                    configurations.push(config)
+                }
+            }
+            return [configurations, null]
+        }
+
+        for (const combo of combos) {
+            let config: ScenarioConfiguration = {
+                ...baseConfiguration,
+            }
+            arrayScalars.forEach((scalar, i) => {
+                config[scalar.reference] = {
+                    reference: scalar.reference,
+                    type: scalar.type,
+                    value: combo[i],
+                }
+            })
+            configurations.push(config)
+        }
+
+        return [configurations, null]
+    } catch (error) {
+        return [null, error as Error]
     }
+}
 
-    console.log('configurations w/o csv', configurations.length)
+function generateLatinHypercubeScenarios(
+    inputs: AnalysisInput[],
+    numSamples: number
+): [ScenarioConfiguration[], Error | null] {
+    try {
+        // First, generate ALL possible values for each input using existing methods
+        const allPossibleValues: { [reference: string]: any[] } = {}
 
-    return configurations
+        for (const input of inputs) {
+            if (input.type.startsWith('time-series')) {
+                // Generate all time series variations
+                const series = transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
+                    | ScenarioTimeSeries
+                    | ScenarioTimeSeries[]
+
+                if (Array.isArray(series)) {
+                    allPossibleValues[input.reference] = series
+                } else {
+                    allPossibleValues[input.reference] = [series]
+                }
+            } else {
+                // Generate all scalar variations
+                const scalar = transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
+                    | ScenarioScalar
+                    | ScenarioArrayScalar
+
+                if (Array.isArray(scalar.value)) {
+                    // For array scalars, each element is a separate value
+                    allPossibleValues[input.reference] = scalar.value.map((val) => ({
+                        reference: scalar.reference,
+                        type: scalar.type,
+                        value: val,
+                    }))
+                } else {
+                    allPossibleValues[input.reference] = [scalar]
+                }
+            }
+        }
+
+        // Now apply Latin hypercube sampling to select from these full value sets
+        const sampledConfigurations = applyLatinHypercubeSampling(allPossibleValues, numSamples)
+
+        return [sampledConfigurations, null]
+    } catch (error) {
+        return [null, error as Error]
+    }
+}
+
+function getScalarType(inputType: string): 'float' | 'int' | 'str' | 'bool' {
+    switch (inputType) {
+        case 'scalar-continuous':
+            return 'float'
+        case 'scalar-integer':
+            return 'int'
+        case 'scalar-binary':
+            return 'bool'
+        case 'scalar-discreet':
+            return 'str'
+        default:
+            return 'float'
+    }
 }
 
 //#region Simulation Inputs
 
 function transformScenarioInputs(
-    input: AnalysisInput
+    input: AnalysisInput,
+    groupSamplingStrategy: SamplingStrategy
 ): ScenarioScalar | ScenarioArrayScalar | ScenarioTimeSeries | ScenarioTimeSeries[] {
-    let samplingStrategy: SamplingStrategy = { sampleMethod: 'full-factorial' }
-    if (input.sampleMethod === 'latin-hypercube') {
-        samplingStrategy = { sampleMethod: 'latin-hypercube', numHypercubeSamples: input.numHypercubeSamples }
-    }
+    // Use the group-level sampling strategy instead of individual input strategy
+    const samplingStrategy = groupSamplingStrategy
 
     switch (input.type) {
         case 'scalar-continuous':
             switch (input.variationMethod) {
                 case 'distribution-normal':
+                    const normalSamples =
+                        samplingStrategy.sampleMethod === 'latin-hypercube'
+                            ? samplingStrategy.numHypercubeSamples
+                            : input.numSamples
                     return {
                         reference: input.reference,
                         type: 'float',
                         value: applySampleMethod(
-                            normalDistribution(input.mean, input.std, input.numSamples),
+                            normalDistribution(input.mean, input.std, normalSamples),
                             samplingStrategy
                         ),
                     }
                 case 'distribution-uniform':
+                    const uniformSamples =
+                        samplingStrategy.sampleMethod === 'latin-hypercube'
+                            ? samplingStrategy.numHypercubeSamples
+                            : input.numSamples
                     return {
                         reference: input.reference,
                         type: 'float',
                         value: applySampleMethod(
-                            uniformDistribution(input.min, input.max, input.numSamples),
+                            uniformDistribution(input.min, input.max, uniformSamples),
                             samplingStrategy
                         ),
                     }
                 case 'distribution-lognormal':
+                    const lognormalSamples =
+                        samplingStrategy.sampleMethod === 'latin-hypercube'
+                            ? samplingStrategy.numHypercubeSamples
+                            : input.numSamples
                     return {
                         reference: input.reference,
                         type: 'float',
                         value: applySampleMethod(
-                            generateLogNormalSamples(input.numSamples, input.mu, input.sigma),
+                            generateLogNormalSamples(lognormalSamples, input.mu, input.sigma),
                             samplingStrategy
                         ),
                     }
@@ -284,8 +456,6 @@ function transformScenarioInputs(
                         value: csvData,
                     } as ScenarioTimeSeries
             }
-        default:
-            throw new Error('Invalid input type')
     }
 }
 
@@ -303,7 +473,12 @@ function normalDistribution(mean: number, std: number, length: number): number[]
 }
 
 function uniformDistribution(min: number, max: number, length: number): number[] {
-    return Array.from({ length }, () => Math.random() * (max - min) + min)
+    // Generate evenly spaced numbers where array[0] = min and array[length-1] = max
+    if (length === 1) {
+        return [min]
+    }
+    const step = (max - min) / (length - 1)
+    return Array.from({ length }, (_, i) => min + i * step)
 }
 
 /**
@@ -339,20 +514,6 @@ function generateLogNormalSamples(size: number, mu: number, sigma: number): numb
     }
 
     return samples
-}
-
-/**
- * Calculates the probability density function (PDF) of a log-normal distribution
- * @param x The value to calculate the PDF at
- * @param mu Mean of the underlying normal distribution
- * @param sigma Standard deviation of the underlying normal distribution
- * @returns The probability density at point x
- */
-function logNormalPdf(x: number, mu: number, sigma: number): number {
-    if (x <= 0) return 0
-
-    const exponent = -Math.pow(Math.log(x) - mu, 2) / (2 * Math.pow(sigma, 2))
-    return (1 / (x * sigma * Math.sqrt(2 * Math.PI))) * Math.exp(exponent)
 }
 
 function steppedDistribution(min: number, max: number, step: number): number[] {
@@ -396,10 +557,11 @@ function geometricRandomWalk(options: {
     const { annualDrift, annualVolatility, initialValue, startTimeISO, timeStepSeconds, numSteps } = options
 
     // Input validation
-    if (initialValue <= 0) throw new Error('Initial value must be positive')
-    if (annualVolatility < 0) throw new Error('Annual volatility must be non-negative')
-    if (timeStepSeconds <= 0) throw new Error('Time step (seconds) must be positive')
-    if (numSteps <= 0) throw new Error('Number of steps must be positive')
+    if (initialValue === undefined) throw new Error('Geometric random walk initial value must be defined')
+    if (initialValue <= 0) throw new Error('Geometric random walk initial value must be positive')
+    if (annualVolatility < 0) throw new Error('Geometric random walk annual volatility must be non-negative')
+    if (timeStepSeconds <= 0) throw new Error('Geometric random walk time step (seconds) must be positive')
+    if (numSteps <= 0) throw new Error('Geometric random walk number of steps must be positive')
 
     const initialTimeMs = new Date(startTimeISO).getTime()
     const values: { date: string; value: number }[] = []
@@ -418,7 +580,7 @@ function geometricRandomWalk(options: {
         const diffusion = annualVolatility * Math.sqrt(dt) * z
         const value = prevValue * Math.exp(drift + diffusion)
         if (!isFinite(value) || isNaN(value)) {
-            throw new Error(`Overflow or invalid value in geometricRandomWalk at step ${i}: value=${value}`)
+            throw new Error(`Overflow or invalid value in geometric random walk at step ${i}: value=${value}`)
         }
         values.push({
             date: date.toISOString(),
@@ -451,32 +613,37 @@ function fromCsv(csv: string): CSVData | CSVData[] {
     if (!lines.length) {
         return []
     }
-    const headers = lines[0].split(',')
-    const dateHeaderIndex = headers.findIndex((header) => header.trim().toLowerCase() === 'date')
 
-    if (dateHeaderIndex === -1) {
-        return []
-        // throw new Error('CSV must have a "date" column')
-    }
+    const firstRow = lines[0].split(',')
+    const dateHeaderIndex = firstRow.findIndex((header) => header.trim().toLowerCase() === 'date')
+
+    // Determine if we have headers or not
+    const hasHeaders = dateHeaderIndex !== -1
+    const dateColumnIndex = hasHeaders ? dateHeaderIndex : 0
+    const dataStartIndex = hasHeaders ? 1 : 0
 
     const dateValues: string[] = []
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = dataStartIndex; i < lines.length; i++) {
         const line = lines[i]
         const lineValues = line.split(',')
-        dateValues.push(lineValues[dateHeaderIndex])
+        dateValues.push(lineValues[dateColumnIndex])
     }
 
-    const featureHeaders = headers.filter((_, i) => i !== dateHeaderIndex)
     const featureValues: any[][] = []
-    for (let i = 0; i < headers.length; i++) {
-        if (i === dateHeaderIndex) {
+    for (let i = 0; i < firstRow.length; i++) {
+        if (i === dateColumnIndex) {
             continue
         }
         let values: any[] = []
-        for (let j = 1; j < lines.length; j++) {
+        for (let j = dataStartIndex; j < lines.length; j++) {
             const line = lines[j]
             const lineValues = line.split(',')
-            values.push(lineValues[i])
+            let numberValue = parseFloat(lineValues[i])
+            if (!isNaN(numberValue) && isFinite(numberValue)) {
+                values.push(numberValue)
+            } else {
+                values.push(lineValues[i])
+            }
         }
         featureValues.push(values)
     }
@@ -487,7 +654,7 @@ function fromCsv(csv: string): CSVData | CSVData[] {
         for (let i = 0; i < dateValues.length; i++) {
             output.push({
                 date: dateValues[i],
-                [featureHeaders[0]]: values[i],
+                value: values[i],
             })
         }
         return output
@@ -499,7 +666,7 @@ function fromCsv(csv: string): CSVData | CSVData[] {
         for (let j = 0; j < dateValues.length; j++) {
             data.push({
                 date: dateValues[j],
-                [featureHeaders[i]]: featureValues[i][j],
+                value: featureValues[i][j],
             })
         }
         output.push(data)
@@ -553,7 +720,7 @@ function latinHypercubeNumericalSampling(
 ): number[][] {
     // Validate inputs
     if (numSamples <= 0 || dimensions <= 0) {
-        throw new Error('Number of samples and dimensions must be positive')
+        throw new Error('Latin hypercube numerical sampling: number of samples and dimensions must be positive')
     }
 
     // Use default range [0,1] if ranges not provided
@@ -600,85 +767,6 @@ function latinHypercubeNumericalSampling(
 }
 
 /**
- * Generates Latin Hypercube samples for discrete integer values.
- * This ensures even sampling across the integer domain.
- *
- * @param numSamples Number of samples to generate
- * @param dimensions Number of dimensions (variables) to sample
- * @param ranges Array of [min, max] integer ranges for each dimension (inclusive)
- * @returns A matrix where each row is a sample and each column is a dimension
- */
-function latinHypercubeIntegerSampling(numSamples: number, dimensions: number, ranges: [number, number][]): number[][] {
-    // Validate inputs
-    if (numSamples <= 0 || dimensions <= 0) {
-        throw new Error('Number of samples and dimensions must be positive')
-    }
-
-    if (ranges.length !== dimensions) {
-        throw new Error('Must provide ranges for each dimension')
-    }
-
-    const result: number[][] = Array(numSamples)
-        .fill(null)
-        .map(() => Array(dimensions).fill(0))
-
-    // For each dimension, create a Latin Hypercube sampling
-    for (let dim = 0; dim < dimensions; dim++) {
-        // Create array of indices for this dimension's permutation
-        const indices = Array(numSamples)
-            .fill(0)
-            .map((_, i) => i)
-
-        // Shuffle the indices using Fisher-Yates algorithm
-        for (let i = indices.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1))
-            ;[indices[i], indices[j]] = [indices[j], indices[i]]
-        }
-
-        // Get the min and max values for this dimension
-        const [min, max] = ranges[dim]
-
-        // Ensure min and max are integers
-        const minInt = Math.ceil(min)
-        const maxInt = Math.floor(max)
-        const valueRange = maxInt - minInt + 1
-
-        // If the range is smaller than numSamples, we need to adjust our approach
-        if (valueRange <= numSamples) {
-            // Generate all possible values in the range
-            const allValues = Array.from({ length: valueRange }, (_, i) => minInt + i)
-
-            // Shuffle the values
-            for (let i = allValues.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1))
-                ;[allValues[i], allValues[j]] = [allValues[j], allValues[i]]
-            }
-
-            // Assign values, repeating if necessary
-            for (let sample = 0; sample < numSamples; sample++) {
-                result[sample][dim] = allValues[sample % valueRange]
-            }
-        } else {
-            // We have more possible values than samples, so we can use the LHS approach
-            // Divide the range into numSamples equal parts
-            for (let sample = 0; sample < numSamples; sample++) {
-                const permutedIndex = indices[sample]
-
-                // Calculate the bin bounds
-                const binSize = valueRange / numSamples
-                const binStart = minInt + Math.floor(permutedIndex * binSize)
-                const binEnd = minInt + Math.floor((permutedIndex + 1) * binSize) - 1
-
-                // Pick a random integer within the bin
-                result[sample][dim] = binStart + Math.floor(Math.random() * (binEnd - binStart + 1))
-            }
-        }
-    }
-
-    return result
-}
-
-/**
  * Generates Latin Hypercube samples for strings.
  * This implementation maps strings to a numerical domain, performs LHS sampling,
  * and maps back to the string domain.
@@ -691,11 +779,11 @@ function latinHypercubeIntegerSampling(numSamples: number, dimensions: number, r
 function latinHypercubeStringSampling(stringPool: string[], numSamples: number, dimensions: number): string[][] {
     // Validate inputs
     if (numSamples <= 0 || dimensions <= 0) {
-        throw new Error('Number of samples and dimensions must be positive')
+        throw new Error('Latin hypercube string sampling: number of samples and dimensions must be positive')
     }
 
     if (stringPool.length === 0) {
-        throw new Error('String pool cannot be empty')
+        throw new Error('Latin hypercube string sampling: string pool cannot be empty')
     }
 
     // Create a numerical representation for LHS
@@ -736,49 +824,6 @@ function latinHypercubeStringSampling(stringPool: string[], numSamples: number, 
 }
 
 /**
- * Alternative implementation that preserves the uniqueness property of LHS
- * across the string domain more directly.
- *
- * @param stringPool Array of possible strings to sample from
- * @param numSamples Number of samples to generate (must be <= stringPool.length)
- * @param dimensions Number of dimensions (variables) to sample
- * @returns A matrix where each row is a sample and each column is a dimension
- */
-function latinHypercubeStringStrictSampling(stringPool: string[], numSamples: number, dimensions: number): string[][] {
-    // Validate inputs
-    if (numSamples <= 0 || dimensions <= 0) {
-        throw new Error('Number of samples and dimensions must be positive')
-    }
-
-    if (stringPool.length < numSamples) {
-        throw new Error('String pool must have at least as many strings as requested samples')
-    }
-
-    const result: string[][] = Array(numSamples)
-        .fill(null)
-        .map(() => Array(dimensions).fill(''))
-
-    // For each dimension, create a Latin Hypercube sampling
-    for (let dim = 0; dim < dimensions; dim++) {
-        // Divide the string pool into numSamples bins
-        const shuffledPool = [...stringPool].sort(() => Math.random() - 0.5)
-        const binSize = Math.floor(shuffledPool.length / numSamples)
-
-        // Select one string from each bin
-        for (let sample = 0; sample < numSamples; sample++) {
-            const startIdx = sample * binSize
-            const endIdx = sample === numSamples - 1 ? shuffledPool.length : startIdx + binSize
-
-            // Pick a random string from this bin
-            const randomIdx = startIdx + Math.floor(Math.random() * (endIdx - startIdx))
-            result[sample][dim] = shuffledPool[randomIdx]
-        }
-    }
-
-    return result
-}
-
-/**
  * Generates Latin Hypercube samples for boolean values.
  * This ensures a balanced distribution of true/false values across dimensions.
  *
@@ -789,7 +834,7 @@ function latinHypercubeStringStrictSampling(stringPool: string[], numSamples: nu
 function latinHypercubeBooleanSampling(numSamples: number, dimensions: number): boolean[][] {
     // Validate inputs
     if (numSamples <= 0 || dimensions <= 0) {
-        throw new Error('Number of samples and dimensions must be positive')
+        throw new Error('Latin hypercube boolean sampling: number of samples and dimensions must be positive')
     }
 
     const result: boolean[][] = Array(numSamples)
@@ -823,60 +868,56 @@ function latinHypercubeBooleanSampling(numSamples: number, dimensions: number): 
     return result
 }
 
+//#endregion
+
+//#region Latin Hypercube Sampling Functions
+
 /**
- * Generates stratified samples for boolean values when the probability of true is known.
- * This ensures the proportion of true values matches the desired probability while
- * maintaining good distribution properties.
- *
- * @param numSamples Number of samples to generate
- * @param dimensions Number of dimensions (variables) to sample
- * @param probabilities Array of probabilities for true value in each dimension
- * @returns A matrix where each row is a sample and each column is a dimension
+ * Applies Latin hypercube sampling to select from full value sets
  */
-function stratifiedBooleanSampling(numSamples: number, dimensions: number, probabilities: number[] = []): boolean[][] {
-    // Validate inputs
-    if (numSamples <= 0 || dimensions <= 0) {
-        throw new Error('Number of samples and dimensions must be positive')
+function applyLatinHypercubeSampling(
+    allPossibleValues: { [reference: string]: any[] },
+    numSamples: number
+): ScenarioConfiguration[] {
+    const references = Object.keys(allPossibleValues)
+    const configurations: ScenarioConfiguration[] = []
+
+    // Create Latin hypercube samples for each reference
+    const samples = latinHypercubeNumericalSampling(numSamples, references.length)
+
+    for (let i = 0; i < numSamples; i++) {
+        const config: ScenarioConfiguration = {}
+
+        references.forEach((reference, refIndex) => {
+            const possibleValues = allPossibleValues[reference]
+            const sampleValue = samples[i][refIndex]
+
+            // Map the sample value to an index in the possible values array
+            const valueIndex = Math.floor(sampleValue * possibleValues.length)
+            const selectedValue = possibleValues[valueIndex]
+
+            // Add to configuration
+            if (selectedValue.type === 'array') {
+                // Time series
+                config[reference] = {
+                    reference: selectedValue.reference,
+                    type: 'array',
+                    value: selectedValue.value,
+                }
+            } else {
+                // Scalar
+                config[reference] = {
+                    reference: selectedValue.reference,
+                    type: selectedValue.type,
+                    value: selectedValue.value,
+                }
+            }
+        })
+
+        configurations.push(config)
     }
 
-    // If probabilities not provided, use 0.5 for all dimensions
-    const probs = probabilities.length === dimensions ? probabilities : Array(dimensions).fill(0.5)
-
-    // Validate probabilities
-    for (let i = 0; i < probs.length; i++) {
-        if (probs[i] < 0 || probs[i] > 1) {
-            throw new Error(`Probability at index ${i} must be between 0 and 1`)
-        }
-    }
-
-    const result: boolean[][] = Array(numSamples)
-        .fill(null)
-        .map(() => Array(dimensions).fill(false))
-
-    // For each dimension, create a stratified sampling
-    for (let dim = 0; dim < dimensions; dim++) {
-        // Calculate number of true values based on probability
-        const numTrue = Math.round(numSamples * probs[dim])
-
-        // Create an array with the appropriate number of true/false values
-        const booleanValues: boolean[] = Array(numSamples).fill(false)
-        for (let i = 0; i < numTrue; i++) {
-            booleanValues[i] = true
-        }
-
-        // Shuffle the boolean values
-        for (let i = booleanValues.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1))
-            ;[booleanValues[i], booleanValues[j]] = [booleanValues[j], booleanValues[i]]
-        }
-
-        // Assign the shuffled boolean values to the samples
-        for (let sample = 0; sample < numSamples; sample++) {
-            result[sample][dim] = booleanValues[sample]
-        }
-    }
-
-    return result
+    return configurations
 }
 
 //#endregion

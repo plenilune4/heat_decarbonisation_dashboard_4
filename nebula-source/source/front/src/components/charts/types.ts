@@ -9,6 +9,10 @@ export type HistogramProps = {
     title?: string
     xLabel?: string
     yLabel?: string
+    discreteValueMappings?: {
+        x?: string[]
+        y?: string[]
+    }
 }
 
 export type LineGraphProps = {
@@ -20,6 +24,10 @@ export type LineGraphProps = {
     title?: string
     xLabel?: string
     yLabel?: string
+    discreteValueMappings?: {
+        x?: string[]
+        y?: string[]
+    }
 }
 
 export type ScatterPlotProps = {
@@ -32,6 +40,10 @@ export type ScatterPlotProps = {
     xLabel?: string
     yLabel?: string
     groupLabel?: string
+    discreteValueMappings?: {
+        x?: string[]
+        y?: string[]
+    }
 }
 
 export type TimeSeriesChartProps = {

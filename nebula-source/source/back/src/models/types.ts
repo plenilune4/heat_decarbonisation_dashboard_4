@@ -121,17 +121,11 @@ export type AnalysisInputVariable =
     | {
           type: 'time-series-continuous'
           variationMethod: 'geometric-random-walk'
-          /** Drift (expected return), per year (e.g., 0.05 for 5% annual drift) */
           annualDrift: number
-          /** Volatility (standard deviation), per year (e.g., 0.2 for 20% annual volatility) */
           annualVolatility: number
-          /** Starting value (> 0) */
           initialValue: number
-          /** ISO string for the start time (e.g., '2024-01-01T00:00:00Z') */
           startTimeISO: string
-          /** Time step in seconds (> 0) */
           timeStepSeconds: number
-          /** Number of time steps */
           numSteps: number
       }
     | {
@@ -145,8 +139,10 @@ export type AnalysisInputVariable =
     | {
           type: 'time-series-any'
           variationMethod: 'from-csv'
-          csvColumns: string[]
+          csvColumns: string
           csv: string
+          csvFilename: string
+          includesHeaders?: boolean
       }
 
 export type AnalysisOutputVariable =

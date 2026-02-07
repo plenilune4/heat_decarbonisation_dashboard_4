@@ -1,26 +1,34 @@
-import { FolderOpenIcon } from '@heroicons/react/20/solid'
+import { FolderOpenIcon, TrashIcon } from '@heroicons/react/20/solid'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import ROUTES from '@/ROUTES'
 
 import { IAnalysis } from '@/MODELS/analysis.model'
 
+import { api_delete } from '@/services/api.service'
 import { cn } from '@/utils/cn'
 
 import Avatar from './Avatar'
 import Button from './Button'
+import Confirm from './ConfirmModal'
 import FrameworkBadge from './FrameworkBadge'
 
 export default function AnalysisCard({
     analysis,
     isSelected = false,
     onClick,
+    onDelete,
 }: {
     analysis: IAnalysis
     isSelected?: boolean
     onClick?: () => void
+    onDelete?: () => void
 }) {
     const exogenous = analysis?.scenarioInputs?.filter((input) => input.inputType === 'exogenous')?.length || 0
     const levers = analysis?.scenarioInputs?.filter((input) => input.inputType === 'lever')?.length || 0
     const measures = analysis?.scenarioOutputs?.length || 0
+
+    const [deleteAnalysisId, setDeleteAnalysisId] = useState<string | null>(null)
 
     return (
         <section
@@ -94,6 +102,26 @@ export default function AnalysisCard({
                             Open
                         </Button.Success>
                     </Link>
+                    <Button.Outline
+                        className='px-3 hover:text-red-500'
+                        onClick={() => setDeleteAnalysisId(analysis._id)}
+                    >
+                        <TrashIcon className='w-5 h-5' />
+                    </Button.Outline>
+                    <Confirm
+                        open={!!deleteAnalysisId}
+                        onCancel={() => setDeleteAnalysisId(null)}
+                        onConfirm={async () => {
+                            await api_delete(`${ROUTES.app.analysis}/${analysis._id}`)
+                            setDeleteAnalysisId(null)
+                            onDelete?.()
+                        }}
+                        title='Delete Analysis'
+                        description='Are you sure you want to delete this analysis? This action cannot be undone.'
+                        confirmText='Delete'
+                        cancelText='Cancel'
+                        intent='danger'
+                    />
                 </div>
             )}
 

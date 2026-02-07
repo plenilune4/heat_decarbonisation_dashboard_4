@@ -47,22 +47,28 @@ export default function FunctionSelector({
             {validationPrompt ?? <></>}
             <ul className='grid [grid-template-columns:repeat(auto-fill,minmax(400px,1fr))] gap-2'>
                 {filteredFunctions.length === 0 && <p className='text-sm text-gray-500'>No functions found</p>}
-                {filteredFunctions.map((fn) => (
-                    <li key={fn._id}>
-                        <FunctionCard
-                            data={fn}
-                            isSelected={selectedFunctionId === fn._id}
-                            onClick={() => {
-                                if (selectedFunctionId && selectedFunctionId !== fn._id) {
-                                    setWarningFunctionId(fn._id)
-                                } else {
-                                    setSelectedFunctionId(fn._id)
-                                }
-                            }}
-                            className='h-full'
-                        />
-                    </li>
-                ))}
+                {filteredFunctions
+                    .sort((a, b) => {
+                        let _a = new Date(a.updatedAt).getTime()
+                        let _b = new Date(b.updatedAt).getTime()
+                        return _b - _a
+                    })
+                    .map((fn) => (
+                        <li key={fn._id}>
+                            <FunctionCard
+                                data={fn}
+                                isSelected={selectedFunctionId === fn._id}
+                                onClick={() => {
+                                    if (selectedFunctionId && selectedFunctionId !== fn._id) {
+                                        setWarningFunctionId(fn._id)
+                                    } else {
+                                        setSelectedFunctionId(fn._id)
+                                    }
+                                }}
+                                className='h-full'
+                            />
+                        </li>
+                    ))}
             </ul>
             <Confirm
                 open={!!warningFunctionId}

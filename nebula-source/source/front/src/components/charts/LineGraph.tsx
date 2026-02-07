@@ -15,7 +15,7 @@ import { useChartColors } from '@/utils/color-utils'
 import { CustomTooltip } from './CustomTooltip'
 import { LineGraphProps } from './types'
 
-export default function LineGraph({ series, title, xLabel, yLabel }: LineGraphProps) {
+export default function LineGraph({ series, title, xLabel, yLabel, discreteValueMappings }: LineGraphProps) {
     const colors = useChartColors(series.length)
 
     return (
@@ -26,12 +26,37 @@ export default function LineGraph({ series, title, xLabel, yLabel }: LineGraphPr
                     <CartesianGrid strokeDasharray='3 3' />
                     <XAxis
                         dataKey='x'
-                        type='number'
-                        domain={['auto', 'auto']}
+                        type={discreteValueMappings?.x ? 'category' : 'number'}
+                        domain={discreteValueMappings?.x ? undefined : ['auto', 'auto']}
                         allowDuplicatedCategory={false}
                         label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -5 } : undefined}
+                        tickFormatter={(value) => {
+                            if (
+                                discreteValueMappings?.x &&
+                                typeof value === 'number' &&
+                                value >= 0 &&
+                                value < discreteValueMappings.x.length
+                            ) {
+                                return discreteValueMappings.x[value]
+                            }
+                            return value
+                        }}
                     />
-                    <YAxis label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft' } : undefined} />
+                    <YAxis
+                        type={discreteValueMappings?.y ? 'category' : 'number'}
+                        label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft' } : undefined}
+                        tickFormatter={(value) => {
+                            if (
+                                discreteValueMappings?.y &&
+                                typeof value === 'number' &&
+                                value >= 0 &&
+                                value < discreteValueMappings.y.length
+                            ) {
+                                return discreteValueMappings.y[value]
+                            }
+                            return value
+                        }}
+                    />
                     <Tooltip
                         content={(props: TooltipContentProps<any, any>) => <CustomTooltip {...props} series={series} />}
                     />

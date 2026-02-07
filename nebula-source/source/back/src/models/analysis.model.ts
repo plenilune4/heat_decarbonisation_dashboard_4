@@ -26,11 +26,35 @@ export type AnalysisOutput = AnalysisOutputVariable & {
     paretoSense: ParetoSense
 }
 
+export type AnalysisFilter = {
+    reference: string
+    type: 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq'
+    value: number | boolean | string | string[]
+}
+
+export type ChartType = 'histogram' | 'line' | 'scatter' | 'time-series' | 'parallel-coordinates'
+export type AxisDefinition = {
+    reference: string
+    label: string
+    frameworkType: 'exogenous' | 'lever' | 'measure' | 'relationship'
+    dataType?: string
+}
+
 export interface IAnalysisChart {
-    chartType: 'histogram' | 'line' | 'scatter'
+    chartType: ChartType
+    x: AxisDefinition
+    y: AxisDefinition
     label?: string
-    xAxisReference: string
-    yAxisReference: string
+    showParetoOnly?: boolean
+    parallelCoordinates?: {
+        references: { reference: string; visible: boolean }[]
+        colourAxis: string
+    }
+    //
+    /** @deprecated: use x instead */
+    xAxisReference?: string
+    /** @deprecated: use y instead */
+    yAxisReference?: string
 }
 
 export interface IAnalysis {
@@ -44,7 +68,10 @@ export interface IAnalysis {
     status: string
     scenarioInputs: AnalysisInput[]
     scenarioOutputs: AnalysisOutput[]
+    exogenousSamplingStrategy: SamplingStrategy
+    leverSamplingStrategy: SamplingStrategy
     results?: SimulationResult[]
+    filters?: AnalysisFilter[]
     charts?: IAnalysisChart[]
     isReadOnly: boolean // If this scenario is orphaned from its function, it will be read only.
     createdAt: Date
@@ -62,7 +89,10 @@ const scenarioRunSchema = new Schema<IAnalysis>(
         status: { type: String },
         scenarioInputs: [{ type: Object }],
         scenarioOutputs: [{ type: Object }],
+        exogenousSamplingStrategy: { type: Object },
+        leverSamplingStrategy: { type: Object },
         results: [{ type: Object }],
+        filters: [{ type: Object }],
         charts: [{ type: Object }],
         isReadOnly: { type: Boolean, default: false },
     },

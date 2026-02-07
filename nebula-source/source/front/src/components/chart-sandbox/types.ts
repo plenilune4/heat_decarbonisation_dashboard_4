@@ -1,10 +1,3 @@
-export interface AxisOption {
-    reference: string
-    label: string
-    frameworkType: 'exogenous' | 'lever' | 'measure' | 'relationship'
-    dataType?: string
-}
-
 export interface ChartPoint {
     x: any
     y: any

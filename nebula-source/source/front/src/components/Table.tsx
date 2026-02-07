@@ -55,13 +55,15 @@ export default function Table<Datum extends object>(props: {
     tableBodyClass?: string
     tableRowClass?: string
     tableRowCellClass?: string
+    defaultSortColumn?: string
+    defaultSortDirection?: 'asc' | 'desc'
 }) {
     // Global filters - search
     const { globalFilteredData, setGlobalFilter } = useGlobalFilter(props.data, props.columns, props.onSearch)
 
     // Column filters - value sort and value filter
-    const [sortColumn, setSortColumn] = useState<string | null>(null)
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+    const [sortColumn, setSortColumn] = useState<string | null>(props.defaultSortColumn ?? null)
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(props.defaultSortDirection ?? 'asc')
     const [filters, setFilters] = useState<{
         [key: string]: ((obj: Datum) => boolean)[]
     }>({})
@@ -174,7 +176,7 @@ export default function Table<Datum extends object>(props: {
                     onShouldSearch={async (q) => setGlobalFilter(q)}
                     containerClass={cn('max-w-3xl', props?.hideSearch && 'hidden')}
                     inputWrapperClass='rounded-lg'
-                    label={props?.searchPlaceholder ?? 'Search...'}
+                    placeholder={props?.searchPlaceholder ?? 'Search...'}
                 />
                 {props?.exportColumns?.length && (
                     <Button.Outline onClick={exportToCsv}>

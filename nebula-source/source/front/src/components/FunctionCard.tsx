@@ -48,21 +48,21 @@ export default function FunctionCard({
                 {!!exogenous && (
                     <div className='flex flex-row gap-2 items-center'>
                         <FrameworkBadge component='exogenous' />
-                        <span className='font-mono text-xl'>{exogenous}</span>
+                        <span className='font-mono text-xl break-all'>{exogenous}</span>
                         {/* <span className='text-gray-400'>exogenous</span> */}
                     </div>
                 )}
                 {!!levers && (
                     <div className='flex flex-row gap-2 items-center'>
                         <FrameworkBadge component='lever' />
-                        <span className='font-mono text-xl'>{levers}</span>
+                        <span className='font-mono text-xl break-all'>{levers}</span>
                         {/* <span className='text-gray-400'>levers</span> */}
                     </div>
                 )}
                 {!!measures && (
                     <div className='flex flex-row gap-2 items-center'>
                         <FrameworkBadge component='measure' />
-                        <span className='font-mono text-xl'>{measures}</span>
+                        <span className='font-mono text-xl break-all'>{measures}</span>
                         {/* <span className='text-gray-400'>measures</span> */}
                     </div>
                 )}

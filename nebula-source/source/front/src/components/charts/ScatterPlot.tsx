@@ -1,61 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as d3 from 'd3'
 import { quadtree } from 'd3-quadtree'
-import {
-    CartesianGrid,
-    Legend,
-    ResponsiveContainer,
-    Scatter,
-    ScatterChart,
-    Tooltip,
-    TooltipContentProps,
-    XAxis,
-    YAxis,
-} from 'recharts'
-
-import { useChartColors } from '@/utils/color-utils'
 
 import { ChartPoint } from '../chart-sandbox/types'
-import { CustomTooltip, TooltipContent } from './CustomTooltip'
-import { ScatterPlotProps } from './types'
-
-export default function ScatterPlot({ series, title, xLabel, yLabel }: ScatterPlotProps) {
-    const colors = useChartColors(series.length)
-
-    return (
-        <div>
-            {title && <div style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</div>}
-            <ResponsiveContainer width='100%' height={500}>
-                <ScatterChart margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray='3 3' />
-                    <XAxis
-                        dataKey='x'
-                        name={xLabel}
-                        type='number'
-                        label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -5 } : undefined}
-                    />
-                    <YAxis
-                        dataKey='y'
-                        name={yLabel}
-                        label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft' } : undefined}
-                    />
-                    <Tooltip
-                        content={(props: TooltipContentProps<any, any>) => <CustomTooltip {...props} series={series} />}
-                    />
-                    <Legend />
-                    {series.map((s, i) => (
-                        <Scatter
-                            key={s.name}
-                            name={s.name}
-                            data={s.data.map((d) => ({ x: d.x, y: d.y }))}
-                            fill={s.color || colors[i % colors.length]}
-                        />
-                    ))}
-                </ScatterChart>
-            </ResponsiveContainer>
-        </div>
-    )
-}
+import { TooltipContent } from './CustomTooltip'
 
 // Utility: Least squares linear regression (returns two points for the line)
 export function getLeastSquaresLine(points: { x: number; y: number }[]): { x: number; y: number }[] {
@@ -83,16 +31,21 @@ export function CustomCanvasScatterPlot({
     title,
     xLabel,
     yLabel,
+    discreteValueMappings,
 }: {
     series: { name: string; data: ChartPoint[] }[]
     title?: string
     xLabel?: string
     yLabel?: string
+    discreteValueMappings?: {
+        x?: string[]
+        y?: string[]
+    }
 }) {
     const canvasRef = useRef(null)
     const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: {} as ChartPoint })
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
-    const colors = series.map((_, i) => colorScale(i))
+    const colors = series.map((_, i) => colorScale(i.toString()))
 
     const margins = {
         top: 10,
@@ -107,12 +60,14 @@ export function CustomCanvasScatterPlot({
     })
 
     useEffect(() => {
+        if (!canvasRef.current) return
+
         const canvas = canvasRef.current
         const context = canvas.getContext('2d')
 
         const resizeCanvas = () => {
             canvas.width = canvas.parentElement.clientWidth
-            canvas.height = 500
+            canvas.height = 800
             drawChart()
         }
 
@@ -139,17 +94,41 @@ export function CustomCanvasScatterPlot({
             const paddedMinY = minY - yPadding
             const paddedMaxY = maxY + yPadding
 
-            let _xScale = d3
-                .scaleLinear()
-                .domain([paddedMinX, paddedMaxX])
-                .range([margins.left, canvas.width - margins.right])
-            let _yScale = d3
-                .scaleLinear()
-                .domain([paddedMinY, paddedMaxY])
-                .range([canvas.height - margins.bottom, margins.top])
+            let _xScale, _yScale, xTicks, yTicks
 
-            const xTicks = _xScale.ticks(10)
-            const yTicks = _yScale.ticks(10)
+            if (discreteValueMappings?.x && discreteValueMappings.x.length > 0) {
+                // Use ordinal scale for discrete X values
+                _xScale = d3
+                    .scaleBand()
+                    .domain(discreteValueMappings.x)
+                    .range([margins.left, canvas.width - margins.right])
+                    .padding(0.1)
+                xTicks = discreteValueMappings.x
+            } else {
+                // Use linear scale for continuous X values
+                _xScale = d3
+                    .scaleLinear()
+                    .domain([paddedMinX, paddedMaxX])
+                    .range([margins.left, canvas.width - margins.right])
+                xTicks = _xScale.ticks(10)
+            }
+
+            if (discreteValueMappings?.y && discreteValueMappings.y.length > 0) {
+                // Use ordinal scale for discrete Y values
+                _yScale = d3
+                    .scaleBand()
+                    .domain(discreteValueMappings.y)
+                    .range([canvas.height - margins.bottom, margins.top])
+                    .padding(0.1)
+                yTicks = discreteValueMappings.y
+            } else {
+                // Use linear scale for continuous Y values
+                _yScale = d3
+                    .scaleLinear()
+                    .domain([paddedMinY, paddedMaxY])
+                    .range([canvas.height - margins.bottom, margins.top])
+                yTicks = _yScale.ticks(10)
+            }
 
             context.textAlign = 'center'
             context.fillText(xLabel || '', canvas.width / 2, canvas.height - margins.bottom + fontSize * 3)
@@ -164,7 +143,10 @@ export function CustomCanvasScatterPlot({
             context.textAlign = 'center'
             context.textBaseline = 'middle'
             xTicks.forEach((x) => {
-                const xPos = _xScale(x)
+                const xPos =
+                    discreteValueMappings?.x && discreteValueMappings.x.length > 0
+                        ? _xScale(x) + _xScale.bandwidth() / 2
+                        : _xScale(x)
                 context.beginPath()
                 context.moveTo(xPos, margins.top)
                 context.lineTo(xPos, canvas.height - margins.bottom)
@@ -174,7 +156,10 @@ export function CustomCanvasScatterPlot({
             context.textAlign = 'right'
             context.textBaseline = 'middle'
             yTicks.forEach((y) => {
-                const yPos = _yScale(y)
+                const yPos =
+                    discreteValueMappings?.y && discreteValueMappings.y.length > 0
+                        ? _yScale(y) + _yScale.bandwidth() / 2
+                        : _yScale(y)
                 context.beginPath()
                 context.moveTo(margins.left, yPos)
                 context.lineTo(canvas.width - margins.right, yPos)
@@ -198,8 +183,27 @@ export function CustomCanvasScatterPlot({
 
             series.forEach((s, i) => {
                 s.data.forEach((point) => {
+                    // For discrete values, map numeric indices back to string values for positioning
+                    const xValue =
+                        discreteValueMappings?.x && discreteValueMappings.x.length > 0 && typeof point.x === 'number'
+                            ? discreteValueMappings.x[point.x]
+                            : point.x
+                    const yValue =
+                        discreteValueMappings?.y && discreteValueMappings.y.length > 0 && typeof point.y === 'number'
+                            ? discreteValueMappings.y[point.y]
+                            : point.y
+
+                    const xPos =
+                        discreteValueMappings?.x && discreteValueMappings.x.length > 0
+                            ? _xScale(xValue) + _xScale.bandwidth() / 2
+                            : _xScale(xValue)
+                    const yPos =
+                        discreteValueMappings?.y && discreteValueMappings.y.length > 0
+                            ? _yScale(yValue) + _yScale.bandwidth() / 2
+                            : _yScale(yValue)
+
                     context.beginPath()
-                    context.arc(_xScale(point.x), _yScale(point.y), 5, 0, 2 * Math.PI)
+                    context.arc(xPos, yPos, 5, 0, 2 * Math.PI)
                     context.fillStyle = colors[i]
                     context.fill()
                 })
@@ -214,15 +218,26 @@ export function CustomCanvasScatterPlot({
         return () => {
             window.removeEventListener('resize', resizeCanvas)
         }
-    }, [series, xLabel, yLabel])
+    }, [canvasRef, series, xLabel, yLabel])
 
-    const pointQuadtree = useCallback(
-        quadtree()
-            .x((d) => scales.xScale(d.x))
-            .y((d) => scales.yScale(d.y))
-            .addAll(series.flatMap((s) => s.data)),
-        [series, scales]
-    )
+    const pointQuadtree = useCallback(() => {
+        return quadtree<ChartPoint>()
+            .x((d) => {
+                const xValue = discreteValueMappings?.x && typeof d.x === 'number' ? discreteValueMappings.x[d.x] : d.x
+                const xPos = scales.xScale(xValue)
+                return discreteValueMappings?.x && 'bandwidth' in scales.xScale
+                    ? xPos + (scales.xScale as any).bandwidth() / 2
+                    : xPos
+            })
+            .y((d) => {
+                const yValue = discreteValueMappings?.y && typeof d.y === 'number' ? discreteValueMappings.y[d.y] : d.y
+                const yPos = scales.yScale(yValue)
+                return discreteValueMappings?.y && 'bandwidth' in scales.yScale
+                    ? yPos + (scales.yScale as any).bandwidth() / 2
+                    : yPos
+            })
+            .addAll(series.flatMap((s) => s.data))
+    }, [series, scales, discreteValueMappings])
 
     const handleMouseMove = useCallback(
         (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -230,7 +245,7 @@ export function CustomCanvasScatterPlot({
             const dx = event.clientX - rect.left
             const dy = event.clientY - rect.top
 
-            const closestPoint = pointQuadtree.find(dx, dy, 5)
+            const closestPoint = pointQuadtree().find(dx, dy, 5)
             if (closestPoint) {
                 setTooltip({
                     visible: true,

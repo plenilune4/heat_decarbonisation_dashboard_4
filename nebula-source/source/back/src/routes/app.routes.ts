@@ -8,6 +8,7 @@ import Client from '../models/client.model'
 import EvaluationFunction from '../models/evaluationFunction.model'
 import Token from '../models/token.model'
 import {
+    SamplingStrategy,
     ScenarioArrayScalar,
     ScenarioConfiguration,
     ScenarioScalar,
@@ -30,7 +31,7 @@ import BaseRoutes from './helper'
 const router = Router()
 const ROUTES = ENDPOINTS.app
 
-const POPULATE_SCENARIO = ['evaluationFunction', 'owner', 'client']
+const POPULATE_ANALYSIS = ['evaluationFunction', 'owner', 'client']
 
 // User routes with access control
 BaseRoutes(router, {
@@ -189,11 +190,26 @@ router.delete(ROUTES.clientUser + '/:id', async (req: Request, res: Response) =>
 BaseRoutes(router, {
     model: Analysis,
     route: ROUTES.analysis,
-    excludedRoutes: [],
+    excludedRoutes: ['get'],
     userSpecific: true,
     ownerField: 'client',
     ownerComparisonFunction: (res) => res.locals.sessionUser?.client?._id?.toString(),
     populate: ['owner', 'client', 'evaluationFunction', 'evaluationFunction.name'],
+})
+router.get(ROUTES.analysis, async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+
+    const targetClient = await Client.findById(sessionUser.client._id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+
+    const analyses = await Analysis.find({ client: targetClient._id })
+        .sort({ createdAt: -1 })
+        .select('-results')
+        .populate(POPULATE_ANALYSIS)
+
+    return res.status(200).json(analyses)
 })
 
 // EvaluationFunction routes
@@ -243,7 +259,7 @@ router.get(ROUTES.client + '/:client_id/analyses', async (req: Request, res: Res
 
     const analyses = await Analysis.find({ client: targetClient._id })
         .sort({ createdAt: -1 })
-        .populate(POPULATE_SCENARIO)
+        .populate(POPULATE_ANALYSIS)
     return res.status(200).json(analyses)
 })
 router.get(ROUTES.client + '/:client_id/analyses/make-reference', async (req: Request, res: Response) => {
@@ -272,7 +288,7 @@ router.get(ROUTES.client + '/:client_id/analyses/make-reference', async (req: Re
 
     return res.status(200).json({ nextReference })
 })
-router.get(ROUTES.client + '/:client_id/analyses/:scenario_id', async (req: Request, res: Response) => {
+router.get(ROUTES.client + '/:client_id/analyses/:analysis_id', async (req: Request, res: Response) => {
     const { sessionUser } = res.locals
 
     if (!req.params.client_id || req.params.client_id === 'undefined') {
@@ -289,9 +305,10 @@ router.get(ROUTES.client + '/:client_id/analyses/:scenario_id', async (req: Requ
     }
 
     const analysis = await Analysis.findOne({
-        _id: req.params.scenario_id,
+        _id: req.params.analysis_id,
         client: targetClient._id,
-    }).populate(POPULATE_SCENARIO)
+    }).populate(POPULATE_ANALYSIS)
+
     if (!analysis) {
         return res.status(404).json({ message: 'Analysis not found' })
     }
@@ -319,7 +336,7 @@ router.post(ROUTES.client + '/:client_id/analyses', async (req: Request, res: Re
         })
         await newAnalysis.save()
 
-        return res.status(201).json({ created: await Analysis.findById(newAnalysis._id).populate(POPULATE_SCENARIO) })
+        return res.status(201).json({ created: await Analysis.findById(newAnalysis._id).populate(POPULATE_ANALYSIS) })
     } else {
         const existingAnalysis = await Analysis.findOne({ _id, client: targetClient._id })
         if (!existingAnalysis) {
@@ -334,7 +351,7 @@ router.post(ROUTES.client + '/:client_id/analyses', async (req: Request, res: Re
 
         return res
             .status(200)
-            .json({ updated: await Analysis.findById(existingAnalysis._id).populate(POPULATE_SCENARIO) })
+            .json({ updated: await Analysis.findById(existingAnalysis._id).populate(POPULATE_ANALYSIS) })
     }
 })
 
@@ -362,7 +379,7 @@ router.post(ROUTES.client + '/:client_id/analyses/:analysis_id', async (req: Req
 
     await Analysis.findByIdAndUpdate(req.params.analysis_id, update)
 
-    return res.status(200).json({ updated: await Analysis.findById(analysis._id).populate(POPULATE_SCENARIO) })
+    return res.status(200).json({ updated: await Analysis.findById(analysis._id).populate(POPULATE_ANALYSIS) })
 })
 
 router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
@@ -397,12 +414,15 @@ router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
         return
     }
 
-    const { analysisId, requiredPackages, inputs, script } = req.body as {
-        analysisId: string
-        requiredPackages: { name: string; alias?: string; version?: string }[]
-        inputs: AnalysisInput[]
-        script: string
-    }
+    const { analysisId, requiredPackages, inputs, script, exogenousSamplingStrategy, leverSamplingStrategy } =
+        req.body as {
+            analysisId: string
+            requiredPackages: { name: string; alias?: string; version?: string }[]
+            inputs: AnalysisInput[]
+            script: string
+            exogenousSamplingStrategy: SamplingStrategy
+            leverSamplingStrategy: SamplingStrategy
+        }
 
     if (!analysisId) {
         const simError: SimulationError = {
@@ -423,7 +443,20 @@ router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
         return
     }
 
-    const inputConfigurations: ScenarioConfiguration[] = computeScenarios(inputs)
+    const [inputConfigurations, configurationError]: [ScenarioConfiguration[], Error | null] = computeScenarios(
+        inputs,
+        exogenousSamplingStrategy,
+        leverSamplingStrategy
+    )
+    if (configurationError) {
+        const simError: SimulationError = {
+            inputs: {},
+            error: configurationError.message,
+        }
+        res.write(`event: error\ndata: ${JSON.stringify(simError)}\n\n`)
+        res.end()
+        return
+    }
 
     if (!inputConfigurations?.length) {
         const simError: SimulationError = {
@@ -449,7 +482,7 @@ router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
         return
     }
 
-    console.log(`[server][configuration] Running ${inputConfigurations.length} scenarios`)
+    console.log(`[server][config] Running ${inputConfigurations.length} scenarios`)
 
     try {
         if (requiredPackages?.length) {
@@ -468,7 +501,7 @@ router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
             )
         }
     } catch (error) {
-        console.error(`[server][parallel] Error installing packages`, error)
+        console.error(`[server][config] Error installing packages`, error)
         const simError: SimulationError = {
             inputs: {},
             error: error.message,
@@ -492,32 +525,52 @@ router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
             inputConfigurations.map((inputs, index) => ({
                 index,
                 inputs,
-                requiredPackages,
             })),
+            requiredPackages,
             (data) => {
-                res.write(`event: log\ndata: ${JSON.stringify(data)}\n\n`)
+                if (data.error) {
+                    const simError: SimulationError = {
+                        inputs: {},
+                        error: data.error,
+                    }
+                    res.write(`event: error\ndata: ${JSON.stringify(simError)}\n\n`)
+                }
+                if (data.log) {
+                    const simLog: SimulationLog = {
+                        inputs: {},
+                        log: data.log,
+                    }
+                    res.write(`event: log\ndata: ${JSON.stringify(simLog)}\n\n`)
+                }
             }
         )
 
-        // console.log(`[server][parallel] Results`, JSON.stringify(results, null, 2))
-
-        // Process results
-        console.log(`Received ${results.length} results from parallel execution`)
+        console.log(`[server][stream] Executed ${results.length} results`)
 
         for (let i = 0; i < results.length; i++) {
             const result = results[i]
             const { outputs, index } = result
 
+            const parsedOutputs = {}
+            for (const [reference, value] of Object.entries(outputs)) {
+                let parsedNumber = parseFloat(value as string)
+                if (!isNaN(parsedNumber) && isFinite(parsedNumber)) {
+                    parsedOutputs[reference] = parsedNumber
+                } else {
+                    parsedOutputs[reference] = value
+                }
+            }
+
             const simulationResult: SimulationResult = {
                 inputs: inputConfigurations[index] ?? {},
-                result: outputs as { [reference: string]: any },
+                result: parsedOutputs as { [reference: string]: any },
                 index: i,
             }
 
             res.write(`event: result\ndata: ${JSON.stringify(simulationResult)}\n\n`)
         }
 
-        console.log(`[server][stream] Completed ${results.length} scenarios`)
+        console.log(`[server][stream] Streamed ${results.length} results`)
     } catch (error) {
         const simError: SimulationError = {
             inputs: {},

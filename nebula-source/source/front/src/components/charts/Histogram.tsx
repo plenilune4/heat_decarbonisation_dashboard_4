@@ -1,21 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Legend,
-    Line,
-    ResponsiveContainer,
-    Tooltip,
-    TooltipProps,
-    XAxis,
-    YAxis,
-} from 'recharts'
+import { useEffect, useMemo, useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import { useChartColors } from '@/utils/color-utils'
 
 import ErrorAlert from '../ErrorAlert'
 import { HistogramProps } from './types'
+
+const NUMBER_OF_BINS = 50
 
 export default function Histogram({
     series,
@@ -24,6 +15,7 @@ export default function Histogram({
     title,
     xLabel,
     yLabel,
+    discreteValueMappings,
 }: HistogramProps) {
     const [error, setError] = useState<string | null>(null)
     const [bins, setBins] = useState<any[]>([])
@@ -34,17 +26,18 @@ export default function Histogram({
         try {
             // Flatten all data to get global min/max
             const allData = series.flatMap((s) => s.data.map((d) => d.x))
-            console.log('allData', {
-                allData,
-                series,
-            })
             if (!allData.length) {
                 setBins([])
                 // setError('No data to bin.')
                 return
             }
             // Compute global bins
-            const [globalBins, binError, binEdges] = getGlobalBinnedData(series, { bins: 20, roundBins: true })
+            const [globalBins, binError, binEdges] = getGlobalBinnedData(series, {
+                bins: NUMBER_OF_BINS,
+                minBins: NUMBER_OF_BINS,
+                roundBins: true,
+            })
+
             if (binError) {
                 setBins([])
                 // setError(typeof binError === 'string' ? binError : 'Unable to bin data.')
@@ -105,14 +98,6 @@ export default function Histogram({
         return null
     }
 
-    console.log('Histogram', {
-        title,
-        series,
-        bins,
-        allX,
-        xMin,
-    })
-
     if (error) {
         return <ErrorAlert title='Chart Error' messages={[error]} />
     }
@@ -131,10 +116,29 @@ export default function Histogram({
                     <CartesianGrid strokeDasharray='3 3' />
                     <XAxis
                         dataKey='x'
-                        type={typeof allX[0] === 'number' ? 'number' : 'category'}
+                        type={
+                            discreteValueMappings?.x ? 'category' : typeof allX[0] === 'number' ? 'number' : 'category'
+                        }
                         allowDuplicatedCategory={false}
                         label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -5 } : undefined}
-                        domain={typeof allX[0] === 'number' ? [xMin - xPadding, xMax + xPadding] : undefined}
+                        domain={
+                            discreteValueMappings?.x
+                                ? undefined
+                                : typeof allX[0] === 'number'
+                                  ? [xMin - xPadding, xMax + xPadding]
+                                  : undefined
+                        }
+                        tickFormatter={(value) => {
+                            if (
+                                discreteValueMappings?.x &&
+                                typeof value === 'number' &&
+                                value >= 0 &&
+                                value < discreteValueMappings.x.length
+                            ) {
+                                return discreteValueMappings.x[value]
+                            }
+                            return value
+                        }}
                     />
                     <YAxis label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft' } : undefined} />
                     <Tooltip content={<HistogramTooltip />} />
@@ -172,7 +176,7 @@ export default function Histogram({
 // Helper: Compute global bins and per-series frequencies
 function getGlobalBinnedData(
     series: { name: string; data: { x: number }[] }[],
-    options: { bins?: number; binWidth?: number; roundBins?: boolean }
+    options: { bins?: number; binWidth?: number; minBins?: number; roundBins?: boolean }
 ) {
     // Flatten all data to get global min/max
     const allData = series.flatMap((s) => s.data.map((d) => d.x))
@@ -183,6 +187,7 @@ function getGlobalBinnedData(
 
     let binWidth = options.binWidth
     let binCount = options.bins
+    const minBins = options.minBins || 1
 
     if (!binWidth && binCount) {
         binWidth = (max - min) / binCount
@@ -201,6 +206,10 @@ function getGlobalBinnedData(
         binWidth = Math.max(1, Math.round(binWidth!))
         binCount = Math.ceil((binEnd - binStart) / binWidth)
     }
+
+    // Enforce minimum number of bins (after rounding)
+    binCount = Math.max(binCount, minBins)
+    binWidth = (binEnd - binStart) / binCount
 
     const binEdges = Array.from({ length: binCount + 1 }, (_, i) => binStart + i * binWidth!)
 

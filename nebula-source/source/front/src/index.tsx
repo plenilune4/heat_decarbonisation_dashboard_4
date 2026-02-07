@@ -49,69 +49,67 @@ import CreateAnalysisForm from './forms/CreateAnalysisForm'
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
 root.render(
-    <React.StrictMode>
-        <BrowserRouter>
-            <ResourceStatusProvider>
-                <AuthProvider>
-                    <Routes>
-                        {/* Authentication Pages */}
-                        <Route path='/register' element={<RegisterPage />} />
-                        <Route path='/login' element={<LoginPage />} />
-                        <Route path='/logout' element={<LogoutPage />} />
-                        <Route path='/request-reset' element={<RequestResetPage />} />
-                        <Route path='/reset-password' element={<ResetPasswordPage />} />
-                        <Route path='/confirm-account' element={<ConfirmAccountPage />} />
+    <BrowserRouter>
+        <ResourceStatusProvider>
+            <AuthProvider>
+                <Routes>
+                    {/* Authentication Pages */}
+                    <Route path='/register' element={<RegisterPage />} />
+                    <Route path='/login' element={<LoginPage />} />
+                    <Route path='/logout' element={<LogoutPage />} />
+                    <Route path='/request-reset' element={<RequestResetPage />} />
+                    <Route path='/reset-password' element={<ResetPasswordPage />} />
+                    <Route path='/confirm-account' element={<ConfirmAccountPage />} />
 
-                        {/* Public Routes */}
-                        <Route path='/onboarding' element={<Onboarding />} />
+                    {/* Public Routes */}
+                    <Route path='/onboarding' element={<Onboarding />} />
 
-                        <Route element={<AuthenticatedWrapper />}>
-                            <Route element={<OnboardingWrapper />}>
-                                <Route path='/' element={<AppLayout />}>
-                                    <Route index element={<Dashboard />} />
-                                    <Route path='evaluations' element={<Evaluations />} />
-                                    <Route path='evaluations/:id' element={<SingleFunctionView />} />
-                                    {/*  */}
-                                    <Route path='analyses'>
-                                        <Route index element={<LoadPreviousAnalysis />} />
-                                        <Route path='create' element={<CreateAnalysisForm />} />
-                                        <Route path='run/:id' element={<ManageAnalysis />} />
-                                    </Route>
-                                    {/*  */}
-                                    <Route path='client-management' element={<ClientManagement />} />
-                                    <Route path='client-management/user/:id' element={<ClientUserManagement />} />
-                                    {/*  */}
-                                    <Route path='profile' element={<Profile />} />
+                    <Route element={<AuthenticatedWrapper />}>
+                        <Route element={<OnboardingWrapper />}>
+                            <Route path='/' element={<AppLayout />}>
+                                <Route index element={<Dashboard />} />
+                                <Route path='evaluations' element={<Evaluations />} />
+                                <Route path='evaluations/:id' element={<SingleFunctionView />} />
+                                {/*  */}
+                                <Route path='analyses'>
+                                    <Route index element={<LoadPreviousAnalysis />} />
+                                    <Route path='create' element={<CreateAnalysisForm />} />
+                                    <Route path='run/:id' element={<ManageAnalysis />} />
                                 </Route>
-                            </Route>
-                            <Route element={<PermissionsWrapper required={{ isAdmin: true }} />}>
-                                <Route path='/admin' element={<AdminLayout />}>
-                                    <Route index element={<AdminUsersTable />} />
-                                    <Route path='users/:id' element={<AdminUserForm />} />
-                                    <Route path='clients' element={<AdminClientsTable />} />
-                                    <Route path='clients/:id' element={<AdminClientForm />} />
-                                    <Route path='analyses' element={<AdminAnalysisRunsTable />} />
-                                    {/*  */}
-                                    <Route path='functions' element={<AdminFunctionsTable />} />
-                                    <Route path='functions/:id' element={<AdminFunctionForm />} />
-                                    {/*  */}
-                                    <Route path='analyses'>
-                                        <Route index element={<LoadPreviousAnalysis />} />
-                                        <Route path='create' element={<CreateAnalysisForm />} />
-                                        <Route path='run/:id' element={<ManageAnalysis />} />
-                                    </Route>
-                                    {/*  */}
-                                    <Route path='*' element={<NotFoundPage redirectTo='/admin' />} />
-                                </Route>
+                                {/*  */}
+                                <Route path='client-management' element={<ClientManagement />} />
+                                <Route path='client-management/user/:id' element={<ClientUserManagement />} />
+                                {/*  */}
+                                <Route path='profile' element={<Profile />} />
                             </Route>
                         </Route>
-                        {/* Error */}
-                        <Route path='/forbidden' element={<ForbiddenPage />} />
-                        <Route path='/*' element={<NotFoundPage redirectTo='/' />} />
-                    </Routes>
-                    <ToastContainer position='top-right' autoClose={5000} theme='dark' />
-                </AuthProvider>
-            </ResourceStatusProvider>
-        </BrowserRouter>
-    </React.StrictMode>
+                        <Route element={<PermissionsWrapper required={{ isAdmin: true }} />}>
+                            <Route path='/admin' element={<AdminLayout />}>
+                                <Route index element={<AdminUsersTable />} />
+                                <Route path='users/:id' element={<AdminUserForm />} />
+                                <Route path='clients' element={<AdminClientsTable />} />
+                                <Route path='clients/:id' element={<AdminClientForm />} />
+                                <Route path='analyses' element={<AdminAnalysisRunsTable />} />
+                                {/*  */}
+                                <Route path='functions' element={<AdminFunctionsTable />} />
+                                <Route path='functions/:id' element={<AdminFunctionForm />} />
+                                {/*  */}
+                                <Route path='analyses'>
+                                    <Route index element={<LoadPreviousAnalysis />} />
+                                    <Route path='create' element={<CreateAnalysisForm />} />
+                                    <Route path='run/:id' element={<ManageAnalysis />} />
+                                </Route>
+                                {/*  */}
+                                <Route path='*' element={<NotFoundPage redirectTo='/admin' />} />
+                            </Route>
+                        </Route>
+                    </Route>
+                    {/* Error */}
+                    <Route path='/forbidden' element={<ForbiddenPage />} />
+                    <Route path='/*' element={<NotFoundPage redirectTo='/' />} />
+                </Routes>
+                <ToastContainer position='top-right' autoClose={5000} theme='dark' />
+            </AuthProvider>
+        </ResourceStatusProvider>
+    </BrowserRouter>
 )

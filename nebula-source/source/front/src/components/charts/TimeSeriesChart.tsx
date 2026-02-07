@@ -7,8 +7,6 @@ import { TimeSeriesChartProps } from './types'
 export default function TimeSeriesChart({ series, title, xLabel, yLabel }: TimeSeriesChartProps) {
     const colors = useChartColors(series.length)
 
-    console.log('TimeSeriesChart', { series })
-
     return (
         <div>
             {title && <div style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</div>}
@@ -40,6 +38,7 @@ export default function TimeSeriesChart({ series, title, xLabel, yLabel }: TimeS
                             stroke={s.color || colors[idx % colors.length]}
                             isAnimationActive={false}
                             dot={false}
+                            connectNulls={false}
                         />
                     ))}
                 </LineChart>

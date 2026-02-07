@@ -2,8 +2,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import ROUTES from '@/ROUTES'
 import JSZip from 'jszip'
 
-import { AnalysisInput, IAnalysis } from '@/MODELS/analysis.model'
-import { SimulationError, SimulationLog, SimulationResult, SimulationSetup } from '@/MODELS/types'
+import { AnalysisFilter, AnalysisInput, AxisDefinition, IAnalysis } from '@/MODELS/analysis.model'
+import { IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
+import { SamplingStrategy, SimulationError, SimulationLog, SimulationResult, SimulationSetup } from '@/MODELS/types'
+
+import { getAllAxisDefinitions } from '@/components/chart-sandbox/ChartSandbox'
 
 import { api_stream } from './api.service'
 
@@ -21,8 +24,12 @@ export type Runner = {
 
 export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
     const numberOfScenarios = useMemo(() => {
-        return countScenarios(analysis.scenarioInputs)
-    }, [JSON.stringify(analysis.scenarioInputs)])
+        return countScenarios(analysis)
+    }, [
+        JSON.stringify(analysis.scenarioInputs),
+        JSON.stringify(analysis.exogenousSamplingStrategy),
+        JSON.stringify(analysis.leverSamplingStrategy),
+    ])
 
     const [isRunning, setRunning] = useState(false)
     const [loadingText, setLoadingText] = useState<string | null>(null)
@@ -49,6 +56,10 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
                         requiredPackages: analysis.evaluationFunction.requiredPackages,
                         inputs: analysis.scenarioInputs,
                         script: analysis.evaluationFunction.script,
+                        exogenousSamplingStrategy: analysis?.exogenousSamplingStrategy ?? {
+                            sampleMethod: 'full-factorial',
+                        },
+                        leverSamplingStrategy: analysis?.leverSamplingStrategy ?? { sampleMethod: 'full-factorial' },
                     }
                 )
 
@@ -65,8 +76,8 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
                 let totalRuns = 0
                 let completedRuns = 0
 
-                const results: SimulationResult[] = []
-                const errors: SimulationError[] = []
+                const _results: SimulationResult[] = []
+                const _errors: SimulationError[] = []
 
                 while (true) {
                     const { value, done } = await reader.read()
@@ -92,6 +103,10 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
                                         return `[LOG] ${line.replace('PYLOG:', '').trim()}`
                                     }
                                     if (line.includes('PYERR:')) {
+                                        _errors.push({
+                                            error: line.replace('PYERR:', '').trim(),
+                                            inputs: undefined,
+                                        })
                                         return `[ERROR] ${line.replace('PYERR:', '').trim()}`
                                     }
                                     if (line.includes('PYDEV:')) {
@@ -109,7 +124,10 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
                             const data = JSON.parse(text) as SimulationError
 
                             console.error(`[AnalysisRunner] Error:`, data.error)
-                            errors.push(data)
+                            _errors.push({
+                                ...data,
+                                error: data.error.replace('PYERR:', '').trim(),
+                            })
                         }
 
                         if (chunk.startsWith('event: setup')) {
@@ -118,7 +136,7 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
 
                             if (data.numberOfScenarios) {
                                 totalRuns = data.numberOfScenarios
-                                setLoadingText(`Running ${totalRuns} scenarios...`)
+                                setLoadingText(`Running ${new Intl.NumberFormat().format(totalRuns)} simulations...`)
                             }
 
                             if (data.installingPackages) {
@@ -131,14 +149,16 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
                             const data = JSON.parse(text) as SimulationResult
 
                             // console.log(`[AnalysisRunner] Result:`, data)
-                            results.push(data)
+                            _results.push(data)
                             completedRuns += 1
-                            setLoadingText(`Completed ${completedRuns}/${totalRuns} scenarios...`)
+                            setLoadingText(
+                                `Completed ${new Intl.NumberFormat().format(completedRuns)}/${new Intl.NumberFormat().format(totalRuns)} simulations...`
+                            )
                         }
 
                         if (chunk.startsWith('event: done')) {
                             console.log(`[AnalysisRunner] Done`)
-                            console.log(`[AnalysisRunner] Results:`, results)
+                            console.log(`[AnalysisRunner] Results:`, _results)
                             break
                         }
                     }
@@ -152,14 +172,22 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
                         charts.push({
                             label: 'Chart 1',
                             chartType: 'scatter',
-                            xAxisReference: '',
-                            yAxisReference: '',
+                            x: {
+                                reference: '',
+                                label: '',
+                                frameworkType: 'exogenous',
+                            },
+                            y: {
+                                reference: '',
+                                label: '',
+                                frameworkType: 'exogenous',
+                            },
                         })
                     }
                 }
 
-                setErrors(errors)
-                setResults(results)
+                setErrors(_errors)
+                setResults(_results)
 
                 setLoadingText(null)
                 setRunning(false)
@@ -179,6 +207,8 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
             analysis._id,
             analysis.evaluationFunction.script,
             analysis.scenarioInputs,
+            analysis.exogenousSamplingStrategy,
+            analysis.leverSamplingStrategy,
             analysis.evaluationFunction.requiredPackages,
             analysis.evaluationFunction.defaultChart,
             analysis.charts,
@@ -208,7 +238,25 @@ export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
     }
 }
 
-function countScenarios(inputs: AnalysisInput[]): number {
+function countScenarios(analysis: IAnalysis): number {
+    const exogenousInputs = analysis.scenarioInputs.filter((input) => input.inputType === 'exogenous')
+    const leverInputs = analysis.scenarioInputs.filter((input) => input.inputType === 'lever')
+
+    const exogenousCount = countScenariosForInputs(exogenousInputs, analysis.exogenousSamplingStrategy)
+    const leverCount = countScenariosForInputs(leverInputs, analysis.leverSamplingStrategy)
+
+    const finalCount = exogenousCount * leverCount
+
+    return finalCount
+}
+
+function countScenariosForInputs(inputs: AnalysisInput[], groupSamplingStrategy: SamplingStrategy): number {
+    // If using latin-hypercube, return the specified number of samples
+    if (groupSamplingStrategy?.sampleMethod === 'latin-hypercube') {
+        return groupSamplingStrategy.numHypercubeSamples
+    }
+
+    // For full-factorial, calculate the product of all individual variable counts
     let arrayScalarCounts: number[] = []
     let numCsvTimeSeries = 0
 
@@ -218,9 +266,9 @@ function countScenarios(inputs: AnalysisInput[]): number {
                 const lines = input.csv.trim().split('\n')
                 const headers = lines[0]?.split(',') || []
                 const numSeries = Math.max(headers.length - 1, 1)
-                numCsvTimeSeries += numSeries
+                arrayScalarCounts.push(numSeries)
             } else {
-                numCsvTimeSeries += 1
+                arrayScalarCounts.push(1)
             }
             return
         }
@@ -310,7 +358,10 @@ function timeSeriesDataToCSV(data: { date: string; [key: string]: any }[]): stri
 }
 
 export async function downloadAnalysis(analysis: IAnalysis): Promise<void> {
-    if (checkForTimeSeries(analysis)) {
+    const hasActiveFilters = analysis.filters && analysis.filters.length > 0
+    const hasTimeSeries = checkForTimeSeries(analysis)
+
+    if (hasTimeSeries) {
         await downloadAnalysisData(analysis)
     } else {
         downloadAnalysisCSV(analysis)
@@ -326,6 +377,22 @@ async function convertAnalysisToZip(analysis: IAnalysis): Promise<Blob> {
     }
 
     const zip = new JSZip()
+    const hasActiveFilters = analysis.filters && analysis.filters.length > 0
+
+    // Apply filters if they exist
+    let filteredResults: SimulationResult[] | undefined
+    if (hasActiveFilters) {
+        // Import the applyFilters function from ChartSandbox
+        filteredResults = applyFilters(
+            analysis.results,
+            analysis.filters,
+            new Map(
+                getAllAxisDefinitions(analysis.results, analysis.evaluationFunction).map((opt) => [opt.reference, opt])
+            )
+        )
+    }
+
+    const resultsToProcess = hasActiveFilters && filteredResults ? filteredResults : analysis.results
 
     // Extract all input and output references
     const inputRefs = analysis.scenarioInputs.map((input) => input.reference)
@@ -353,7 +420,7 @@ async function convertAnalysisToZip(analysis: IAnalysis): Promise<Blob> {
     }
 
     // First pass: collect all time series data for each ref
-    analysis.results.forEach((result, scenarioIdx) => {
+    resultsToProcess.forEach((result, scenarioIdx) => {
         // Inputs
         Object.entries(result.inputs).forEach(([key, inputData]) => {
             if (inputData.type === 'array' || isTimeSeries(inputData.value)) {
@@ -417,7 +484,7 @@ async function convertAnalysisToZip(analysis: IAnalysis): Promise<Blob> {
     })
 
     // Process each result into a row for the main CSV
-    const rows = analysis.results.map((result) => {
+    const rows = resultsToProcess.map((result) => {
         const row: Record<string, string> = {}
 
         // Add scenario index
@@ -469,7 +536,64 @@ async function convertAnalysisToZip(analysis: IAnalysis): Promise<Blob> {
     ].join('\n')
 
     // Add main CSV to zip
-    zip.file('main_results.csv', mainCsvContent)
+    const mainCsvFilename = hasActiveFilters ? 'filtered_results.csv' : 'main_results.csv'
+    zip.file(mainCsvFilename, mainCsvContent)
+
+    // If filters are active, also create the full dataset
+    if (hasActiveFilters) {
+        const fullRows = analysis.results.map((result) => {
+            const row: Record<string, string> = {}
+
+            // Add scenario index
+            row['index'] = result.index.toString()
+
+            // Process input values
+            Object.entries(result.inputs).forEach(([key, inputData]) => {
+                if (inputData.type === 'array' || isTimeSeries(inputData.value)) {
+                    // Reference the correct file for this scenario
+                    const file = timeSeriesScenarioToFile[key]?.[result.index]
+                    row[key] = file ? `[TimeSeries: ${file}]` : ''
+                } else {
+                    // Handle primitive values
+                    row[key] = String(inputData.value)
+                }
+            })
+
+            // Process output values
+            Object.entries(result.result).forEach(([key, value]) => {
+                if (isTimeSeries(value)) {
+                    const file = timeSeriesScenarioToFile[key]?.[result.index]
+                    row[key] = file ? `[TimeSeries: ${file}]` : ''
+                } else if (typeof value === 'object' && value !== null) {
+                    // Handle other complex objects by JSON stringifying
+                    row[key] = JSON.stringify(value)
+                } else {
+                    // Handle primitive values
+                    row[key] = String(value)
+                }
+            })
+
+            return row
+        })
+
+        // Create full CSV content
+        const fullCsvContent = [
+            headers.join(','),
+            ...fullRows.map((row) =>
+                headers
+                    .map((header) => {
+                        const value = row[header] || ''
+                        if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+                            return `"${value.replace(/"/g, '""')}"`
+                        }
+                        return value
+                    })
+                    .join(',')
+            ),
+        ].join('\n')
+
+        zip.file('full_results.csv', fullCsvContent)
+    }
 
     // Add a README.txt file explaining the structure
     const readmeContent = `
@@ -479,10 +603,22 @@ Simulation Results Export
 This zip file contains the results of your simulation "${analysis.label || analysis.reference}".
 
 Files:
-- main_results.csv: Contains all scalar inputs and outputs for each scenario
+${
+    hasActiveFilters
+        ? `- filtered_results.csv: Contains filtered scalar inputs and outputs (${filteredResults?.length || 0} scenarios)
+- full_results.csv: Contains all scalar inputs and outputs (${analysis.results.length} scenarios)`
+        : `- main_results.csv: Contains all scalar inputs and outputs for each scenario`
+}
 - time_series/: Directory containing separate CSV files for each unique time series
 
-Time Series References:
+${
+    hasActiveFilters
+        ? `Active Filters:
+${analysis.filters?.map((filter, index) => `- Filter ${index + 1}: ${filter.reference} ${filter.type} ${filter.value}`).join('\n')}
+
+`
+        : ''
+}Time Series References:
 ${Array.from(timeSeriesRefs)
     .map((ref) => `- ${ref}`)
     .join('\n')}
@@ -542,25 +678,77 @@ async function downloadAnalysisData(analysis: IAnalysis): Promise<void> {
 function downloadAnalysisCSV(analysis: IAnalysis): void {
     // First check if there are any time series
     const hasTimeSeries = checkForTimeSeries(analysis)
+    const hasActiveFilters = analysis.filters && analysis.filters.length > 0
 
     if (hasTimeSeries) {
         // If time series exist, use the zip download method
         downloadAnalysisData(analysis)
     } else {
         // Use the simple CSV download for scalar-only data
-        const csv = convertAnalysisToCSV(analysis)
-        const filename = generateCSVFilename(analysis)
+        if (hasActiveFilters) {
+            const filteredResults = applyFilters(
+                analysis.results,
+                analysis.filters,
+                new Map(
+                    getAllAxisDefinitions(analysis.results, analysis.evaluationFunction).map((opt) => [
+                        opt.reference,
+                        opt,
+                    ])
+                )
+            )
+            // Create both filtered and full CSV downloads
+            const filteredCsv = convertAnalysisToCSV(analysis, filteredResults)
+            const fullCsv = convertAnalysisToCSV(analysis, analysis.results)
 
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
+            const filteredFilename = generateCSVFilename(analysis, 'filtered')
+            const fullFilename = generateCSVFilename(analysis, 'full')
 
-        link.setAttribute('href', url)
-        link.setAttribute('download', filename)
-        link.style.visibility = 'hidden'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+            // Download filtered CSV
+            const filteredBlob = new Blob([filteredCsv], { type: 'text/csv;charset=utf-8;' })
+            const filteredUrl = URL.createObjectURL(filteredBlob)
+            const filteredLink = document.createElement('a')
+            filteredLink.setAttribute('href', filteredUrl)
+            filteredLink.setAttribute('download', filteredFilename)
+            filteredLink.style.visibility = 'hidden'
+            document.body.appendChild(filteredLink)
+            filteredLink.click()
+            document.body.removeChild(filteredLink)
+
+            // Download full CSV
+            const fullBlob = new Blob([fullCsv], { type: 'text/csv;charset=utf-8;' })
+            const fullUrl = URL.createObjectURL(fullBlob)
+            const fullLink = document.createElement('a')
+            fullLink.setAttribute('href', fullUrl)
+            fullLink.setAttribute('download', fullFilename)
+            fullLink.style.visibility = 'hidden'
+            document.body.appendChild(fullLink)
+            fullLink.click()
+            document.body.removeChild(fullLink)
+
+            // Clean up URLs
+            setTimeout(() => {
+                URL.revokeObjectURL(filteredUrl)
+                URL.revokeObjectURL(fullUrl)
+            }, 100)
+        } else {
+            // Single CSV download
+            const csv = convertAnalysisToCSV(analysis, analysis.results)
+            const filename = generateCSVFilename(analysis)
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+
+            link.setAttribute('href', url)
+            link.setAttribute('download', filename)
+            link.style.visibility = 'hidden'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+
+            // Clean up URL
+            setTimeout(() => URL.revokeObjectURL(url), 100)
+        }
     }
 }
 
@@ -593,8 +781,9 @@ function checkForTimeSeries(analysis: IAnalysis): boolean {
 /**
  * Original CSV conversion for backwards compatibility
  */
-function convertAnalysisToCSV(analysis: IAnalysis): string {
-    if (!analysis.results || analysis.results.length === 0) {
+function convertAnalysisToCSV(analysis: IAnalysis, results?: SimulationResult[]): string {
+    const resultsToUse = results || analysis.results
+    if (!resultsToUse || resultsToUse.length === 0) {
         return 'No results available for export'
     }
 
@@ -606,7 +795,7 @@ function convertAnalysisToCSV(analysis: IAnalysis): string {
     const headers = ['index', ...inputRefs, ...outputRefs]
 
     // Process each result into a row
-    const rows = analysis.results.map((result) => {
+    const rows = resultsToUse.map((result) => {
         const row: Record<string, string> = {}
 
         // Add scenario index
@@ -657,10 +846,136 @@ function convertAnalysisToCSV(analysis: IAnalysis): string {
 /**
  * Generates a filename for the CSV download
  */
-function generateCSVFilename(analysis: IAnalysis): string {
+function generateCSVFilename(analysis: IAnalysis, suffix?: string): string {
     const reference = analysis.reference.replace(/[^a-zA-Z0-9-_]/g, '_')
     const label = analysis.label ? analysis.label.replace(/[^a-zA-Z0-9-_]/g, '_') : 'results'
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
 
-    return `${reference}_${label}_${timestamp}.csv`
+    return `${reference}_${label}${suffix ? `_${suffix}` : ''}_${timestamp}.csv`
+}
+
+export function applyFilters(
+    results: SimulationResult[],
+    filters: AnalysisFilter[],
+    optionsMap: Map<string, AxisDefinition>
+): SimulationResult[] {
+    const output: SimulationResult[] = []
+    // console.log('===== Apply Filters =====', { input: results })
+
+    for (const result of results) {
+        // Create a deep copy of the result to avoid mutating the original data
+        const resultCopy = JSON.parse(JSON.stringify(result))
+        let keep: SimulationResult | null = resultCopy
+        for (const _filter of filters) {
+            if (!_filter.reference) continue
+            if (!_filter.type) continue
+
+            const axis = optionsMap.get(_filter.reference)
+            if (!axis) continue
+
+            keep = filterResult(keep, _filter, axis)
+            if (keep === null) break
+        }
+        if (keep === null) continue
+        output.push(keep)
+    }
+
+    // console.log('===== Apply Filters =====', { output })
+
+    return output
+}
+
+function filterResult(
+    result: SimulationResult,
+    analysisFilter: AnalysisFilter,
+    axis: AxisDefinition
+): SimulationResult | null {
+    const { reference, type, value } = analysisFilter
+    const [ref, col] = reference.split('.')
+
+    switch (axis.frameworkType) {
+        case 'exogenous':
+        case 'lever':
+            let variable = result.inputs?.[ref]
+            if (!variable || !variable?.value) {
+                return null
+            }
+            if (Array.isArray(variable.value)) {
+                if (col) {
+                    // Create a new array instead of mutating the original
+                    const filteredArray = variable.value.map((v) => {
+                        let keep = compareValue(v[col], analysisFilter)
+
+                        if (keep) {
+                            return v
+                        }
+
+                        if (col === 'date') {
+                            return Object.fromEntries(
+                                Object.entries(v).map(([key, value]) => {
+                                    if (key === 'date') {
+                                        return [key, value]
+                                    }
+                                    return [key, null]
+                                })
+                            )
+                        }
+
+                        return {
+                            ...v,
+                            [col]: null,
+                        }
+                    }) as {
+                        [key: string]: string | number | boolean
+                        date: string
+                    }[]
+                    // Update the variable with the new array
+                    variable.value = filteredArray
+                } else {
+                    // Create a new array instead of mutating the original
+                    const filteredArray = variable.value.map((v) => {
+                        let keep = compareValue(v, analysisFilter)
+                        return keep ? v : null
+                    }) as number[] | boolean[] | string[]
+                    // Update the variable with the new array
+                    variable.value = filteredArray
+                }
+            } else {
+                switch (variable.type) {
+                    case 'float':
+                    case 'int':
+                    case 'str':
+                    case 'bool':
+                        if (!compareValue(variable.value, analysisFilter)) return null
+                        break
+                    case 'array':
+                        return null
+                }
+            }
+            break
+        case 'measure':
+            const measure = result.result?.[ref]
+            if (!measure) {
+                return null
+            }
+            if (Array.isArray(measure)) {
+                // TODO: Implement array filtering
+                console.log('array filtering not implemented')
+                return null
+            }
+            if (!compareValue(measure, analysisFilter)) return null
+            break
+    }
+
+    return result
+}
+
+function compareValue(value: any, filter: AnalysisFilter) {
+    if (filter.type === 'eq' && value === filter.value) return true
+    if (filter.type === 'neq' && value !== filter.value) return true
+    if (filter.type === 'gt' && value > filter.value) return true
+    if (filter.type === 'gte' && value >= filter.value) return true
+    if (filter.type === 'lt' && value < filter.value) return true
+    if (filter.type === 'lte' && value <= filter.value) return true
+    return false
 }

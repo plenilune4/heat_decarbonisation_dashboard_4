@@ -1,5 +1,6 @@
 // pareto.service.ts
 
+import { IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
 import { SimulationResult } from '@/MODELS/types'
 
 /**
@@ -17,6 +18,7 @@ export class ParetoService {
     findParetoFrontier(
         simulationResults: SimulationResult[],
         sense: Record<string, number> = {},
+        evaluationFunction: IEvaluationFunction,
         progressCallback?: (progress: number) => void
     ): Set<number> {
         // Logging input
@@ -24,7 +26,7 @@ export class ParetoService {
         // console.log('[ParetoService] sense:', sense)
 
         // Convert simulation results to a flat structure for analysis
-        const dataFrame = this.convertToDataFrame(simulationResults)
+        const dataFrame = this.convertToDataFrame(simulationResults, evaluationFunction)
         // console.log('[ParetoService] dataFrame:', dataFrame)
 
         // Default is to maximize all measures if not specified
@@ -84,8 +86,19 @@ export class ParetoService {
     /**
      * Convert simulation results to a flat data structure for Pareto analysis
      */
-    private convertToDataFrame(simulationResults: SimulationResult[]): Record<string, number>[] {
+    private convertToDataFrame(
+        simulationResults: SimulationResult[],
+        evaluationFunction: IEvaluationFunction
+    ): Record<string, number>[] {
         const dataFrame: Record<string, number>[] = []
+
+        // Create a mapping of input references to their options arrays for discrete variables
+        const discreteOptionsMap = new Map<string, string[]>()
+        evaluationFunction.inputs.forEach((input) => {
+            if (input.type === 'scalar-discreet' && 'options' in input) {
+                discreteOptionsMap.set(input.reference, input.options)
+            }
+        })
 
         for (const result of simulationResults) {
             const flatRow: Record<string, number> = {}
@@ -110,7 +123,22 @@ export class ParetoService {
                         flatRow[key] = Number(value.value)
                         break
                     case 'str':
-                        console.log('[convertToDataFrame] STR key:', key, 'value:', value)
+                        // Key string values by their index in the discrete options array
+                        const options = discreteOptionsMap.get(key)
+                        if (options) {
+                            const stringValue = String(value.value)
+                            const stringIndex = options.indexOf(stringValue)
+                            if (stringIndex !== -1) {
+                                flatRow[key] = stringIndex
+                            } else {
+                                console.warn(
+                                    `[convertToDataFrame] String value '${stringValue}' not found in options for '${key}':`,
+                                    options
+                                )
+                            }
+                        } else {
+                            console.warn(`[convertToDataFrame] No options found for discrete input '${key}'`)
+                        }
                         break
                     default:
                         console.log(`[convertToDataFrame] INPUT key:`, key, 'value:', value)
@@ -134,9 +162,10 @@ export class ParetoService {
      */
     getParetoEfficientSolutions(
         simulationResults: SimulationResult[],
-        sense: Record<string, number> = {}
+        sense: Record<string, number> = {},
+        evaluationFunction: IEvaluationFunction
     ): SimulationResult[] {
-        const paretoIndices = this.findParetoFrontier(simulationResults, sense)
+        const paretoIndices = this.findParetoFrontier(simulationResults, sense, evaluationFunction)
         return Array.from(paretoIndices).map((index) => simulationResults[index])
     }
 }
