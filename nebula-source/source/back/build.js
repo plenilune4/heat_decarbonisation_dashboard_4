@@ -7,18 +7,18 @@ const external = Object.keys(dependencies)
 
 async function preBuildOperations() {
     const distPath = path.resolve(__dirname, 'dist')
-    const envFilePath = path.resolve(__dirname, './src/.env.production')
+    const envFilePath = path.resolve(__dirname, './src/.env')
     const emailTemplatesPath = path.resolve(__dirname, './src/services/email-templates')
 
     try {
         await fs.emptyDir(distPath)
         console.log('Cleared the /dist folder.')
 
-        await fs.copy(envFilePath, path.join(distPath, '.env.production'))
-        console.log('Copied .env.production to /dist folder.')
+        await fs.copy(envFilePath, path.join(distPath, '.env'))
+        console.log('Copied .env to /dist folder.')
 
         await fs.copy(emailTemplatesPath, path.join(distPath, '/email-templates'))
-        console.log('Copied .env.production to /dist folder.')
+        console.log('Copied .env to /dist folder.')
     } catch (error) {
         console.error('Error during pre-build operations:', error)
         process.exit(1)
