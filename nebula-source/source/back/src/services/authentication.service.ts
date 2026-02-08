@@ -8,8 +8,6 @@ export const SALT_ROUNDS = 10
 export const ACCESS_TOKEN_LIFETIME = 1000 * 60 * 60 // one hour
 const REFRESH_TOKEN_LIFETIME = 1000 * 60 * 60 * 24 * 365 // one year
 
-console.log('CWD:', process.cwd());
-
 const JWT_SECRET = process.env.JWT_SECRET
 
 if (!JWT_SECRET) {
