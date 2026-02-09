@@ -58,6 +58,12 @@ export default function Table<Datum extends object>(props: {
     defaultSortColumn?: string
     defaultSortDirection?: 'asc' | 'desc'
 }) {
+
+    console.log("data")
+    console.log(props.data)
+    console.log("TableColumn")
+    console.log(props.columns)
+
     // Global filters - search
     const { globalFilteredData, setGlobalFilter } = useGlobalFilter(props.data, props.columns, props.onSearch)
 
@@ -134,7 +140,7 @@ export default function Table<Datum extends object>(props: {
                     return filterFn.every((fn) => fn(datum))
                 }
             })
-        })
+        }) // note the outer use of filter is inbuilt in JS.
     }
 
     // Function to render cell content
