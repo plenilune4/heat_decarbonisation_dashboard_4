@@ -59,11 +59,6 @@ export default function Table<Datum extends object>(props: {
     defaultSortDirection?: 'asc' | 'desc'
 }) {
 
-    console.log("data")
-    console.log(props.data)
-    console.log("TableColumn")
-    console.log(props.columns)
-
     // Global filters - search
     const { globalFilteredData, setGlobalFilter } = useGlobalFilter(props.data, props.columns, props.onSearch)
 
