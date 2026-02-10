@@ -885,6 +885,43 @@ export function applyFilters(
     return output
 }
 
+/**
+ * Aggregates the simulation results over scenarios so that there is only one result per strategy per metric.
+ * Eventually different aggregation functions will be available, e.g. mean, worst case, best case, percentiles.
+ * @param results
+ * @param index_cols
+ * @param agg_func
+ */
+export function aggregate_over_scenarios(
+    results: SimulationResult[],
+    index_cols: String[],
+    agg_func: (SimulationResult[]) => SimulationResult):SimulationResult[]{
+
+    // To do. Advisable to check whether there are multiple strategies and scenarios, else this function is a bit redundant.
+    // For the time being, we only support one aggregation at a time.
+    // To do. The groupby could be retained when changing the aggregation function. May want to figure this out.
+    const aggregated_results:SimulationResult[] = []
+    const groups = new Map<string, SimulationResult[]>()
+
+    for (const row of results) {
+        // Iterate over all rows of data, grouping by uniquely defined inputs:
+        const key = JSON.stringify(row.inputs)
+        groups.set(key, [...(groups.get(key) ?? []), row]);
+    }
+
+    // Need to deal with the need for separate aggregations per metric, and any other tidying.
+    // Array.from(groups.entries()).map(([key, rows)])=>aggfunc(rows))
+
+    //   return Array.from(groups.entries()).map(([key, rows]) => ({
+  //   ...Object.fromEntries(keys.map((k, i) => [k, key.split("|")[i]])),
+  //   ...Object.fromEntries(
+  //     Object.entries(aggs).map(([name, fn]) => [name, fn(rows)])
+  //   ),
+  // }));
+
+    return results
+}
+
 function filterResult(
     result: SimulationResult,
     analysisFilter: AnalysisFilter,
