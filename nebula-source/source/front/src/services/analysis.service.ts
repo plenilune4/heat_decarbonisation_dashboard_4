@@ -888,38 +888,44 @@ export function applyFilters(
 /**
  * Aggregates the simulation results over scenarios so that there is only one result per strategy per metric.
  * Eventually different aggregation functions will be available, e.g. mean, worst case, best case, percentiles.
+ * Beforehand, need to establish the agg_funcs per metric using senses: Record<string, number> = {}.
  * @param results
- * @param index_cols
- * @param agg_func
+ * @param sense
+ * @param agg_funcs
  */
 export function aggregate_over_scenarios(
     results: SimulationResult[],
-    index_cols: String[],
-    agg_func: (SimulationResult[]) => SimulationResult):SimulationResult[]{
-
+    agg_funcs: Map<string, (values: number[]) => number>){
+    // Note that there are TypeScript libraries which offer pandas-type functionality,
+    // but for now it seemed safest to implement in pure TypeScript.
     // To do. Advisable to check whether there are multiple strategies and scenarios, else this function is a bit redundant.
     // For the time being, we only support one aggregation at a time.
     // To do. The groupby could be retained when changing the aggregation function. May want to figure this out.
-    const aggregated_results:SimulationResult[] = []
+    // Consider: the pareto.service contains code for flattening the results which might be adaptable to here.
     const groups = new Map<string, SimulationResult[]>()
-
     for (const row of results) {
         // Iterate over all rows of data, grouping by uniquely defined inputs:
         const key = JSON.stringify(row.inputs)
         groups.set(key, [...(groups.get(key) ?? []), row]);
     }
 
+    const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([scenario, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(scenario),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row[column]))])),
+        index:-1
+    })//First attempt at making the thing we want. Gosh Python is more readable.
+
+
     // Need to deal with the need for separate aggregations per metric, and any other tidying.
     // Array.from(groups.entries()).map(([key, rows)])=>aggfunc(rows))
 
-    //   return Array.from(groups.entries()).map(([key, rows]) => ({
+  //     return Array.from(groups.entries()).map(([key, rows]) => ({
   //   ...Object.fromEntries(keys.map((k, i) => [k, key.split("|")[i]])),
   //   ...Object.fromEntries(
   //     Object.entries(aggs).map(([name, fn]) => [name, fn(rows)])
   //   ),
   // }));
-
-    return results
+    return aggregated_results
 }
 
 function filterResult(
