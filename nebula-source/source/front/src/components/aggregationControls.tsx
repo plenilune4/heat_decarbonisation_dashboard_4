@@ -46,16 +46,18 @@ export default function AggregationControls({
             />
             <div className='flex-1' />
         </header>
-        {isExpanded && <div className='grid flex-1 grid-cols-6 gap-2'>
+
+        {isExpanded && (<div className='grid flex-1 grid-cols-6 gap-2'>
                 <SelectField
-                    options=["none", "mean", "worst case"]
+                    options={["none", "mean", "worst case"].map(a => ({value: a,
+                        text: a,
+                        }))}
                     value={agg}
-                    onChange={v => setAgg(v as Agg)
-                    }
+                    onChange={v => setAgg(v as AggregationType)}
                     containerClass='col-span-2'
                     label='Feature'
                 />
-            </div>
+            </div>)
         }
     </section>
 }
