@@ -894,11 +894,15 @@ export function applyFilters(
  * @param agg_funcs
  */
 export function aggregations(
+    analysis:IAnalysis,
     results: SimulationResult[],
     senses: Record<string, number> = {},
     agg_type: AggregationType){
 
     if (!agg_type || agg_type === "none") return results
+
+    const leverInputs = analysis.scenarioInputs.filter((input) => input.inputType === 'lever')
+    const leverInputNames = leverInputs.map((input:AnalysisInput) => input.reference)
 
     const basicAggFuncs = {
       mean: v => v.reduce((a, b) => a + b, 0) / v.length,
@@ -908,6 +912,9 @@ export function aggregations(
 
     let agg_funcs:Map<string, (values: number[]) => number>
     console.log(`agg_type is ${agg_type}`)
+    console.log(`agg_type is of type ${typeof(agg_type)}`)
+    console.log(`<string>agg_type is of type ${typeof(<string>agg_type)}`)
+
     switch (<string>agg_type){
         case "mean":
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
@@ -916,14 +923,12 @@ export function aggregations(
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, sense > 0 ? basicAggFuncs["min"]:basicAggFuncs["max"]]))
         default:
             // Default is the mean.
-            console.log("Senses entries:")
-            console.log(Object.entries(senses))
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
-            console.log("These agg_funcs have been assigned:")
-            console.log(agg_funcs)
-    }
 
-    return aggregate_over_scenarios(results, agg_funcs)
+    }
+    console.log("These agg_funcs have been assigned:")
+    console.log(agg_funcs)
+    return aggregate_over_scenarios(results, leverInputNames, agg_funcs)
 }
 
 
@@ -934,11 +939,12 @@ export function aggregations(
  * Eventually different aggregation functions will be available, e.g. mean, worst case, best case, percentiles.
  * Beforehand, need to establish the agg_funcs per metric using senses: Record<string, number> = {}.
  * @param results
- * @param sense
+ * @param strategy_vars
  * @param agg_funcs
  */
 function aggregate_over_scenarios(
     results: SimulationResult[],
+    strategy_vars: string[],
     agg_funcs: Map<string, (values: number[]) => number>){
     // Note that there are TypeScript libraries which offer pandas-type functionality,
     // but for now it seemed safest to implement in pure TypeScript.
@@ -949,7 +955,11 @@ function aggregate_over_scenarios(
     const groups = new Map<string, SimulationResult[]>()
     for (const row of results) {
         // Iterate over all rows of data, grouping by uniquely defined inputs:
-        const key = JSON.stringify(row.inputs)
+
+        // OK this was not quite right...we need only the strategy inputs.
+
+        const key = strategy_vars.map((v:string) => row.inputs[v]["value"]).toString()
+        //const key = JSON.stringify(row.inputs)//this was incorrect as used all the inputs not just exogenous...
         groups.set(key, [...(groups.get(key) ?? []), row]);
     }
 
