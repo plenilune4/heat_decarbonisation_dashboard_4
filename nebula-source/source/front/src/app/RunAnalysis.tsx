@@ -513,6 +513,7 @@ function ResultsPanel({
                         <ChartSandbox
                             evaluationFunction={analysis.evaluationFunction}
                             simulationResults={runner.results}
+                            aggregation={analysis.aggregation}
                             filters={analysis.filters}
                             analysisCharts={
                                 analysis.charts?.length > 0
