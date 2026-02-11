@@ -979,65 +979,9 @@ function aggregate_over_scenarios(
         return aggregated_data
     }
 
-    console.log("log 0")
-    console.log(agg_funcs.entries())
+    // let debug_key = Array.from(groups.keys())[1]
+    // let debug_results = Array.from(groups.values())[1]
 
-    // Let's figure out what's going on:
-    console.log("log 2")
-    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
-        inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc]) => [column, 1.0])),
-        index:-1
-    }))
-
-    // Let's figure out what's going on:
-    console.log("log 3")
-    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
-        inputs:JSON.parse(strat),
-        result: {"x":1, "y":2},
-        index:-1
-    }))
-
-    // Let's figure out what's going on:
-    console.log("log 4")
-    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
-        inputs:JSON.parse(strat),
-        result: Object.fromEntries(Object.entries(agg_funcs).map(([measure, fn])=>[measure, 5])),
-        index:-1
-    }))
-
-    console.log("log 5")
-    console.log(Object.fromEntries(Object.entries(agg_funcs).map(([measure, fn])=>[measure, 5])))
-
-    console.log("log 6")
-    console.log(new Map(Array.from(agg_funcs, ([measure, func]) => [measure, 5])))
-
-    console.log("log 7")
-    console.log(Object.fromEntries(new Map(Array.from(agg_funcs, ([measure, func]) => [measure, 5]))))
-
-    let debug_key = Array.from(groups.keys())[0]
-    let debug_results = Array.from(groups.values())[0]
-    console.log(`debug key ${debug_key}`)
-    console.log("debug_results")
-    console.log(debug_results)
-
-    let [strat_var, f] = Array.from(agg_funcs.entries())[1]
-    console.log("strat_var")
-    console.log(strat_var)
-    console.log("f")
-    console.log(f)
-    console.log("f test")
-    console.log(f([1,2,3,4,5]))
-    console.log("column data")
-    console.log(debug_results.map( (each_result) => each_result.result[strat_var]))
-    console.log("aggregated column")
-    console.log(f(debug_results.map( (each_result) => each_result.result[strat_var])))
-
-
-
-    // Above seems to confirm that everything is working except possibly the final step of assigning to result object.
-
-    // commented while debugging:
     // What will happen if we try to plot exogenous variables in the plot?
     const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
