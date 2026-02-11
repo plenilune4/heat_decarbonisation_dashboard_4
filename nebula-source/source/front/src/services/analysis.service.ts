@@ -917,7 +917,7 @@ export function aggregations(
 
     switch (<string>agg_type){
         case "mean":
-            agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]);
+            agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]));
             break;
         case "worst case":
             // For this one it's min or max depending on the Pareto sense of the metric.
