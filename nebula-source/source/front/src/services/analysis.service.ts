@@ -1009,6 +1009,12 @@ function aggregate_over_scenarios(
     console.log("log 5")
     console.log(Object.fromEntries(Object.entries(agg_funcs).map(([measure, fn])=>[measure, 5])))
 
+    console.log("log 6")
+    console.log(new Map(Array.from(agg_funcs, ([measure, func]) => [measure, 5])))
+
+    console.log("log 7")
+    console.log(Object.fromEntries(new Map(Array.from(agg_funcs, ([measure, func]) => [measure, 5]))))
+
     let debug_key = Array.from(groups.keys())[0]
     let debug_results = Array.from(groups.values())[0]
     console.log(`debug key ${debug_key}`)
@@ -1031,13 +1037,12 @@ function aggregate_over_scenarios(
 
     // Above seems to confirm that everything is working except possibly the final step of assigning to result object.
 
-
-
     // commented while debugging:
     // What will happen if we try to plot exogenous variables in the plot?
     const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map((one_row) => one_row.result[column]))])),
+        //result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map((one_row) => one_row.result[column]))])),
+        result: Object.fromEntries(Array.from(agg_funcs, ([measure, aggfunc]) => [measure, aggfunc(simulation_results.map((one_result) => one_result.result[measure]))])),
         index:-1
     })//First attempt at making the thing we want. Gosh Python is more readable.
 
