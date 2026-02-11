@@ -962,8 +962,9 @@ function aggregate_over_scenarios(
 
         //const key = strategy_vars.map((strat:string) => row.inputs[strat]["value"]).toString() // this is OK but can't easily by reconstructed into a new SimulationResult object.
 
+        // A very convoluted way to get a key that uses only the strategy variables:
         const strategyInputs = Object.fromEntries(Array.from(strategy_vars.entries()).map(([ind, strat_var_name]) => [strat_var_name, row.inputs[strat_var_name]]))
-        const key = JSON.stringify(strategyInputs)
+        const key = JSON.stringify(strategyInputs) // this would be the place to handle the case of only one strategy.
 
         // const key = JSON.stringify(row.inputs)//this was incorrect as used all the inputs not just exogenous...
         groups.set(key, [...(groups.get(key) ?? []), row]);
@@ -975,7 +976,7 @@ function aggregate_over_scenarios(
     // What will happen if we try to plot exogenous variables in the plot?
     const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row[column]))])),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row.result[column]))])),
         index:-1
     })//First attempt at making the thing we want. Gosh Python is more readable.
 
