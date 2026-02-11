@@ -65,6 +65,7 @@ export default function ChartSandbox({
     const aggregatedResults = useMemo(() => {
         // console.log('===== Filter Effect =====', { filters: debouncedFilters })
         // const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
+        console.log('Aggregating results...raw results have ${simulationResults.length} rows...')
         if (!aggregation || aggregation === "none") return simulationResults
 
         // We need the Pareto senses for aggregations such as 'worst case'.
@@ -84,7 +85,7 @@ export default function ChartSandbox({
     }, [simulationResults, evaluationFunction.outputs, aggregation])
 
     const filteredResults = useMemo(() => {
-        // console.log('===== Filter Effect =====', { filters: debouncedFilters })
+        console.log('===== Filter Effect =====', { filters: debouncedFilters })
         const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
         if (!completeFilters || completeFilters.length === 0) return simulationResults
 
@@ -93,7 +94,7 @@ export default function ChartSandbox({
             completeFilters,
             new Map(xAndYOptions.map((opt) => [opt.reference, opt]))
         )
-    }, [aggregatedResults, aggregation, xAndYOptions])
+    }, [aggregatedResults, debouncedFilters, xAndYOptions])
 
     // Update debounced filters when filters prop changes
     useEffect(() => {
