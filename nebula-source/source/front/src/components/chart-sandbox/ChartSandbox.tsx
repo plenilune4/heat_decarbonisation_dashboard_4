@@ -76,12 +76,16 @@ export default function ChartSandbox({
             else sense[output.reference] = 0
         })
 
+        const leverInputs = evaluationFunction.inputs.filter((input) => input.inputType === "lever")
+        const leverInputRefs = leverInputs.map((lever)=>lever.reference)
+
         return aggregations(
+            leverInputRefs,
             simulationResults,
             sense,
             aggregation
         )
-    }, [simulationResults, evaluationFunction.outputs, aggregation])
+    }, [simulationResults, evaluationFunction.inputs, evaluationFunction.outputs, aggregation])
 
     const filteredResults = useMemo(() => {
         console.log('===== Filter Effect =====', { filters: debouncedFilters })

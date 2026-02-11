@@ -894,15 +894,15 @@ export function applyFilters(
  * @param agg_funcs
  */
 export function aggregations(
-    analysis:IAnalysis,
+    leverInputReferences:string[],
     results: SimulationResult[],
     senses: Record<string, number> = {},
     agg_type: AggregationType){
 
     if (!agg_type || agg_type === "none") return results
 
-    const leverInputs = analysis.scenarioInputs.filter((input) => input.inputType === 'lever')
-    const leverInputNames = leverInputs.map((input:AnalysisInput) => input.reference)
+    // const leverInputs = analysis.scenarioInputs.filter((input) => input.inputType === 'lever')
+    // const leverInputNames = leverInputs.map((input:AnalysisInput) => input.reference)
 
     const basicAggFuncs = {
       mean: v => v.reduce((a, b) => a + b, 0) / v.length,
@@ -928,7 +928,7 @@ export function aggregations(
     }
     console.log("These agg_funcs have been assigned:")
     console.log(agg_funcs)
-    return aggregate_over_scenarios(results, leverInputNames, agg_funcs)
+    return aggregate_over_scenarios(results, leverInputReferences, agg_funcs)
 }
 
 
