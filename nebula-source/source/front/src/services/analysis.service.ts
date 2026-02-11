@@ -990,6 +990,25 @@ function aggregate_over_scenarios(
         index:-1
     }))
 
+    // Let's figure out what's going on:
+    console.log("log 3")
+    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(strat),
+        result: {"x":1, "y":2},
+        index:-1
+    }))
+
+    // Let's figure out what's going on:
+    console.log("log 4")
+    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(strat),
+        result: Object.fromEntries(Object.entries(agg_funcs).map(([measure, fn])=>[measure, 5])),
+        index:-1
+    }))
+
+    console.log("log 5")
+    console.log(Object.fromEntries(Object.entries(agg_funcs).map(([measure, fn])=>[measure, 5])))
+
     let debug_key = Array.from(groups.keys())[0]
     let debug_results = Array.from(groups.values())[0]
     console.log(`debug key ${debug_key}`)
