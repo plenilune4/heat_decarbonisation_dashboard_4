@@ -908,7 +908,7 @@ export function aggregations(
 
     let agg_funcs:Map<string, (values: number[]) => number>
     console.log(`agg_type is ${agg_type}`)
-    switch (agg_type){
+    switch (<string>agg_type){
         case "mean":
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
         case "worst case":
@@ -952,6 +952,9 @@ function aggregate_over_scenarios(
         const key = JSON.stringify(row.inputs)
         groups.set(key, [...(groups.get(key) ?? []), row]);
     }
+
+    console.log("groups")
+    console.log(groups)
 
     const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([scenario, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(scenario),
