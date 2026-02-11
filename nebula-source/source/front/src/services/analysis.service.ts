@@ -985,6 +985,8 @@ function aggregate_over_scenarios(
     console.log(`Aggregation functions are:`)
     console.log(agg_funcs)
     console.log(`Aggregation complete; aggregated results have ${aggregated_results.length} rows.`)
+    console.log('Aggregated data:')
+    console.log(aggregated_results)
 
     return aggregated_results
 }
