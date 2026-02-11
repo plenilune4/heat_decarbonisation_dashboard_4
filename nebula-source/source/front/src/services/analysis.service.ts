@@ -1000,12 +1000,13 @@ function aggregate_over_scenarios(
         index:-1
     }))
 
-    let {debug_key, debug_results} = groups.entries()[1]
+    let debug_key = Array.from(groups.keys())[0]
+    let debug_results = Array.from(groups.values())[0]
     console.log(`debug key ${debug_key}`)
     console.log("debug_results")
     console.log(debug_results)
 
-    let {strat_var, f} = agg_funcs.entries()[0]
+    let [strat_var, f] = Array.from(agg_funcs.entries())[1]
     console.log("strat_var")
     console.log(strat_var)
     console.log("f")
