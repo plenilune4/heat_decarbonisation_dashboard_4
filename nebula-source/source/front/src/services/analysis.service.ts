@@ -907,6 +907,7 @@ export function aggregations(
     }; // that reduce thing is weird.
 
     let agg_funcs:Map<string, (values: number[]) => number>
+    console.log(`agg_type is ${agg_type}`)
     switch (agg_type){
         case "mean":
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
@@ -915,7 +916,11 @@ export function aggregations(
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, sense > 0 ? basicAggFuncs["min"]:basicAggFuncs["max"]]))
         default:
             // Default is the mean.
+            console.log("Senses entries:")
+            console.log(Object.entries(senses))
             agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
+            console.log("These agg_funcs have been assigned:")
+            console.log(agg_funcs)
     }
 
     return aggregate_over_scenarios(results, agg_funcs)
