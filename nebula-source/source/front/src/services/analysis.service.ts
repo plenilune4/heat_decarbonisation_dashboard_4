@@ -973,10 +973,36 @@ function aggregate_over_scenarios(
     console.log("groups")
     console.log(groups)
 
+    // Let's figure out what's going on:
+    console.log("log 1")
+    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(strat),
+        result:Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row.result[column]))]),
+        index:-1
+    }))
+
+    // Let's figure out what's going on:
+    console.log("log 2")
+    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(strat),
+        result:Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc([1,2,3,4,5])]),
+        index:-1
+    }))
+
+    // Let's figure out what's going on:
+    console.log("log 3")
+    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(strat),
+        result:Object.entries(agg_funcs).map(([column, aggfunc])=>[column,simulation_results.map(one_row => one_row.result[column])]),
+        index:-1
+    }))
+
+
+    // commented while debugging:
     // What will happen if we try to plot exogenous variables in the plot?
     const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row.result[column]))])),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map((one_row) => one_row.result[column]))])),
         index:-1
     })//First attempt at making the thing we want. Gosh Python is more readable.
 
