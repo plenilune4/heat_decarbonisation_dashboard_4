@@ -90,7 +90,7 @@ export default function ChartSandbox({
     const filteredResults = useMemo(() => {
         console.log('===== Filter Effect =====', { filters: debouncedFilters })
         const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
-        if (!completeFilters || completeFilters.length === 0) return simulationResults
+        if (!completeFilters || completeFilters.length === 0) return aggregatedResults
 
         return applyFilters(
             aggregatedResults,
