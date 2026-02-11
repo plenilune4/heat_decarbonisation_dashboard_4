@@ -41,11 +41,10 @@ export default function AggregationControls({
                 onClick={() => setIsExpanded(!isExpanded)}
                 className='px-0 text-gray-500'
             />
-            <br>
-            <p className='text-lg text-gray-500'>
-                Aggregate the performance of strategies over all scenarios.
-            </p>
         </header>
+        <p className='text-lg text-gray-500'>
+            Aggregate the performance of strategies over all scenarios.
+        </p>
 
         {isExpanded && (<div className='grid flex-1 grid-cols-6 gap-2'>
                 <SelectField
