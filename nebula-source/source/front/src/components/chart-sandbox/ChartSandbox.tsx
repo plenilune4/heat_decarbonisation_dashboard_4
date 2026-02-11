@@ -65,9 +65,8 @@ export default function ChartSandbox({
     const aggregatedResults = useMemo(() => {
         // console.log('===== Filter Effect =====', { filters: debouncedFilters })
         // const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
-        console.log('Aggregating results...raw results have ${simulationResults.length} rows...')
         if (!aggregation || aggregation === "none") return simulationResults
-
+        console.log(`Aggregating results...raw results have ${simulationResults.length} rows...`)
         // We need the Pareto senses for aggregations such as 'worst case'.
         // To do: there is a bit of inefficiency here in that the senses are not needed if the aggregation is e.g. 'mean'.
         const sense: Record<string, number> = {}

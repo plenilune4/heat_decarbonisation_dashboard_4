@@ -965,7 +965,7 @@ function aggregate_over_scenarios(
   //   ),
   // }));
 
-    console.log('Aggregation complete; aggregated results have ${aggregated_results} rows.')
+    console.log(`Aggregation complete; aggregated results have ${aggregated_results.length} rows.`)
 
     return aggregated_results
 }
