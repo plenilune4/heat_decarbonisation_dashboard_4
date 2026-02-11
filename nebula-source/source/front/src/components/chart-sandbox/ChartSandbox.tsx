@@ -4,9 +4,10 @@ import { CheckboxField, SelectField } from '@/form-control/fields'
 
 import { AnalysisFilter, AxisDefinition, ChartType, IAnalysisChart } from '@/MODELS/analysis.model'
 import { FunctionInput, FunctionOutput, IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
-import { SimulationResult } from '@/MODELS/types'
+import { SimulationResult, AggregationType } from '@/MODELS/types'
 
 import { applyFilters } from '@/services/analysis.service'
+import { aggregations } from '@/services/analysis.service'
 import { ParetoService } from '@/services/pareto.service'
 import { cn } from '@/utils/cn'
 import { useDebouncedState } from '@/utils/useDebounce'
@@ -35,6 +36,7 @@ export const CHART_TYPE_LIMITS: Record<ChartType, number> = {
 export default function ChartSandbox({
     evaluationFunction,
     simulationResults,
+    aggregation,
     filters,
     analysisCharts,
     setAnalysisCharts,
@@ -43,6 +45,7 @@ export default function ChartSandbox({
 }: {
     evaluationFunction: IEvaluationFunction
     simulationResults: SimulationResult[]
+    aggregation: AggregationType
     filters: AnalysisFilter[]
     analysisCharts: IAnalysisChart[]
     setAnalysisCharts: (charts: IAnalysisChart[]) => void
@@ -59,17 +62,38 @@ export default function ChartSandbox({
         return getAllAxisDefinitions(simulationResults, evaluationFunction)
     }, [simulationResults, evaluationFunction])
 
+    const aggregatedResults = useMemo(() => {
+        // console.log('===== Filter Effect =====', { filters: debouncedFilters })
+        // const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
+        if (!aggregation || aggregation === "none") return simulationResults
+
+        // We need the Pareto senses for aggregations such as 'worst case'.
+        // To do: there is a bit of inefficiency here in that the senses are not needed if the aggregation is e.g. 'mean'.
+        const sense: Record<string, number> = {}
+        evaluationFunction.outputs.forEach((output: any) => {
+            if (output.paretoSense === 'maximise') sense[output.reference] = 1
+            else if (output.paretoSense === 'minimise') sense[output.reference] = -1
+            else sense[output.reference] = 0
+        })
+
+        return aggregations(
+            simulationResults,
+            sense,
+            aggregation
+        )
+    }, [simulationResults, evaluationFunction.outputs, aggregation])
+
     const filteredResults = useMemo(() => {
         // console.log('===== Filter Effect =====', { filters: debouncedFilters })
         const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
         if (!completeFilters || completeFilters.length === 0) return simulationResults
 
         return applyFilters(
-            simulationResults,
+            aggregatedResults,
             completeFilters,
             new Map(xAndYOptions.map((opt) => [opt.reference, opt]))
         )
-    }, [simulationResults, debouncedFilters, xAndYOptions])
+    }, [aggregatedResults, aggregation, xAndYOptions])
 
     // Update debounced filters when filters prop changes
     useEffect(() => {

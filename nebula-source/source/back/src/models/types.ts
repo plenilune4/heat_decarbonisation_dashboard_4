@@ -206,3 +206,6 @@ export type SimulationResult = SimulationEvent & {
     result: Record<string, any>
     index: number
 }
+
+// Aggregation
+export type AggregationType = "none" | "worst case" | "mean" // May want to provide scope for percentiles later.

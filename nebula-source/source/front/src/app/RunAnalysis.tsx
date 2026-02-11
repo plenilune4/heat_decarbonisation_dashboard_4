@@ -7,7 +7,13 @@ import ROUTES from '@/ROUTES'
 
 import { IAnalysis, IAnalysisChart } from '@/MODELS/analysis.model'
 import { FunctionInput } from '@/MODELS/evaluationFunction.model'
-import { AnalysisInputVariable, SamplingStrategy, SimulationResult, VariationMethod } from '@/MODELS/types'
+import {
+    AggregationType,
+    AnalysisInputVariable,
+    SamplingStrategy,
+    SimulationResult,
+    VariationMethod
+} from '@/MODELS/types'
 
 import { downloadAnalysis, Runner, useAnalysisRunner } from '@/services/analysis.service'
 import { api, api_delete } from '@/services/api.service'
@@ -28,6 +34,7 @@ import Modal from '@/components/Modal'
 
 import AnalysisInputField from '../components/analysis/AnalysisInputField'
 import { ModifiableAnalysisInput } from '../components/analysis/AnalysisVariableInputField'
+import AggregationControls from "@/components/aggregationControls.tsx";
 
 export default function ManageAnalysis() {
     const { user } = useAuth()
@@ -491,6 +498,12 @@ function ResultsPanel({
                 )}
                 {!!runner.results?.length && (
                     <>
+                        <AggregationControls
+                            evaluationFunction={analysis.evaluationFunction} // might not need these first two properties
+                            results={runner.results}
+                            agg={analysis.aggregation}
+                            setAgg={(aggregation:AggregationType) => updateAnalysis({ aggregation })}
+                        />
                         <FilterControls
                             evaluationFunction={analysis.evaluationFunction}
                             results={runner.results}

@@ -9,6 +9,7 @@ import {
     ParetoSense,
     SamplingStrategy,
     SimulationResult,
+    AggregationType
 } from './types'
 import { IUser } from './user.model'
 
@@ -71,7 +72,10 @@ export interface IAnalysis {
     exogenousSamplingStrategy: SamplingStrategy
     leverSamplingStrategy: SamplingStrategy
     results?: SimulationResult[]
+    aggregation: AggregationType
     filters?: AnalysisFilter[]
+    aggregatedResults?: SimulationResult[]
+    filteredResults?: SimulationResult[]
     charts?: IAnalysisChart[]
     isReadOnly: boolean // If this scenario is orphaned from its function, it will be read only.
     createdAt: Date

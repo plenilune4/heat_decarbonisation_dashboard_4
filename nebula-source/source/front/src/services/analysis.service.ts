@@ -4,7 +4,7 @@ import JSZip from 'jszip'
 
 import { AnalysisFilter, AnalysisInput, AxisDefinition, IAnalysis } from '@/MODELS/analysis.model'
 import { IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
-import { SamplingStrategy, SimulationError, SimulationLog, SimulationResult, SimulationSetup } from '@/MODELS/types'
+import { SamplingStrategy, SimulationError, SimulationLog, SimulationResult, SimulationSetup, AggregationType } from '@/MODELS/types'
 
 import { getAllAxisDefinitions } from '@/components/chart-sandbox/ChartSandbox'
 
@@ -887,13 +887,52 @@ export function applyFilters(
 
 /**
  * Aggregates the simulation results over scenarios so that there is only one result per strategy per metric.
+ * Presently, available aggregation types are 'none', 'mean' and 'worst case'.
+ * Pareto senses are needed for the 'worst case' option.
+ * @param results
+ * @param senses
+ * @param agg_funcs
+ */
+export function aggregations(
+    results: SimulationResult[],
+    senses: Record<string, number> = {},
+    agg_type: AggregationType){
+
+    if (!agg_type || agg_type === "none") return results
+
+    const basicAggFuncs = {
+      mean: v => v.reduce((a, b) => a + b, 0) / v.length,
+      max: v => Math.max(...v),
+      min: v => Math.min(...v),
+    }; // that reduce thing is weird.
+
+    let agg_funcs:Map<string, (values: number[]) => number>
+    switch (agg_type){
+        case "mean":
+            agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
+        case "worst_case":
+            // For this one it's min or max depending on the Pareto sense of the metric.
+            agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, sense > 0 ? basicAggFuncs["min"]:basicAggFuncs["max"]]))
+        default:
+            // Default is the mean.
+            agg_funcs = new Map<string, (values: number[]) => number>(Object.entries(senses).map(([column, sense]) => [column, basicAggFuncs["mean"]]))
+    }
+
+    return aggregate_over_scenarios(results, agg_funcs)
+}
+
+
+
+
+/**
+ * Aggregates the simulation results over scenarios so that there is only one result per strategy per metric.
  * Eventually different aggregation functions will be available, e.g. mean, worst case, best case, percentiles.
  * Beforehand, need to establish the agg_funcs per metric using senses: Record<string, number> = {}.
  * @param results
  * @param sense
  * @param agg_funcs
  */
-export function aggregate_over_scenarios(
+function aggregate_over_scenarios(
     results: SimulationResult[],
     agg_funcs: Map<string, (values: number[]) => number>){
     // Note that there are TypeScript libraries which offer pandas-type functionality,
