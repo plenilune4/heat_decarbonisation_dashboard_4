@@ -964,7 +964,8 @@ function aggregate_over_scenarios(
   //     Object.entries(aggs).map(([name, fn]) => [name, fn(rows)])
   //   ),
   // }));
-
+    console.log(`Aggregation functions are:`)
+    console.log(agg_funcs)
     console.log(`Aggregation complete; aggregated results have ${aggregated_results.length} rows.`)
 
     return aggregated_results
