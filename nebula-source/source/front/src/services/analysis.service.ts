@@ -973,30 +973,20 @@ function aggregate_over_scenarios(
     console.log("groups")
     console.log(groups)
 
+    function get_aggregated_value(simulation_results:SimulationResult[],af:(values: number[]) => number,column:string ){
+        let col_data = simulation_results.map((one_row) => one_row.result[column])
+        let aggregated_data = af(col_data)
+        return aggregated_data
+    }
+
     console.log("log 0")
     console.log(agg_funcs.entries())
-
-    // Let's figure out what's going on:
-    console.log("log 1")
-    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
-        inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row.result[column]))])),
-        index:-1
-    }))
 
     // Let's figure out what's going on:
     console.log("log 2")
     console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc([1,2,3,4,5])])),
-        index:-1
-    }))
-
-    // Let's figure out what's going on:
-    console.log("log 3")
-    console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
-        inputs:JSON.parse(strat),
-        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,simulation_results.map(one_row => one_row.result[column])])),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc]) => [column, 1.0])),
         index:-1
     }))
 
@@ -1020,6 +1010,10 @@ function aggregate_over_scenarios(
 
 
 
+    // Above seems to confirm that everything is working except possibly the final step of assigning to result object.
+
+
+
     // commented while debugging:
     // What will happen if we try to plot exogenous variables in the plot?
     const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
@@ -1027,6 +1021,7 @@ function aggregate_over_scenarios(
         result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map((one_row) => one_row.result[column]))])),
         index:-1
     })//First attempt at making the thing we want. Gosh Python is more readable.
+
 
 
     // Need to deal with the need for separate aggregations per metric, and any other tidying.
