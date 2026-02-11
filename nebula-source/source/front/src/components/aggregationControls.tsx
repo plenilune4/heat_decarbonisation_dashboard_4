@@ -32,9 +32,6 @@ export default function AggregationControls({
         <header className='flex flex-row gap-2 items-center'>
             <FunnelIcon className='w-8 h-8 text-gray-500' />
             <h2 className='text-3xl font-bold'>Robustness</h2>
-            <p className='text-lg text-gray-500'>
-                Aggregate the performance of strategies over all scenarios.
-            </p>
             <Button.Icon
                 icon={
                     <ChevronDownIcon
@@ -44,7 +41,9 @@ export default function AggregationControls({
                 onClick={() => setIsExpanded(!isExpanded)}
                 className='px-0 text-gray-500'
             />
-            <div className='flex-1' />
+            <p className='text-lg text-gray-500'>
+                Aggregate the performance of strategies over all scenarios.
+            </p>
         </header>
 
         {isExpanded && (<div className='grid flex-1 grid-cols-6 gap-2'>
