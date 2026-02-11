@@ -55,7 +55,7 @@ export default function AggregationControls({
                     value={agg}
                     onChange={v => setAgg(v as AggregationType)}
                     containerClass='col-span-2'
-                    label='Feature'
+                    label='Method'
                 />
             </div>)
         }
