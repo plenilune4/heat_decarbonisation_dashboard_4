@@ -958,16 +958,23 @@ function aggregate_over_scenarios(
 
         // OK this was not quite right...we need only the strategy inputs.
 
-        const key = strategy_vars.map((v:string) => row.inputs[v]["value"]).toString()
-        //const key = JSON.stringify(row.inputs)//this was incorrect as used all the inputs not just exogenous...
+        // The key will be the SimulationResult.inputs object without any exogenous variables.
+
+        //const key = strategy_vars.map((strat:string) => row.inputs[strat]["value"]).toString() // this is OK but can't easily by reconstructed into a new SimulationResult object.
+
+        const strategyInputs = Object.fromEntries(Array.from(strategy_vars.entries()).map(([ind, strat_var_name]) => [strat_var_name, row.inputs[strat_var_name]]))
+        const key = JSON.stringify(strategyInputs)
+
+        // const key = JSON.stringify(row.inputs)//this was incorrect as used all the inputs not just exogenous...
         groups.set(key, [...(groups.get(key) ?? []), row]);
     }
 
     console.log("groups")
     console.log(groups)
 
-    const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([scenario, simulation_results])=> <SimulationResult>{
-        inputs:JSON.parse(scenario),
+    // What will happen if we try to plot exogenous variables in the plot?
+    const aggregated_results:SimulationResult[] = Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
+        inputs:JSON.parse(strat),
         result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row[column]))])),
         index:-1
     })//First attempt at making the thing we want. Gosh Python is more readable.
