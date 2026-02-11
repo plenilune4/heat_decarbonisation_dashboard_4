@@ -973,11 +973,14 @@ function aggregate_over_scenarios(
     console.log("groups")
     console.log(groups)
 
+    console.log("log 0")
+    console.log(agg_funcs.entries())
+
     // Let's figure out what's going on:
     console.log("log 1")
     console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row.result[column]))]),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map(one_row => one_row.result[column]))])),
         index:-1
     }))
 
@@ -985,7 +988,7 @@ function aggregate_over_scenarios(
     console.log("log 2")
     console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc([1,2,3,4,5])]),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc([1,2,3,4,5])])),
         index:-1
     }))
 
@@ -993,9 +996,27 @@ function aggregate_over_scenarios(
     console.log("log 3")
     console.log(Array.from(groups.entries()).map(([strat, simulation_results])=> <SimulationResult>{
         inputs:JSON.parse(strat),
-        result:Object.entries(agg_funcs).map(([column, aggfunc])=>[column,simulation_results.map(one_row => one_row.result[column])]),
+        result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,simulation_results.map(one_row => one_row.result[column])])),
         index:-1
     }))
+
+    let {debug_key, debug_results} = groups.entries()[1]
+    console.log(`debug key ${debug_key}`)
+    console.log("debug_results")
+    console.log(debug_results)
+
+    let {strat_var, f} = agg_funcs.entries()[0]
+    console.log("strat_var")
+    console.log(strat_var)
+    console.log("f")
+    console.log(f)
+    console.log("f test")
+    console.log(f([1,2,3,4,5]))
+    console.log("column data")
+    console.log(debug_results.map( (each_result) => each_result.result[strat_var]))
+    console.log("aggregated column")
+    console.log(f(debug_results.map( (each_result) => each_result.result[strat_var])))
+
 
 
     // commented while debugging:
