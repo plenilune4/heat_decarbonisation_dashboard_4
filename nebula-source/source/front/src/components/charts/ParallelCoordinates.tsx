@@ -185,8 +185,8 @@ function RenderParallelCoordinates({
         async function process() {
             setTimeout(() => {
                 let inputResults = chart?.showParetoOnly ? paretoResults : results // Worth looking at
-                console.log("results arriving at process()")
-                console.log(inputResults)
+                // console.log("results arriving at process()")
+                // console.log(inputResults)
 
                 getReferencesAndPolylines(inputResults, axisOptions, evaluationFunction)
                     .then((data) => {
@@ -589,8 +589,8 @@ async function getReferencesAndPolylines(
     const _references: Set<string> = new Set()
     const _dateAxes: Set<string> = new Set()
 
-    console.log("Data arriving at getReferencesAndPolylines")
-    console.log(results)
+    // console.log("Data arriving at getReferencesAndPolylines")
+    // console.log(results)
 
     // Create cache for getAxisValue results to avoid recalculating identical inputs
     // console.time('cache setup')
@@ -808,8 +808,8 @@ async function getReferencesAndPolylines(
     // )
     // console.timeEnd('getReferencesAndPolylines')
 
-    console.log("getting this _output to set as polylines:")
-    console.log(_output)
+    // console.log("getting this _output to set as polylines:")
+    // console.log(_output)
 
     return {
         references: Array.from(_references).map((x) => ({ reference: x, visible: true })),
