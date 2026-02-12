@@ -91,9 +91,6 @@ export default function ChartSandbox({
         return new Map(Array.from(values_sets).map(([ref, m]) => [ref, m.size]))
     }, [inputrefs, simulationResults])
 
-    console.log("nunique")
-    console.log(nunique)
-
     const varyingLevers: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "lever") && (nunique.get(axdef.reference) > 1))
     const varyingExogenous: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "exogenous") && (nunique.get(axdef.reference) > 1))
     const allMetrics: AxisDefinition[] = xAndYOptions.filter((axdef) => axdef.frameworkType === "measure")

@@ -46,6 +46,8 @@ export default function ResultCountWrapper({
     onDownloadCSV: () => void
     isRunningAnalysis: boolean
 }) {
+
+
     if (!isRunningAnalysis && (!results || results.length === 0)) {
         return <Empty icon={<ChartBarIcon className='w-10 h-10' />} text='No results to display.' />
     }
@@ -61,6 +63,9 @@ export default function ResultCountWrapper({
             />
         )
     }
+
+    console.log("results arriving at paxplot")
+    console.log(results)
 
     return (
         <RenderParallelCoordinates
@@ -106,6 +111,9 @@ function RenderParallelCoordinates({
     const [axisScale, setAxisScale] = useState<{ scale: d3.ScalePoint<string> | null }>({ scale: null })
 
     const [isProcessing, setIsProcessing] = useState(false)
+
+    console.log("results arriving at paxplot 2")
+    console.log(results)
 
     const discreteValueMappings = useMemo(() => {
         const mappings: { [reference: string]: string[] } = {}
