@@ -77,11 +77,15 @@ export default function ChartSandbox({
         }
         // We have to run through all the simulation results checking for unique inputs...
         for (const simresult of simulationResults){
-            Object.entries(simresult.inputs).map(([r, val]) => values_sets.get(r).set(JSON.stringify(val), 1))
+            Object.entries(simresult.inputs).map(([r, val]) =>
+                val.simple_value? values_sets.get(r).set(JSON.stringify(val.simple_value), 1):
+                    values_sets.get(r).set(JSON.stringify(val.value), 1))
         }
 
         return new Map(Array.from(values_sets).map(([ref, m]) => [ref, m.size]))
     }, [inputrefs, simulationResults])
+
+
 
     const varyingLevers: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "lever") && (nunique.get(axdef.reference) > 1))
     const varyingExogenous: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "exogenous") && (nunique.get(axdef.reference) > 1))
