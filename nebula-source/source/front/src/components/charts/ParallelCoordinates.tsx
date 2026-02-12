@@ -64,8 +64,7 @@ export default function ResultCountWrapper({
         )
     }
 
-    console.log("results arriving at paxplot")
-    console.log(results)
+    //results array with aggregated results looks fine so far.
 
     return (
         <RenderParallelCoordinates
@@ -112,9 +111,9 @@ function RenderParallelCoordinates({
 
     const [isProcessing, setIsProcessing] = useState(false)
 
-    console.log("results arriving at paxplot 2")
-    console.log(results)
+    //results array with aggregated results looks fine so far
 
+    // This should deal with the simple_values of time-series data as well. To do.
     const discreteValueMappings = useMemo(() => {
         const mappings: { [reference: string]: string[] } = {}
 
@@ -185,7 +184,10 @@ function RenderParallelCoordinates({
         setIsProcessing(true)
         async function process() {
             setTimeout(() => {
-                let inputResults = chart?.showParetoOnly ? paretoResults : results
+                let inputResults = chart?.showParetoOnly ? paretoResults : results // Worth looking at
+                console.log("results arriving at process()")
+                console.log(inputResults)
+
                 getReferencesAndPolylines(inputResults, axisOptions, evaluationFunction)
                     .then((data) => {
                         if (
@@ -364,7 +366,7 @@ function RenderParallelCoordinates({
                                                             key={value}
                                                             fontSize='14px'
                                                             fontWeight='bold'
-                                                            textAnchor='end'
+                                                            textAnchor='start'
                                                             dominantBaseline='middle'
                                                             fill='white'
                                                             x='-10'
@@ -434,7 +436,7 @@ function RenderParallelCoordinates({
                                         key={reference + index + x}
                                         x={x}
                                         y={HEIGHT - MARGINS.bottom + 25}
-                                        textAnchor='end'
+                                        textAnchor='start'
                                         fontSize='18px'
                                         fill='white'
 
