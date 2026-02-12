@@ -238,13 +238,13 @@ function generateLatinHypercubeScenarios(
         for (const input of inputs) {
             if (input.type.startsWith('time-series')) {
                 // Generate all time series variations
-                console.log("getting this from transformScenarioInputs")
-                console.log(transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
-                    | ScenarioTimeSeries
-                    | ScenarioTimeSeries[])
                 const series = transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
                     | ScenarioTimeSeries
                     | ScenarioTimeSeries[]
+                console.log("LHC: getting this from transformScenarioInputs")
+                console.log(transformScenarioInputs(input, { sampleMethod: 'full-factorial' }))
+                console.log("series")
+                console.log(series)
 
                 if (Array.isArray(series)) {
                     allPossibleValues[input.reference] = series
