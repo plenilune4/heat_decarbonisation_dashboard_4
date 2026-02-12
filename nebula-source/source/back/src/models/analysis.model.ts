@@ -47,6 +47,7 @@ export interface IAnalysisChart {
     y: AxisDefinition
     label?: string
     showParetoOnly?: boolean
+    lockAxes?: boolean
     parallelCoordinates?: {
         references: { reference: string; visible: boolean }[]
         colourAxis: string

@@ -390,6 +390,13 @@ function ChartDefinitionSettings({
                     onChange={(checked) => updateDefinition('showParetoOnly', checked)}
                 />
             )}
+            {['parallel-coordinates'].includes(chart.chartType) && (
+                <CheckboxField
+                    label='Lock axis scales'
+                    value={chart?.lockAxes}
+                    onChange={(checked) => updateDefinition('lockAxes', checked)}
+                />
+            )}
         </div>
     )
 }

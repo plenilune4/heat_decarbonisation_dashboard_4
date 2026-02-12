@@ -108,7 +108,7 @@ function RenderParallelCoordinates({
     const [polylines, setPolylines] = useState<Polylines>({})
     const [colourAxis, setColourAxis] = useState<string>(chart.parallelCoordinates?.colourAxis || '')
     const [dateAxes, setDateAxes] = useState<Set<string>>(new Set())
-    const [valueScales, setValueScales] = useState<{ [key: string]: d3.ScaleLinear<number, number> }>({})
+    const [valueScales, setValueScales] = useState<{ [key: string]: d3.ScaleLinear<number, number> }>({})//I infer this provides, for each axis, a scale relating the quantities plotted to the screen space
     const [axisScale, setAxisScale] = useState<{ scale: d3.ScalePoint<string> | null }>({ scale: null })
 
     const [isProcessing, setIsProcessing] = useState(false)
@@ -234,15 +234,18 @@ function RenderParallelCoordinates({
                             }
                             const values = Object.values(data.polylines).map(
                                 (polyline) => polyline[reference] as number
-                            )
+                            ) // gives all the values to be plotted on a particular axis.
+
                             const [min, max] = d3.extent(values)
                             _valueScales[reference] = d3
                                 .scaleLinear()
                                 .domain([min, max])
-                                .range([HEIGHT - MARGINS.bottom, MARGINS.top])
+                                .range([HEIGHT - MARGINS.bottom, MARGINS.top])//use d3 package to obtain the axis scaling for this axis.
                         }
 
-                        setValueScales(_valueScales)
+                        // If axes are locked then value scales will not update.
+                        if (!chart?.lockAxes){
+                            setValueScales(_valueScales)}
 
                         const _scale = d3
                             .scalePoint()
@@ -320,7 +323,7 @@ function RenderParallelCoordinates({
                                     if (isNaN(x1) || isNaN(x2) || isNaN(y1) || isNaN(y2)) {
                                         return null
                                     }
-
+                                    // Here, the actual line segment is built.
                                     return (
                                         <line
                                             key={x1}
