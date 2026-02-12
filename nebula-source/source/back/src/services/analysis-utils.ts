@@ -97,6 +97,8 @@ function generateFullFactorialScenarios(
                         | ScenarioTimeSeries
                         | ScenarioTimeSeries[]
                     console.log("getting this from transformScenarioInputs")
+                    console.log(transformScenarioInputs(input, groupSamplingStrategy))
+                    console.log("series")
                     console.log(series)
                     if (Array.isArray(series)) {
                         csvTimeSeries.push(...series)
@@ -461,13 +463,12 @@ function transformScenarioInputs(
                             value: dataseries.data,
                             simple_value: dataseries.header
                         })) as ScenarioTimeSeries[]
-                        console.log("returned ScenarioTimeSeries[]:")
-                        console.log(returnVal)
-                        console.log("recast ScenarioTimeSeries[]:")
-                        console.log(returnVal as | ScenarioTimeSeries | ScenarioTimeSeries[])
+                        // console.log("returned ScenarioTimeSeries[]:")
+                        // console.log(returnVal)
+                        // console.log("recast ScenarioTimeSeries[]:")
+                        // console.log(returnVal as | ScenarioTimeSeries | ScenarioTimeSeries[])
                         return returnVal
                     }
-
 
                     return {
                         reference: input.reference,
