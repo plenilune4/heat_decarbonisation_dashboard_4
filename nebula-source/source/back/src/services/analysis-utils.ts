@@ -96,10 +96,10 @@ function generateFullFactorialScenarios(
                     const series = transformScenarioInputs(input, groupSamplingStrategy) as
                         | ScenarioTimeSeries
                         | ScenarioTimeSeries[]
-                    console.log("getting this from transformScenarioInputs")
-                    console.log(transformScenarioInputs(input, groupSamplingStrategy))
-                    console.log("series")
-                    console.log(series)
+                    // console.log("getting this from transformScenarioInputs")
+                    // console.log(transformScenarioInputs(input, groupSamplingStrategy))
+                    // console.log("series")
+                    // console.log(series)
                     if (Array.isArray(series)) {
                         csvTimeSeries.push(...series)
                     } else {
@@ -265,8 +265,8 @@ function generateLatinHypercubeScenarios(
                     allPossibleValues[input.reference] = [scalar]
                 }
             }
-            console.log("allPossibleValues")
-            console.log(allPossibleValues)
+            // console.log("allPossibleValues")
+            // console.log(allPossibleValues)
         }
 
         // Now apply Latin hypercube sampling to select from these full value sets
