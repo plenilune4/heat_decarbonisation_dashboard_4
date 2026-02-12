@@ -18,7 +18,7 @@ const HEIGHT = 800
 const MARGINS = {
     top: 5,
     right: 60,
-    bottom: 35,
+    bottom: 100,
     left: 60,
 }
 
