@@ -422,7 +422,7 @@ function RenderParallelCoordinates({
                                 return (
                                     //This is the x' label for the individual axis.
                                     <text
-                                        style ={{transform: [{ rotate: '315deg' }]}}
+                                        style ={{transform: "rotate(315deg)"}}
                                         key={reference + index + x}
                                         x={x}
                                         y={HEIGHT - MARGINS.bottom + 25}
