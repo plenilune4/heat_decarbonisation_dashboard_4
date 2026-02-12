@@ -974,12 +974,6 @@ function aggregate_over_scenarios(
     console.log("groups")
     console.log(groups)
 
-    function get_aggregated_value(simulation_results:SimulationResult[],af:(values: number[]) => number,column:string ){
-        let col_data = simulation_results.map((one_row) => one_row.result[column])
-        let aggregated_data = af(col_data)
-        return aggregated_data
-    }
-
     // let debug_key = Array.from(groups.keys())[1]
     // let debug_results = Array.from(groups.values())[1]
 
