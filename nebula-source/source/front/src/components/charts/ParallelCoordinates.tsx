@@ -434,7 +434,7 @@ function RenderParallelCoordinates({
                                         key={reference + index + x}
                                         x={x}
                                         y={HEIGHT - MARGINS.bottom + 25}
-                                        textAnchor='left'
+                                        textAnchor='end'
                                         fontSize='18px'
                                         fill='white'
 
