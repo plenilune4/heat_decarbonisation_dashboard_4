@@ -440,20 +440,24 @@ function transformScenarioInputs(
                             input.timeStepSeconds,
                             input.timeStepCount
                         ),
+                        simple_value: input.value
                     }
                 case 'from-csv':
-                    const csvData = fromCsv(input.csv)
+                    const csvData = fromCsv(input.csv) // fromCsv now uses CSVDataSeries object which has a header as well as the array of [date_i, value_i]
+                    // The separate cases for arrays of length 1 versus length > 1 seem very unnecessary. Not sure what they were thinking. TDH.
                     if (Array.isArray(csvData) && Array.isArray(csvData[0])) {
-                        return csvData.map((data) => ({
+                        return csvData.map((dataseries) => ({
                             reference: input.reference,
                             type: 'array',
-                            value: data,
+                            value: dataseries.data,
+                            simple_value: dataseries.header
                         })) as ScenarioTimeSeries[]
                     }
                     return {
                         reference: input.reference,
                         type: 'array',
-                        value: csvData,
+                        value: csvData.data,
+                        simple_value: csvData.header
                     } as ScenarioTimeSeries
             }
     }
@@ -605,7 +609,8 @@ function constantValue(
 }
 
 type CSVData = { date: string; [key: string]: number | string | boolean }[]
-function fromCsv(csv: string): CSVData | CSVData[] {
+type CSVDataSeries = {header: string | number, data: CSVData}
+function fromCsv(csv: string): CSVDataSeries | CSVDataSeries[] {
     if (csv.trim() === '') {
         return []
     }
@@ -615,10 +620,16 @@ function fromCsv(csv: string): CSVData | CSVData[] {
     }
 
     const firstRow = lines[0].split(',')
-    const dateHeaderIndex = firstRow.findIndex((header) => header.trim().toLowerCase() === 'date')
+    //const dateHeaderIndex = firstRow.findIndex((header) => header.trim().toLowerCase() === 'date')
+    const dateHeaderIndex:number = 0 // We enforce that the first column is always the one indexing the dates/years/times.
 
     // Determine if we have headers or not
-    const hasHeaders = dateHeaderIndex !== -1
+    // const hasHeaders = dateHeaderIndex !== -1
+    const hasHeaders:boolean = true // We enforce the assumption that headers will be used.
+    // There will be unexpected behaviour otherwise. To do - check that we have unique column header names.
+
+
+
     const dateColumnIndex = hasHeaders ? dateHeaderIndex : 0
     const dataStartIndex = hasHeaders ? 1 : 0
 
@@ -627,13 +638,15 @@ function fromCsv(csv: string): CSVData | CSVData[] {
         const line = lines[i]
         const lineValues = line.split(',')
         dateValues.push(lineValues[dateColumnIndex])
-    }
+    } // now we have all the date values as one array.
 
+    const featureHeaders: string[] = []
     const featureValues: any[][] = []
     for (let i = 0; i < firstRow.length; i++) {
         if (i === dateColumnIndex) {
             continue
         }
+        featureHeaders.push(firstRow[i])
         let values: any[] = []
         for (let j = dataStartIndex; j < lines.length; j++) {
             const line = lines[j]
@@ -646,22 +659,27 @@ function fromCsv(csv: string): CSVData | CSVData[] {
             }
         }
         featureValues.push(values)
-    }
+    } // Now we have an array of timeseries (which are themselves arrays)
 
     if (featureValues.length === 1) {
         const values = featureValues[0]
-        const output: CSVData = []
+        const header = featureHeaders[0]
+        const data: CSVData = []
         for (let i = 0; i < dateValues.length; i++) {
-            output.push({
+            data.push({
                 date: dateValues[i],
                 value: values[i],
             })
         }
-        return output
+        const output:CSVDataSeries = {header:header, data:data}
+        return output // the result is a single column indexed by date. Now it has a header, and the data is a layer deeper.
+        // I really don't know why the data type with length 1 has to be separate from >1. TDH.
     }
 
-    const output: CSVData[] = []
+    // const output: CSVData[] = []
+    const output: CSVDataSeries[] = []
     for (let i = 0; i < featureValues.length; i++) {
+        const header = featureHeaders[i]
         const data: CSVData = []
         for (let j = 0; j < dateValues.length; j++) {
             data.push({
@@ -669,7 +687,9 @@ function fromCsv(csv: string): CSVData | CSVData[] {
                 value: featureValues[i][j],
             })
         }
-        output.push(data)
+        const dataseries:CSVDataSeries = {header:header, data:data}
+        output.push(dataseries) //the result is a number of columns which are each independently indexed by the date.
+        // Does it make sense to store them this way?? Maybe.
     }
 
     return output

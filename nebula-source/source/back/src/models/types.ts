@@ -163,12 +163,14 @@ export type ScenarioScalar = {
     reference: string
     type: 'float' | 'int' | 'str' | 'bool'
     value: number | boolean | string
+    simple_value?: number | boolean | string
 }
 
 export type ScenarioArrayScalar = {
     reference: string
     type: 'float' | 'int' | 'str' | 'bool'
     value: number[] | boolean[] | string[]
+    simple_value?: number | boolean | string
 }
 
 export type ScenarioTimeSeries = {
@@ -177,6 +179,7 @@ export type ScenarioTimeSeries = {
     value:
         | { date: string; [key: string]: number | string | boolean }[]
         | { date: string; [key: string]: number | string | boolean }[][]
+    simple_value?: number | boolean | string
 }
 
 export interface ScenarioConfiguration {
