@@ -29,6 +29,7 @@ export default function ResultCountWrapper({
     title,
     results,
     paretoResults,
+    unfilteredResults,
     axisOptions,
     chart,
     onChange,
@@ -39,6 +40,7 @@ export default function ResultCountWrapper({
     title: string
     results: SimulationResult[]
     paretoResults: SimulationResult[]
+    unfilteredResults: SimulationResult[]
     axisOptions: AxisDefinition[]
     chart: IAnalysisChart
     onChange: (chart: IAnalysisChart) => void

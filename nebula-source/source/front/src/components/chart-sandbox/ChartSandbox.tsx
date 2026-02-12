@@ -149,6 +149,8 @@ export default function ChartSandbox({
                 else if (output.paretoSense === 'minimise') sense[output.reference] = -1
                 else sense[output.reference] = 0
             })
+            // To do. Pareto efficiency definition needs to be adapted when there are many scenarios.
+            // A strategy is only definitely Pareto dominated by another if it is outperformed under every metric and every scenario.
             setParetoResults(paretoService.getParetoEfficientSolutions(filteredResults, sense, evaluationFunction))
         } else {
             setParetoResults([])
@@ -267,6 +269,7 @@ export default function ChartSandbox({
                                 title='Parallel Coordinates'
                                 results={filteredResults}
                                 paretoResults={paretoResults}
+                                unfilteredResults={aggregatedResults}
                                 axisOptions={appropriatePaxplotAxes} // could cause problems if an axis currently shown on the plot suddenly has no variation; needs a bit of finessing.
                                 chart={chart}
                                 onChange={(chart: IAnalysisChart) => handleSetChart(index, chart)}
