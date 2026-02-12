@@ -422,11 +422,11 @@ function RenderParallelCoordinates({
                                 return (
                                     //This is the x' label for the individual axis.
                                     <text
-                                        transform = {`rotate(45, ${x}, ${HEIGHT - MARGINS.bottom + 25})`}
+                                        transform = {`rotate(35, ${x}, ${HEIGHT - MARGINS.bottom + 25})`}
                                         key={reference + index + x}
                                         x={x}
                                         y={HEIGHT - MARGINS.bottom + 25}
-                                        textAnchor='middle'
+                                        textAnchor='left'
                                         fontSize='18px'
                                         fill='white'
 
