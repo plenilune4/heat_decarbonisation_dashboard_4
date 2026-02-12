@@ -30,7 +30,7 @@ export const CHART_TYPE_LIMITS: Record<ChartType, number> = {
     line: 60000,
     histogram: 120000,
     'time-series': 20000,
-    'parallel-coordinates': 4000,
+    'parallel-coordinates': 10000,
 }
 
 export default function ChartSandbox({
@@ -61,6 +61,32 @@ export default function ChartSandbox({
     const xAndYOptions: AxisDefinition[] = useMemo(() => {
         return getAllAxisDefinitions(simulationResults, evaluationFunction)
     }, [simulationResults, evaluationFunction])
+
+    const inputrefs: string[] = xAndYOptions.filter((axdef) => ["lever", "exogenous"].includes(axdef.frameworkType)).map((axdef) => axdef.reference)
+
+    /**
+     * Counting the number of unique occurrences of input variables.
+     * To do: this almost certainly is not the optimal way to do this.
+     * In theory, we could just check the variation methods that have been set, but this could be unsafe and could get involved.
+     * We need to be comparing the keys of time series variables, not the values. Major overhaul needed here.
+     */
+    const nunique: Map<string, number> = useMemo(() => {
+        const values_sets:Map<string, Map<any, number>> = new Map()
+        for (const ref of inputrefs){
+            values_sets.set(ref, new Map())
+        }
+        // We have to run through all the simulation results checking for unique inputs...
+        for (const simresult of simulationResults){
+            Object.entries(simresult.inputs).map(([r, val]) => values_sets.get(r).set(JSON.stringify(val), 1))
+        }
+
+        return Array.from(values_sets).map(([ref, m]) => [ref, m.size])
+    }, [inputrefs, simulationResults])
+
+    const varyingLevers: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "lever") && (nunique.get(axdef.reference) > 1))
+    const varyingExogenous: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "exogenous") && (nunique.get(axdef.reference) > 1))
+    const allMetrics: AxisDefinition[] = xAndYOptions.filter((axdef) => axdef.frameworkType === "measure")
+    const appropriatePaxplotAxes: AxisDefinition[] = (!aggregation || aggregation === "none")? varyingLevers.concat(varyingExogenous).concat(allMetrics) : varyingLevers.concat(allMetrics)
 
     const aggregatedResults = useMemo(() => {
         // console.log('===== Filter Effect =====', { filters: debouncedFilters })
@@ -233,7 +259,7 @@ export default function ChartSandbox({
                                 title='Parallel Coordinates'
                                 results={filteredResults}
                                 paretoResults={paretoResults}
-                                axisOptions={xAndYOptions}
+                                axisOptions={appropriatePaxplotAxes} // could cause problems if an axis currently shown on the plot suddenly has no variation; needs a bit of finessing.
                                 chart={chart}
                                 onChange={(chart: IAnalysisChart) => handleSetChart(index, chart)}
                                 evaluationFunction={evaluationFunction}
@@ -783,6 +809,7 @@ export function getAllAxisDefinitions(
         ...outputOptions,
     ]
 }
+
 
 function resultsToPoints(
     results: SimulationResult[],

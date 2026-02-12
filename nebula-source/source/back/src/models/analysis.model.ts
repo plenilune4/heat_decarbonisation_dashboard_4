@@ -37,7 +37,7 @@ export type ChartType = 'histogram' | 'line' | 'scatter' | 'time-series' | 'para
 export type AxisDefinition = {
     reference: string
     label: string
-    frameworkType: 'exogenous' | 'lever' | 'measure' | 'relationship'
+    frameworkType: 'exogenous' | 'lever' | 'measure' | 'relationship' // probably remove relationship from here.
     dataType?: string
 }
 
