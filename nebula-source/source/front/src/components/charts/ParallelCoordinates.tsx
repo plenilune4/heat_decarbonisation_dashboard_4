@@ -589,6 +589,9 @@ async function getReferencesAndPolylines(
     const _references: Set<string> = new Set()
     const _dateAxes: Set<string> = new Set()
 
+    console.log("Data arriving at getReferencesAndPolylines")
+    console.log(results)
+
     // Create cache for getAxisValue results to avoid recalculating identical inputs
     // console.time('cache setup')
     const axisValueCache = new Map<
@@ -619,6 +622,7 @@ async function getReferencesAndPolylines(
         // console.time(`process result ${result.index}`)
 
         // Process time series inputs by adding .date and .value references
+        // This will need attention. To do. We don't need the detailed time series data including here.
         for (const [key, inputData] of Object.entries(result.inputs)) {
             const isTimeSeries =
                 Array.isArray(inputData.value) &&
@@ -676,6 +680,8 @@ async function getReferencesAndPolylines(
             }
         }
 
+        // Not sure why lever and exogenous have been handled separately here. To do. TDH.
+        // Lever vars first.
         for (const key of Object.keys(result.inputs).filter((k) => frameworkTypeMap.get(k) === 'lever')) {
             _references.add(key)
 
@@ -697,6 +703,7 @@ async function getReferencesAndPolylines(
             }
         }
 
+        // Sort out exogenous vars.
         for (const key of Object.keys(result.inputs).filter((k) => frameworkTypeMap.get(k) === 'exogenous')) {
             _references.add(key)
 
@@ -719,6 +726,7 @@ async function getReferencesAndPolylines(
         }
 
         // Process time series results by adding .date and .value references
+        // This needs attention. To do. Allowance for time series results is not a priority and we wouln't want to include such on parallel plots anyway.
         for (const [key, value] of Object.entries(result.result)) {
             const isTimeSeries =
                 Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && 'date' in value[0]
@@ -799,6 +807,9 @@ async function getReferencesAndPolylines(
     //     `Cache hit ratio: ${axisValueCache.size} unique inputs cached out of ${results.length * Object.keys(results[0].inputs).length} total inputs`
     // )
     // console.timeEnd('getReferencesAndPolylines')
+
+    console.log("getting this _output to set as polylines:")
+    console.log(_output)
 
     return {
         references: Array.from(_references).map((x) => ({ reference: x, visible: true })),
