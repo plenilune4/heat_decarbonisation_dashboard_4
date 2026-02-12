@@ -75,9 +75,8 @@ export default function ChartSandbox({
         for (const ref of inputrefs){
             values_sets.set(ref, new Map())
         }
-        console.log("we got this far")
-        // We have to run through all the simulation results checking for unique inputs...
 
+        // We have to run through all the simulation results checking for unique inputs...
         for (const simresult of simulationResults) {
             Object.entries(simresult.inputs).forEach(([r, val]) => {
                 const valueToUse =
@@ -88,21 +87,6 @@ export default function ChartSandbox({
                 values_sets.get(r)?.set(JSON.stringify(valueToUse), 1);
             });
         }
-
-        // for (const simresult of simulationResults){
-        //     Object.entries(simresult.inputs).map(([r, val]) =>
-        //         val.simple_value? values_sets.get(r).set(JSON.stringify(val.simple_value), 1):
-        //             values_sets.get(r).set(JSON.stringify(val.value), 1))
-        // }
-
-        // code is nice and concise, but not working...
-        // for (const simresult of simulationResults){
-        //     Object.entries(simresult.inputs).map(([r, val]) =>
-        //         val.simple_value? values_sets.get(r).set(JSON.stringify(val.simple_value), 1):
-        //             values_sets.get(r).set(JSON.stringify(val.value), 1))
-        // }
-        console.log("could we even get this far?")
-        //console.log(values_sets)
 
         return new Map(Array.from(values_sets).map(([ref, m]) => [ref, m.size]))
     }, [inputrefs, simulationResults])

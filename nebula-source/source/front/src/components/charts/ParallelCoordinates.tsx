@@ -425,7 +425,7 @@ function RenderParallelCoordinates({
                                         x={x}
                                         y={HEIGHT - MARGINS.bottom + 25}
                                         textAnchor='middle'
-                                        fontSize='18px'
+                                        fontSize='5px'
                                         fill='white'
                                     >
                                         {label}
