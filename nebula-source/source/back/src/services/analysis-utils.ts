@@ -92,11 +92,12 @@ function generateFullFactorialScenarios(
         inputs.forEach((input) => {
             if (input.type.startsWith('time-series')) {
                 if (input.variationMethod === 'from-csv') {
-                    console.log("getting this from transformScenarioInputs")
-                    console.log(transformScenarioInputs(input, groupSamplingStrategy))
+
                     const series = transformScenarioInputs(input, groupSamplingStrategy) as
                         | ScenarioTimeSeries
                         | ScenarioTimeSeries[]
+                    console.log("getting this from transformScenarioInputs")
+                    console.log(series)
                     if (Array.isArray(series)) {
                         csvTimeSeries.push(...series)
                     } else {
