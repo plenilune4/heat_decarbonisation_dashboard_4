@@ -451,7 +451,8 @@ function transformScenarioInputs(
                 case 'from-csv':
                     const csvData = fromCsv(input.csv) // fromCsv now uses CSVDataSeries object which has a header as well as the array of [date_i, value_i]
                     // The separate cases for arrays of length 1 versus length > 1 seem very unnecessary. Not sure what they were thinking. TDH.
-                    if (Array.isArray(csvData) && Array.isArray(csvData[0])) {
+                    // if (Array.isArray(csvData) && Array.isArray(csvData[0])) {
+                    if (Array.isArray(csvData)) {
                         console.log("Our csvData looks like this:")
                         console.log(csvData)
                         return csvData.map((dataseries) => ({
