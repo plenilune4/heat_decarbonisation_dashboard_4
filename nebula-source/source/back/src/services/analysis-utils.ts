@@ -94,6 +94,7 @@ function generateFullFactorialScenarios(
                 if (input.variationMethod === 'from-csv') {
                     console.log("getting this from transformScenarioInputs")
                     console.log(transformScenarioInputs(input, groupSamplingStrategy))
+                    throw new Error("We'll just stop here.")
                     const series = transformScenarioInputs(input, groupSamplingStrategy) as
                         | ScenarioTimeSeries
                         | ScenarioTimeSeries[]
