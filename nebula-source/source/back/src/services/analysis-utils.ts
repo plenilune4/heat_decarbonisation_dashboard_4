@@ -453,17 +453,21 @@ function transformScenarioInputs(
                     // The separate cases for arrays of length 1 versus length > 1 seem very unnecessary. Not sure what they were thinking. TDH.
                     // if (Array.isArray(csvData) && Array.isArray(csvData[0])) {
                     if (Array.isArray(csvData)) {
-                        console.log("Our csvData looks like this:")
-                        console.log(csvData)
-                        return csvData.map((dataseries) => ({
+                        // Need to check that this looks right and that it still looks right once cast to the correct type.
+                        const returnVal = csvData.map((dataseries) => ({
                             reference: input.reference,
                             type: 'array',
                             value: dataseries.data,
                             simple_value: dataseries.header
                         })) as ScenarioTimeSeries[]
+                        console.log("returned ScenarioTimeSeries[]:")
+                        console.log(returnVal)
+                        console.log("recast ScenarioTimeSeries[]:")
+                        console.log(returnVal as | ScenarioTimeSeries | ScenarioTimeSeries[])
+                        return returnVal
                     }
-                    console.log("Our singleton csvData looks like this:")
-                    console.log(csvData)
+
+
                     return {
                         reference: input.reference,
                         type: 'array',
