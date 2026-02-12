@@ -80,7 +80,7 @@ export default function ChartSandbox({
             Object.entries(simresult.inputs).map(([r, val]) => values_sets.get(r).set(JSON.stringify(val), 1))
         }
 
-        return Array.from(values_sets).map(([ref, m]) => [ref, m.size])
+        return new Map(Array.from(values_sets).map(([ref, m]) => [ref, m.size]))
     }, [inputrefs, simulationResults])
 
     const varyingLevers: AxisDefinition[] = xAndYOptions.filter((axdef) => (axdef.frameworkType === "lever") && (nunique.get(axdef.reference) > 1))
