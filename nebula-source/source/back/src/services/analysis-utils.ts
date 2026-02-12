@@ -92,6 +92,8 @@ function generateFullFactorialScenarios(
         inputs.forEach((input) => {
             if (input.type.startsWith('time-series')) {
                 if (input.variationMethod === 'from-csv') {
+                    console.log("getting this from transformScenarioInputs")
+                    console.log(transformScenarioInputs(input, groupSamplingStrategy))
                     const series = transformScenarioInputs(input, groupSamplingStrategy) as
                         | ScenarioTimeSeries
                         | ScenarioTimeSeries[]
@@ -456,7 +458,7 @@ function transformScenarioInputs(
                     return {
                         reference: input.reference,
                         type: 'array',
-                        value: csvData.data,
+                        value: csvData.data, // IDE is unhappy here but the actual compiler is fine.
                         simple_value: csvData.header
                     } as ScenarioTimeSeries
             }
