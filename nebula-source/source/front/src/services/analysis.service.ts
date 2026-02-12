@@ -982,10 +982,8 @@ function aggregate_over_scenarios(
         inputs:JSON.parse(strat),
         //result:Object.fromEntries(Object.entries(agg_funcs).map(([column, aggfunc])=>[column,aggfunc(simulation_results.map((one_row) => one_row.result[column]))])),
         result: Object.fromEntries(Array.from(agg_funcs, ([measure, aggfunc]) => [measure, aggfunc(simulation_results.map((one_result) => one_result.result[measure]))])),
-        index:-1
+        index:Array.from(groups.keys()).indexOf(strat)
     })//First attempt at making the thing we want. Gosh Python is more readable.
-
-
 
     // Need to deal with the need for separate aggregations per metric, and any other tidying.
     // Array.from(groups.entries()).map(([key, rows)])=>aggfunc(rows))
