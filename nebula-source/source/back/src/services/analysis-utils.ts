@@ -94,7 +94,6 @@ function generateFullFactorialScenarios(
                 if (input.variationMethod === 'from-csv') {
                     console.log("getting this from transformScenarioInputs")
                     console.log(transformScenarioInputs(input, groupSamplingStrategy))
-                    throw new Error("We'll just stop here.")
                     const series = transformScenarioInputs(input, groupSamplingStrategy) as
                         | ScenarioTimeSeries
                         | ScenarioTimeSeries[]
@@ -236,6 +235,10 @@ function generateLatinHypercubeScenarios(
         for (const input of inputs) {
             if (input.type.startsWith('time-series')) {
                 // Generate all time series variations
+                console.log("getting this from transformScenarioInputs")
+                console.log(transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
+                    | ScenarioTimeSeries
+                    | ScenarioTimeSeries[])
                 const series = transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
                     | ScenarioTimeSeries
                     | ScenarioTimeSeries[]
