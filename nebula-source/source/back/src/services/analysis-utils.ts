@@ -241,10 +241,7 @@ function generateLatinHypercubeScenarios(
                 const series = transformScenarioInputs(input, { sampleMethod: 'full-factorial' }) as
                     | ScenarioTimeSeries
                     | ScenarioTimeSeries[]
-                console.log("LHC: getting this from transformScenarioInputs")
-                console.log(transformScenarioInputs(input, { sampleMethod: 'full-factorial' }))
-                console.log("series")
-                console.log(series)
+                // have checked this and 'series' seems to be generated as expected.
 
                 if (Array.isArray(series)) {
                     allPossibleValues[input.reference] = series
@@ -268,6 +265,8 @@ function generateLatinHypercubeScenarios(
                     allPossibleValues[input.reference] = [scalar]
                 }
             }
+            console.log("allPossibleValues")
+            console.log(allPossibleValues)
         }
 
         // Now apply Latin hypercube sampling to select from these full value sets
@@ -940,6 +939,7 @@ function applyLatinHypercubeSampling(
                     reference: selectedValue.reference,
                     type: 'array',
                     value: selectedValue.value,
+                    simple_value: selectedValue.simple_value
                 }
             } else {
                 // Scalar
@@ -947,6 +947,7 @@ function applyLatinHypercubeSampling(
                     reference: selectedValue.reference,
                     type: selectedValue.type,
                     value: selectedValue.value,
+                    //simple_value: selectedValue.simple_value
                 }
             }
         })
