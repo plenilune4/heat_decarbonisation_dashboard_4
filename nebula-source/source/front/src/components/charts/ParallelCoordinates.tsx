@@ -17,7 +17,7 @@ const WIDTH = 1190
 const HEIGHT = 800
 const MARGINS = {
     top: 5,
-    right: 60,
+    right: 120,
     bottom: 160,
     left: 60,
 }
