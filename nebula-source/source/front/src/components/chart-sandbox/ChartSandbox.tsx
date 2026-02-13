@@ -56,7 +56,7 @@ export default function ChartSandbox({
     const [confirmDelete, setConfirmDelete] = useState<boolean>(false)
 
     // Debounce filter changes to prevent heavy processing on every keystroke
-    const [debouncedFilters, setDebouncedFilters] = useDebouncedState(filters, 300)
+    const [debouncedFilters, setDebouncedFilters] = useDebouncedState(filters, 1500)
 
     const xAndYOptions: AxisDefinition[] = useMemo(() => {
         return getAllAxisDefinitions(simulationResults, evaluationFunction)
