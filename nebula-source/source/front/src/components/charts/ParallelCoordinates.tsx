@@ -402,6 +402,8 @@ function RenderParallelCoordinates({
                                                 displayValue = Number(parseFloat(String(displayValue)).toFixed(3))
                                             }
 
+                                            console.log(`Value ${value};, display value ${displayValue};, offset ${offset};`)
+
                                             return (
                                                 <g key={value} transform={`translate(0, ${offset})`}>
                                                     <line x1='-4' x2='4' stroke='white' />
