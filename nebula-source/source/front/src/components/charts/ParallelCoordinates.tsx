@@ -393,16 +393,20 @@ function RenderParallelCoordinates({
                                                     ? discreteValueMappings[reference][value]
                                                     : value
 
+                                            let dvalue1 = displayValue
+
                                             // Format numeric values to 2 decimal places
                                             if (typeof displayValue === 'number') {
                                                 displayValue = Number(displayValue.toFixed(3))
                                             }
 
+                                            let dvalue2 = displayValue
+
                                             if (!isNaN(parseFloat(String(displayValue)))) {
                                                 displayValue = Number(parseFloat(String(displayValue)).toFixed(3))
                                             }
 
-                                            console.log(`Value ${value};, display value ${displayValue};, offset ${offset};`)
+                                            console.log(`DV1 ${dvalue1}; DV2 ${dvalue2}; DV3 ${displayValue}; value ${value}; offset ${offset}; value type ${typeof value}`)
 
                                             return (
                                                 <g key={value} transform={`translate(0, ${offset})`}>
