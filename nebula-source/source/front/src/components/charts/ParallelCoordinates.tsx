@@ -355,7 +355,7 @@ function RenderParallelCoordinates({
                                     .map((value) => ({ value, offset: valueScales[reference](value) }))
                                 const x = axisScale?.scale!(reference) as number
 
-                                console.log(discreteValueMappings)
+                                // console.log(discreteValueMappings)
 
                                 return (
                                     <g key={reference + index + x} transform={`translate(${x}, 0)`}>
@@ -405,7 +405,7 @@ function RenderParallelCoordinates({
                                                 displayValue = Number(parseFloat(String(displayValue)).toFixed(3))
                                             }
 
-                                            console.log(`display value ${displayValue}; value ${value}; offset ${offset}; value type ${typeof value}`)
+                                            // console.log(`display value ${displayValue}; value ${value}; offset ${offset}; value type ${typeof value}`)
 
                                             return (
                                                 <g key={value} transform={`translate(0, ${offset})`}>
