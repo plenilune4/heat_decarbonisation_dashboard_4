@@ -151,13 +151,14 @@ function RenderParallelCoordinates({
             })
         }
 
-        if (evaluationFunction?.outputs) {
-            evaluationFunction.outputs.forEach((output: any) => {
-                if (output.dataType === 'scalar') {
-                    mappings[output.reference] = getUniqueOutputValues(output.reference)
-                }
-            })
-        }
+        // To do: this should only be applied for time series outputs. Will need fixing.
+        // if (evaluationFunction?.outputs) {
+        //     evaluationFunction.outputs.forEach((output: any) => {
+        //         if (output.dataType === 'scalar') {
+        //             mappings[output.reference] = getUniqueOutputValues(output.reference)
+        //         }
+        //     })
+        // }
 
         return mappings
     }, [evaluationFunction, results])
