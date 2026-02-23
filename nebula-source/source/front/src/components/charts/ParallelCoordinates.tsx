@@ -244,6 +244,7 @@ function RenderParallelCoordinates({
                         }
 
                         // If axes are locked then value scales will not update.
+                        // Needs more testing as if the data ever vanishes the axes get locked as 'non-existent'.
                         if (!chart?.lockAxes){
                             setValueScales(_valueScales)}
 
@@ -332,6 +333,7 @@ function RenderParallelCoordinates({
                                             x2={x2}
                                             y2={y2}
                                             stroke={stroke}
+                                            stroke-width = "3"
                                             strokeOpacity={strokeOpacity}
                                         />
                                     )
