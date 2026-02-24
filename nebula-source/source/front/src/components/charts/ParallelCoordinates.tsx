@@ -797,8 +797,6 @@ async function getReferencesAndPolylines(
                 // Process non-time-series results normally
                 _references.add(key)
 
-                console.log(key)
-
                 const frameworkType = frameworkTypeMap.get(key)
                 const cacheKey = createInputHash(value, key, frameworkType)
                 let axisResult = axisValueCache.get(cacheKey)
@@ -809,14 +807,8 @@ async function getReferencesAndPolylines(
                     axisValueCache.set(cacheKey, axisResult)
                 }
 
-
-
                 let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                 let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-
-                if (key === "ip_gen"){
-                    console.log(`IP gen singleValue ${singleValue}; numberValue ${numberValue}`)
-                }
 
                 _output[result.index] = {
                     ..._output[result.index],
@@ -867,10 +859,10 @@ function getAxisValue(
         // Handle time-series data with dot notation (e.g., 'walk_one.value')
         if (ref.includes('.')) {
             const [baseRef, col] = ref.split('.')
-            if (!inputs?.[baseRef]) {
+            if (inputs?.[baseRef] === undefined) {
                 return { value: undefined, isDate: false }
             }
-            if (!inputs[baseRef].value) {
+            if (inputs[baseRef].value === undefined) {
                 return { value: undefined, isDate: false }
             }
 
@@ -887,10 +879,11 @@ function getAxisValue(
             return { value: undefined, isDate: false }
         } else {
             // Handle scalar inputs
-            if (!inputs?.[ref]) {
+            // if (!inputs?.[ref]) {
+            if (inputs?.[ref] === undefined) {
                 return { value: undefined, isDate: false }
             }
-            if (!inputs[ref].value) {
+            if (inputs[ref].value === undefined) {
                 return { value: undefined, isDate: false }
             }
 
@@ -917,7 +910,7 @@ function getAxisValue(
     if (frameworkType === 'measure') {
         if (ref.includes('.')) {
             const [baseRef, col] = ref.split('.')
-            if (!result?.[baseRef]) {
+            if (result?.[baseRef] === undefined) {
                 return { value: undefined, isDate: false }
             }
             const isDate = col === 'date'
@@ -928,7 +921,8 @@ function getAxisValue(
             return { value: mappedValues, isDate }
         }
 
-        if (!result?.[ref]) {
+        if (result?.[ref] === undefined){
+        // if (!result?.[ref]) {
             return { value: undefined, isDate: false }
         }
 
