@@ -798,7 +798,7 @@ async function getReferencesAndPolylines(
                 const cacheKey = createInputHash(value, key, frameworkType)
                 let axisResult = axisValueCache.get(cacheKey)
 
-                if (axisResult === undefined)
+                if (axisResult === undefined){
                 // if (!axisResult) {
                     axisResult = getAxisValue(result, frameworkType, key, evaluationFunction, results)
                     axisValueCache.set(cacheKey, axisResult)
