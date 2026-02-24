@@ -210,6 +210,9 @@ function RenderParallelCoordinates({
                             setReferences(chart.parallelCoordinates?.references || [])
                         }
 
+                        console.log(`Polylines data`)
+                        console.log(data.polylines)
+
                         setPolylines(data.polylines)
                         setDateAxes(data.dateAxes)
 
@@ -794,18 +797,27 @@ async function getReferencesAndPolylines(
                 // Process non-time-series results normally
                 _references.add(key)
 
+                console.log(key)
+
                 const frameworkType = frameworkTypeMap.get(key)
                 const cacheKey = createInputHash(value, key, frameworkType)
                 let axisResult = axisValueCache.get(cacheKey)
 
-                if (axisResult === undefined){
-                // if (!axisResult) {
+                // if (axisResult === undefined){
+                if (!axisResult) {
                     axisResult = getAxisValue(result, frameworkType, key, evaluationFunction, results)
                     axisValueCache.set(cacheKey, axisResult)
                 }
 
+
+
                 let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                 let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
+
+                if (key === "ip_gen"){
+                    console.log(`IP gen singleValue ${singleValue}; numberValue ${numberValue}`)
+                }
+
                 _output[result.index] = {
                     ..._output[result.index],
                     [key]: numberValue,
