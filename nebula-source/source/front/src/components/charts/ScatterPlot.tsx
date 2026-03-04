@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as d3 from 'd3'
 import { quadtree } from 'd3-quadtree'
 
+import { PARETO_HIGHLIGHT_COLOUR } from '../chart-sandbox/ChartSandbox'
 import { ChartPoint } from '../chart-sandbox/types'
 import { TooltipContent } from './CustomTooltip'
 
@@ -32,8 +33,18 @@ export function CustomCanvasScatterPlot({
     xLabel,
     yLabel,
     discreteValueMappings,
+    colorByReference,
+    colorByLabel,
+    colorScaleDomain,
+    noNumericColorData,
 }: {
-    series: { name: string; data: ChartPoint[] }[]
+    series: {
+        name: string
+        data: ChartPoint[]
+        color?: string
+        opacity?: number
+        layerType?: 'base' | 'filtered-out' | 'pareto'
+    }[]
     title?: string
     xLabel?: string
     yLabel?: string
@@ -41,16 +52,29 @@ export function CustomCanvasScatterPlot({
         x?: string[]
         y?: string[]
     }
+    colorByReference?: string
+    colorByLabel?: string
+    colorScaleDomain?: [number, number] | null
+    noNumericColorData?: boolean
 }) {
     const canvasRef = useRef(null)
     const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, content: {} as ChartPoint })
     const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
-    const colors = series.map((_, i) => colorScale(i.toString()))
+    const colors = series.map((s, i) => s.color || colorScale(i.toString()))
+    const viridisScale = useMemo(() => {
+        if (!colorByReference || !colorScaleDomain || noNumericColorData) {
+            return null
+        }
+        return d3
+            .scaleLinear<string>()
+            .domain(colorScaleDomain)
+            .range([d3.interpolateViridis(0), d3.interpolateViridis(1)])
+    }, [colorByReference, colorScaleDomain, noNumericColorData])
 
     const margins = {
         top: 10,
         right: 10,
-        bottom: 100,
+        bottom: 130,
         left: 50,
     }
 
@@ -169,17 +193,47 @@ export function CustomCanvasScatterPlot({
 
             const chartCenterX = (canvas.width - margins.left - margins.right) / 2 + margins.left
 
-            let legendX = chartCenterX - series.reduce((acc, s) => acc + context.measureText(s.name).width, 0) / 2
             const legendY = canvas.height - fontSize + 5
-            series.forEach((s, i) => {
-                context.fillStyle = colors[i]
-                context.fillRect(legendX, legendY - fontSize / 2, 15, 15)
+            if (viridisScale && colorScaleDomain) {
+                const chartRight = canvas.width - margins.right - 40
+                const gradientWidth = Math.min(220, Math.max(120, chartRight - margins.left - 28))
+                const gradientHeight = 12
+                const legendPadding = 8
+                const gradientX = Math.max(margins.left + legendPadding, chartRight - gradientWidth - legendPadding)
+                const gradientY = canvas.height - gradientHeight - legendPadding
+                const gradient = context.createLinearGradient(gradientX, 0, gradientX + gradientWidth, 0)
+                gradient.addColorStop(0, d3.interpolateViridis(0))
+                gradient.addColorStop(1, d3.interpolateViridis(1))
+                context.fillStyle = gradient
+                context.fillRect(gradientX, gradientY, gradientWidth, gradientHeight)
                 context.fillStyle = fontColor
                 context.textBaseline = 'middle'
+                context.textAlign = 'center'
+                context.fillText(
+                    colorByLabel || colorByReference || 'Color By',
+                    gradientX + gradientWidth / 2,
+                    gradientY - 8
+                )
+                context.textAlign = 'right'
+                context.fillText(colorScaleDomain[0].toFixed(3), gradientX - 6, gradientY + gradientHeight / 2)
                 context.textAlign = 'left'
-                context.fillText(s.name, legendX + 25, legendY)
-                legendX += context.measureText(s.name).width + 50
-            })
+                context.fillText(
+                    colorScaleDomain[1].toFixed(3),
+                    gradientX + gradientWidth + 6,
+                    gradientY + gradientHeight / 2
+                )
+            } else {
+                let legendX = chartCenterX - series.reduce((acc, s) => acc + context.measureText(s.name).width, 0) / 2
+                series.forEach((s, i) => {
+                    context.fillStyle = colors[i]
+                    context.fillRect(legendX, legendY - fontSize / 2, 15, 15)
+                    context.fillStyle = fontColor
+                    context.textBaseline = 'middle'
+                    context.textAlign = 'left'
+                    context.fillText(s.name, legendX + 25, legendY)
+                    legendX += context.measureText(s.name).width + 50
+                })
+            }
 
             series.forEach((s, i) => {
                 s.data.forEach((point) => {
@@ -204,8 +258,18 @@ export function CustomCanvasScatterPlot({
 
                     context.beginPath()
                     context.arc(xPos, yPos, 5, 0, 2 * Math.PI)
-                    context.fillStyle = colors[i]
+                    context.globalAlpha = s.opacity ?? 1
+                    const isFilteredOutLayer = s.layerType === 'filtered-out' || point.layerType === 'filtered-out'
+                    const isParetoLayer = s.layerType === 'pareto' || point.layerType === 'pareto'
+                    context.fillStyle = isFilteredOutLayer
+                        ? '#6b7280'
+                        : isParetoLayer
+                          ? PARETO_HIGHLIGHT_COLOUR
+                          : viridisScale && Number.isFinite(point.colorValue)
+                            ? viridisScale(point.colorValue)
+                            : colors[i]
                     context.fill()
+                    context.globalAlpha = 1
                 })
             })
 
@@ -218,7 +282,7 @@ export function CustomCanvasScatterPlot({
         return () => {
             window.removeEventListener('resize', resizeCanvas)
         }
-    }, [canvasRef, series, xLabel, yLabel])
+    }, [canvasRef, series, xLabel, yLabel, colorByReference, colorByLabel, colorScaleDomain, noNumericColorData])
 
     const pointQuadtree = useCallback(() => {
         return quadtree<ChartPoint>()

@@ -25,12 +25,12 @@ export function FullWidthHeader(props: {
     return (
         <header
             className={cn(
-                'z-30 sticky top-0 left-0 right-0 flex flex-row items-center w-full select-none transition-all bg-white shadow-none h-20 justify-center border-gray-100',
+                'flex sticky top-0 right-0 left-0 z-30 flex-row justify-center items-center w-full h-20 bg-white border-gray-100 shadow-none transition-all select-none',
                 hasScrolled ? 'shadow-md' : 'sm:border-b'
             )}
         >
             {/* Brand */}
-            <a href='/' className='flex flex-row items-center justify-center cursor-pointer w-fit'>
+            <a href='/' className='flex flex-row justify-center items-center cursor-pointer w-fit'>
                 {props?.logo ? (
                     <img src={props.logo} className='block w-auto h-20' alt={import.meta.env.VITE_PROJECT_NAME} />
                 ) : (
@@ -38,7 +38,7 @@ export function FullWidthHeader(props: {
                 )}
             </a>
             {/* Navigation; wide screen header */}
-            <nav className='flex-row items-center hidden pr-8 ml-auto space-x-3 sm:flex w-fit md:space-x-6'>
+            <nav className='hidden flex-row items-center pr-8 ml-auto space-x-3 sm:flex w-fit md:space-x-6'>
                 <ul className='flex flex-row items-center space-x-3'>
                     {props.primaryLinks?.map((link, index) => <AppLink key={index} {...link} />)}
                 </ul>
@@ -49,12 +49,12 @@ export function FullWidthHeader(props: {
                             <Button.Secondary className='text-xs rounded-full w-fit' onClick={() => navigate('/login')}>
                                 Login
                             </Button.Secondary>
-                            <Button.Outline
+                            {/* <Button.Outline
                                 className='text-xs rounded-full w-fit'
                                 onClick={() => navigate('/register')}
                             >
                                 Register
-                            </Button.Outline>
+                            </Button.Outline> */}
                         </>
                     ) : (
                         <div className='px-0 cursor-pointer' onClick={() => navigate('/profile')}>

@@ -4,7 +4,7 @@ import helmet from 'helmet'
 
 import { logRouter, morganMiddleware } from './logger'
 import BaseRouter from './routes/api'
-import { s3Router } from './services/s3.service'
+import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
 
 const app = express()
 
@@ -25,7 +25,8 @@ if (process.env.NODE_ENV === 'staging') {
 
 // Routes
 app.use('/api', BaseRouter)
-app.use('/api/s3', s3Router)
 app.use('/api/log', logRouter)
+
+startClientAccessReminderScheduler()
 
 export default app

@@ -31,9 +31,15 @@ const userSchema = new Schema<IUser>(
         profileImage: { type: String },
         onboardingComplete: { type: Boolean },
         lastLoginAt: { type: Date },
-        client: { type: Schema.Types.ObjectId, ref: 'Client' },
-        isClientAdmin: { type: Boolean },
-        isArchived: { type: Boolean },
+        client: {
+            type: Schema.Types.ObjectId,
+            ref: 'Client',
+            required: function (this: IUser) {
+                return !this.permissions?.isAdmin
+            },
+        },
+        isClientAdmin: { type: Boolean, default: false },
+        isArchived: { type: Boolean, default: false },
         dockerService: { type: Object },
     },
     {

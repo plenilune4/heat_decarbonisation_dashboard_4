@@ -71,7 +71,9 @@ export default function CreateAnalysisForm() {
             additionalSubmissionRowContent={
                 <div className='my-10'>
                     <h2 className='text-xl text-gray-400'>{user?.client?.name}</h2>
-                    <h1 className='text-4xl font-normal text-gray-100'>Create Analysis</h1>
+                    <h1 className='text-4xl font-normal text-gray-100'>
+                        Create an Analysis From an Evaluation Function
+                    </h1>
                 </div>
             }
             submitButtonText='Create Analysis'

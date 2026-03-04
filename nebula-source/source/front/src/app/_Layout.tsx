@@ -16,8 +16,9 @@ import {
     UserGroupIcon,
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/solid'
-import { ReactNode, useMemo, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { isBefore } from 'date-fns'
 
 import { useAuth } from '@/services/authentication.service'
 import { cn } from '@/utils/cn'
@@ -53,7 +54,7 @@ const CLIENT_MANAGEMENT_LINKS: INavLink[] = [
 const ACCOUNT_LINKS: INavLink[] = [{ text: 'My Account', href: '/profile' }]
 const ADMIN_LINKS: INavLink[] = [
     {
-        text: 'Admin',
+        text: 'Global Admin',
         href: '/admin',
         icon: (isActive: boolean) => (isActive ? <WrenchScrewdriverIcon /> : <WrenchScrewdriverIconOutline />),
     },
@@ -75,6 +76,7 @@ export default function AppLayout() {
     const { user } = useAuth()
     const location = useLocation()
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const navigate = useNavigate()
 
     const primaryLinks = useMemo(() => {
         return [
@@ -83,6 +85,17 @@ export default function AppLayout() {
             ...(user?.isClientAdmin ? [{ text: 'separator' }, ...CLIENT_MANAGEMENT_LINKS] : []),
             ...(user?.permissions?.isAdmin ? [{ text: 'separator' }, ...ADMIN_LINKS] : []),
         ]
+    }, [user])
+
+    useEffect(() => {
+        if (user) {
+            if (user?.permissions?.isAdmin) {
+                return
+            }
+            if (user?.client?.accessEndAt && isBefore(user?.client?.accessEndAt, new Date())) {
+                navigate('/access-expired')
+            }
+        }
     }, [user])
 
     return (
@@ -159,9 +172,9 @@ function MobileSidebar(props: {
                         <Button.Secondary className='w-full' onClick={() => navigate('/login')}>
                             Login
                         </Button.Secondary>
-                        <Button.Outline className='w-full' onClick={() => navigate('/register')}>
+                        {/* <Button.Outline className='w-full' onClick={() => navigate('/register')}>
                             Register
-                        </Button.Outline>
+                        </Button.Outline> */}
                     </>
                 ) : (
                     <a className='text-lg heading' onClick={() => navigate('/logout', { replace: true })}>
@@ -229,9 +242,9 @@ function DesktopSidebar(props: {
             <footer className='flex flex-col p-2 mt-auto space-y-2 w-full'>
                 {!user ? (
                     <>
-                        <Button.Secondary className='w-full' onClick={() => navigate('/register')}>
+                        {/* <Button.Secondary className='w-full' onClick={() => navigate('/register')}>
                             Register
-                        </Button.Secondary>
+                        </Button.Secondary> */}
                         <Button.Outline className='w-full' onClick={() => navigate('/login')}>
                             Login
                         </Button.Outline>
@@ -310,12 +323,12 @@ function Header(props: {
                                 >
                                     Login
                                 </Button.Secondary>
-                                <Button.Outline
+                                {/* <Button.Outline
                                     className='text-xs rounded-full w-fit'
                                     onClick={() => navigate('/register')}
                                 >
                                     Register
-                                </Button.Outline>
+                                </Button.Outline> */}
                             </>
                         ) : (
                             <Menu as='div' className='hidden relative md:block'>

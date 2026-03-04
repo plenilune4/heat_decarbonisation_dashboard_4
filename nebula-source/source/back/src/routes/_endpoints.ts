@@ -1,16 +1,3 @@
-/*
-    !! Source of truth for API endpoints !!
-
-    add new endpoints in this object
-
-    - top-level keys are router names
-    - second-level keys are friendly names for an endpoint
-    - values are the endpoints used in the request handler
-        - endpoints can still be suffixed with '/:id' in the request handler
-
-    FOR SUB-ROUTES such as '/content/:id/like' then specify that whole endpoint
-    OR use '/content/:id/action' and apply query strings ('?action=like' ~~ const { action } = req.query) in the request handler if there will be multiple similar actions
-*/
 const endpoints = {
     app: {
         user: '/user',
@@ -18,6 +5,7 @@ const endpoints = {
         clientUser: '/client-user',
         evaluationFunction: '/evaluation-function',
         analysis: '/analysis',
+        externalAnalysis: '/external-analysis',
         runAnalysis: '/run',
         dockerStatus: '/docker/status',
         dockerStart: '/docker/start',
@@ -30,7 +18,7 @@ const endpoints = {
     },
     public: {},
     auth: {
-        register: '/register',
+        // register: '/register',
         login: '/login',
         logout: '/logout',
         whoami: '/whoami',
@@ -39,16 +27,6 @@ const endpoints = {
         resetPassword: '/reset-password',
     },
 }
-
-/*
-    !! DO NOT EDIT !!
-
-    ENDPOINTS is identical to above, but is a separate copy so as to not be changed by the following process
-        its used only on the backend in the request handlers
-
-    ROUTES is for the frontend, the router prefixes are joined to the final endpoints
-        so { router: { name: '/endpoint' }} becomes { router: { name: 'router/endpoint' }}
-*/
 
 export const ENDPOINTS = JSON.parse(JSON.stringify(endpoints)) as typeof endpoints
 

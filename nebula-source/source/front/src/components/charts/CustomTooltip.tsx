@@ -7,9 +7,12 @@ export function CustomTooltip(props: TooltipContentProps<any, any> & { series: a
     const { active, payload, ...rest } = props
     if (!active || !payload || payload.length === 0) return null
 
+    const validPayload = payload.filter((p) => p?.payload?.pointState !== 'invalid')
+    if (validPayload.length === 0) return null
+
     // Prioritize Pareto-efficient series
-    let hovered = payload.find((p) => p?.payload?.tooltipData?.seriesName === 'Pareto-efficient')
-    if (!hovered) hovered = payload[0]
+    let hovered = validPayload.find((p) => p?.payload?.tooltipData?.seriesName === 'Pareto-efficient')
+    if (!hovered) hovered = validPayload[0]
 
     if (!hovered) return null
 
@@ -20,18 +23,25 @@ export function TooltipContent({ chartPoint }: { chartPoint: ChartPoint }) {
     const {
         x,
         y,
-        tooltipData: { seriesName, xLabel, yLabel, additionalInputs },
+        tooltipData: { seriesName, xLabel, yLabel, additionalInputs, colorByLabel, colorValue, layerType, pointState },
     } = chartPoint
 
     return (
         <div className='flex flex-col gap-2 p-4 text-white bg-gray-900 rounded-xl transition-none'>
             <b>{seriesName}</b>
+            {layerType && <p>Layer: {layerType}</p>}
+            {pointState && <p>State: {pointState}</p>}
             <p>
                 {xLabel}: {formatValue(x)}
             </p>
             <p>
                 {yLabel}: {formatValue(y)}
             </p>
+            {colorByLabel && (
+                <p>
+                    {colorByLabel}: {formatValue(colorValue)}
+                </p>
+            )}
             {additionalInputs && Object.keys(additionalInputs).length > 0 && (
                 <div className='flex flex-col gap-2 mt-4'>
                     <b>Inputs</b>

@@ -1,15 +1,22 @@
+import { LockClosedIcon } from '@heroicons/react/20/solid'
 import { ForwardIcon, XMarkIcon } from '@heroicons/react/24/solid'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { TextField } from '@/form-control/fields'
+import CSVFileField from '@/form-control/fields/CSVFileField'
 import ROUTES from '@/ROUTES'
 
 import { IAnalysis, IAnalysisChart } from '@/MODELS/analysis.model'
-import { FunctionInput } from '@/MODELS/evaluationFunction.model'
+import { FunctionInput, FunctionOutput } from '@/MODELS/evaluationFunction.model'
 import { AnalysisInputVariable, SamplingStrategy, SimulationResult, VariationMethod } from '@/MODELS/types'
 
-import { downloadAnalysis, Runner, useAnalysisRunner } from '@/services/analysis.service'
+import {
+    downloadAnalysisCSVBySelection,
+    hasActiveAnalysisFilters,
+    Runner,
+    useAnalysisRunner,
+} from '@/services/analysis.service'
 import { api, api_delete } from '@/services/api.service'
 import { useAuth } from '@/services/authentication.service'
 import { ParetoService } from '@/services/pareto.service'
@@ -20,13 +27,14 @@ import Button from '@/components/Button'
 import ChartSandbox from '@/components/chart-sandbox/ChartSandbox'
 import Confirm from '@/components/ConfirmModal'
 import EditableTitle from '@/components/EditableTitle'
+import Empty from '@/components/Empty'
 import ErrorAlert from '@/components/ErrorAlert'
 import FilterControls from '@/components/FilterControls'
 import FrameworkBadge from '@/components/FrameworkBadge'
 import Loading from '@/components/Loading'
 import Modal from '@/components/Modal'
 
-import AnalysisInputField from '../components/analysis/AnalysisInputField'
+import AnalysisInputField, { CSVStrategyField } from '../components/analysis/AnalysisInputField'
 import { ModifiableAnalysisInput } from '../components/analysis/AnalysisVariableInputField'
 
 export default function ManageAnalysis() {
@@ -39,15 +47,23 @@ export default function ManageAnalysis() {
     const [analysis, setAnalysis, AnalysisResource] = useResource<IAnalysis>(ROUTES.app.analysis + '/' + analysisId)
 
     async function handleSave(currentState: IAnalysis) {
-        const response = await api<{ updated?: IAnalysis }>(ROUTES.app.client + '/' + user?.client?._id + '/analyses', {
+        const update = {
             ...currentState,
-            scenarioInputs: currentState.scenarioInputs.filter((input) =>
+        }
+        if (currentState?.evaluationFunction?.inputs) {
+            update.scenarioInputs = currentState.scenarioInputs.filter((input) =>
                 currentState.evaluationFunction.inputs.find((fxInput) => fxInput.reference === input.reference)
-            ),
-            scenarioOutputs: currentState.scenarioOutputs.filter((output) =>
+            )
+        }
+        if (currentState?.evaluationFunction?.outputs) {
+            update.scenarioOutputs = currentState.scenarioOutputs.filter((output) =>
                 currentState.evaluationFunction.outputs.find((fxOutput) => fxOutput.reference === output.reference)
-            ),
-        })
+            )
+        }
+        const response = await api<{ updated?: IAnalysis }>(
+            ROUTES.app.client + '/' + user?.client?._id + '/analyses',
+            update
+        )
         if (response.data.updated) {
             setAnalysis(response.data.updated)
             toast.success('Analysis saved')
@@ -61,18 +77,26 @@ export default function ManageAnalysis() {
             ROUTES.app.client + '/' + user?.client?._id + '/analyses/make-reference'
         )
         const nextReference = referenceResponse.data.nextReference
-        const response = await api<{ created?: IAnalysis }>(ROUTES.app.client + '/' + user?.client?._id + '/analyses', {
+        const update = {
             ...newAnalysis,
-            scenarioInputs: newAnalysis.scenarioInputs.filter((input) =>
-                newAnalysis.evaluationFunction.inputs.find((fxInput) => fxInput.reference === input.reference)
-            ),
-            scenarioOutputs: newAnalysis.scenarioOutputs.filter((output) =>
-                newAnalysis.evaluationFunction.outputs.find((fxOutput) => fxOutput.reference === output.reference)
-            ),
             _id: 'new',
             label: saveAsLabel,
             reference: nextReference,
-        })
+        }
+        if (newAnalysis?.evaluationFunction?.inputs) {
+            update.scenarioInputs = newAnalysis.scenarioInputs.filter((input) =>
+                newAnalysis.evaluationFunction.inputs.find((fxInput) => fxInput.reference === input.reference)
+            )
+        }
+        if (newAnalysis?.evaluationFunction?.outputs) {
+            update.scenarioOutputs = newAnalysis.scenarioOutputs.filter((output) =>
+                newAnalysis.evaluationFunction.outputs.find((fxOutput) => fxOutput.reference === output.reference)
+            )
+        }
+        const response = await api<{ created?: IAnalysis }>(
+            ROUTES.app.client + '/' + user?.client?._id + '/analyses',
+            update
+        )
         if (response.data.created) {
             navigate(`/analyses/run/${response.data.created._id}`)
             toast.success('New analysis created')
@@ -212,13 +236,23 @@ function RunAnalysis({
                 )}
             </header>
             <main className='flex flex-col gap-5'>
-                <InputPanel
-                    analysis={analysisState}
-                    updateAnalysis={async (update) => {
-                        setAnalysisState((p) => ({ ...p, ...update }))
-                    }}
-                    runner={Runner}
-                />
+                {analysisState.isReadOnly ? (
+                    <div className='flex flex-row gap-2 items-center'>
+                        <LockClosedIcon className='w-5 h-5 text-gray-500' />
+                        <p className='text-center text-gray-500'>
+                            This inputs for this analysis are locked because the evaluation function used is no longer
+                            available.
+                        </p>
+                    </div>
+                ) : (
+                    <InputPanel
+                        analysis={analysisState}
+                        updateAnalysis={async (update) => {
+                            setAnalysisState((p) => ({ ...p, ...update }))
+                        }}
+                        runner={Runner}
+                    />
+                )}
                 <ResultsPanel
                     analysis={analysisState}
                     updateAnalysis={async (update) => {
@@ -301,35 +335,6 @@ function InputPanel({
         }
     }
 
-    function handleSetSamplingStrategy(
-        next: SamplingStrategy,
-        scenarioInputIndex: number,
-        fxInput: FunctionInput,
-        scenarioInput?: AnalysisInputVariable
-    ) {
-        if (scenarioInput) {
-            const nextInputs = [...analysis.scenarioInputs]
-            nextInputs[scenarioInputIndex] = {
-                ...scenarioInput,
-                sampleMethod: next.sampleMethod,
-                numHypercubeSamples: next.sampleMethod === 'latin-hypercube' ? next.numHypercubeSamples : undefined,
-            } as any
-            updateAnalysis({ scenarioInputs: nextInputs })
-        } else {
-            updateAnalysis({
-                scenarioInputs: [
-                    ...analysis.scenarioInputs,
-                    {
-                        ...fxInput,
-                        sampleMethod: next.sampleMethod,
-                        numHypercubeSamples:
-                            next.sampleMethod === 'latin-hypercube' ? next.numHypercubeSamples : undefined,
-                    } as any,
-                ],
-            })
-        }
-    }
-
     return (
         <section
             className='flex flex-col gap-5 px-2 py-5 h-fit card bg-gray-800/70'
@@ -346,7 +351,6 @@ function InputPanel({
                         label='Sampling Strategy'
                         value={analysis.exogenousSamplingStrategy}
                         onChange={(next) => updateAnalysis({ exogenousSamplingStrategy: next as any })}
-                        variationMethods={exogenous.map((input) => input.variationMethod as any)}
                     />
                     {exogenous.map((fxInput) => {
                         const scenarioInputIndex = analysis.scenarioInputs.findIndex(
@@ -367,14 +371,6 @@ function InputPanel({
                                 setInputValue={(inputValue: ModifiableAnalysisInput<AnalysisInputVariable>) =>
                                     handleSetInputValue(inputValue, scenarioInputIndex, fxInput, scenarioInput)
                                 }
-                                // samplingStrategy={
-                                //     scenarioInput?.sampleMethod === 'latin-hypercube'
-                                //         ? scenarioInput
-                                //         : { sampleMethod: 'full-factorial' }
-                                // }
-                                // setSamplingStrategy={(next: SamplingStrategy) =>
-                                //     handleSetSamplingStrategy(next, scenarioInputIndex, fxInput, scenarioInput)
-                                // }
                             />
                         )
                     })}
@@ -385,39 +381,41 @@ function InputPanel({
                     <SelectCombinedSamplingStrategyField
                         label='Sampling Strategy'
                         value={analysis.leverSamplingStrategy}
-                        onChange={(next) => updateAnalysis({ leverSamplingStrategy: next as any })}
-                        variationMethods={levers.map((input) => input.variationMethod as any)}
+                        onChange={(next) => {
+                            updateAnalysis({ leverSamplingStrategy: next as any })
+                        }}
+                        showCSVUpload={true}
                     />
-                    {levers.map((fxInput) => {
-                        const scenarioInputIndex = analysis.scenarioInputs.findIndex(
-                            (input) => input.reference === fxInput.reference
-                        )
-                        const scenarioInput =
-                            scenarioInputIndex !== -1 ? analysis.scenarioInputs[scenarioInputIndex] : null
+                    {analysis.leverSamplingStrategy?.sampleMethod === 'csv-upload' ? (
+                        <CSVStrategyField
+                            levers={levers}
+                            leverSamplingStrategy={analysis.leverSamplingStrategy}
+                            setLeverSamplingStrategy={(next) => updateAnalysis({ leverSamplingStrategy: next as any })}
+                        />
+                    ) : (
+                        levers.map((fxInput) => {
+                            const scenarioInputIndex = analysis.scenarioInputs.findIndex(
+                                (input) => input.reference === fxInput.reference
+                            )
+                            const scenarioInput =
+                                scenarioInputIndex !== -1 ? analysis.scenarioInputs[scenarioInputIndex] : null
 
-                        return (
-                            <AnalysisInputField
-                                key={fxInput.reference}
-                                functionInput={fxInput}
-                                variationMethod={scenarioInput?.variationMethod ?? (fxInput.variationMethod as any)}
-                                setVariationMethod={(next: VariationMethod) =>
-                                    handleSetVariationMethod(next, scenarioInputIndex, fxInput, scenarioInput)
-                                }
-                                inputValue={scenarioInput as ModifiableAnalysisInput<AnalysisInputVariable>}
-                                setInputValue={(inputValue: ModifiableAnalysisInput<AnalysisInputVariable>) =>
-                                    handleSetInputValue(inputValue, scenarioInputIndex, fxInput, scenarioInput)
-                                }
-                                // samplingStrategy={
-                                //     scenarioInput?.sampleMethod === 'latin-hypercube'
-                                //         ? scenarioInput
-                                //         : { sampleMethod: 'full-factorial' }
-                                // }
-                                // setSamplingStrategy={(next: SamplingStrategy) =>
-                                //     handleSetSamplingStrategy(next, scenarioInputIndex, fxInput, scenarioInput)
-                                // }
-                            />
-                        )
-                    })}
+                            return (
+                                <AnalysisInputField
+                                    key={fxInput.reference}
+                                    functionInput={fxInput}
+                                    variationMethod={scenarioInput?.variationMethod ?? (fxInput.variationMethod as any)}
+                                    setVariationMethod={(next: VariationMethod) =>
+                                        handleSetVariationMethod(next, scenarioInputIndex, fxInput, scenarioInput)
+                                    }
+                                    inputValue={scenarioInput as ModifiableAnalysisInput<AnalysisInputVariable>}
+                                    setInputValue={(inputValue: ModifiableAnalysisInput<AnalysisInputVariable>) =>
+                                        handleSetInputValue(inputValue, scenarioInputIndex, fxInput, scenarioInput)
+                                    }
+                                />
+                            )
+                        })
+                    )}
                     {!levers.length && <p className='text-center text-gray-500'>No lever variables</p>}
                 </ol>
             </div>
@@ -457,13 +455,26 @@ function ResultsPanel({
     runner: Runner
     updateAnalysis: (update: Partial<IAnalysis>) => void
 }) {
+    const inputs = analysis.isReadOnly ? analysis.scenarioInputs : analysis.evaluationFunction.inputs
+    const outputs = analysis.isReadOnly ? analysis.scenarioOutputs : analysis.evaluationFunction.outputs
+    const hasActiveFilters = hasActiveAnalysisFilters(analysis.filters)
+    const [showExportOptions, setShowExportOptions] = useState(false)
+    const [includeFull, setIncludeFull] = useState(true)
+    const [includeFiltered, setIncludeFiltered] = useState(hasActiveFilters)
+
+    function openExportOptionsModal() {
+        setIncludeFull(true)
+        setIncludeFiltered(hasActiveFilters)
+        setShowExportOptions(true)
+    }
+
     return (
         <section className='flex flex-col flex-1 gap-5 overflow-clip card bg-gray-800/70 h-fit min-h-[300px]'>
             <header className='flex flex-row gap-x-2 items-center px-5 pt-5'>
                 <FrameworkBadge component='measure' className='px-4 text-2xl' />
                 <h3 className='font-mono text-2xl font-semibold'>Measures</h3>
                 <ul className='flex flex-row flex-wrap gap-2 justify-end ml-auto'>
-                    {analysis.evaluationFunction.outputs.map((output) => (
+                    {outputs.map((output) => (
                         <li key={output.reference} className='flex flex-col gap-2 p-3 rounded-2xl bg-gray-900/50 h-fit'>
                             <div className='flex flex-row gap-2 items-center'>
                                 <FrameworkBadge component='measure' />
@@ -483,42 +494,108 @@ function ResultsPanel({
                 </div>
             )}
             <div className='flex relative flex-col flex-1 gap-2 p-5'>
-                {!runner.results?.length && (
+                {!runner.results?.length && !analysis.isReadOnly && (
                     <Button.Success onClickAsync={async () => runner.run()} className='px-10 py-3 m-auto text-2xl'>
                         <ForwardIcon className='w-7 h-7' />
                         Run
                     </Button.Success>
                 )}
+                {!runner.results?.length && analysis.isReadOnly && (
+                    <div className=''>
+                        <LockClosedIcon className='mb-4 w-7 h-7 text-gray-500' />
+                        <b className='mb-3 text-lg font-bold'>This analysis is read only</b>
+                        <p className='text-gray-400'>
+                            The evaluation function used in this analysis is no longer available.
+                        </p>
+                    </div>
+                )}
                 {!!runner.results?.length && (
                     <>
                         <FilterControls
-                            evaluationFunction={analysis.evaluationFunction}
+                            evaluationFunction={{
+                                inputs,
+                                outputs: outputs as FunctionOutput[],
+                            }}
                             results={runner.results}
                             filters={analysis.filters}
                             setFilters={(filters) => updateAnalysis({ filters })}
                         />
                         <ChartSandbox
-                            evaluationFunction={analysis.evaluationFunction}
+                            evaluationFunction={{
+                                inputs,
+                                outputs: outputs as FunctionOutput[],
+                            }}
                             simulationResults={runner.results}
                             filters={analysis.filters}
                             analysisCharts={
                                 analysis.charts?.length > 0
                                     ? analysis.charts
-                                    : analysis.evaluationFunction.defaultChart
+                                    : analysis?.evaluationFunction?.defaultChart
                                       ? [analysis.evaluationFunction.defaultChart]
                                       : []
                             }
                             setAnalysisCharts={(charts: IAnalysisChart[]) => updateAnalysis({ charts })}
                             isRunningAnalysis={runner.isRunning}
-                            onDownloadCSV={() => downloadAnalysis(analysis)}
+                            onDownloadCSV={openExportOptionsModal}
                         />
                     </>
                 )}
                 {!!runner.results?.length && (
                     <div className='flex flex-row gap-2 justify-end'>
-                        <Button.Success onClick={() => downloadAnalysis(analysis)}>Download CSV</Button.Success>
+                        <Button.Success onClick={openExportOptionsModal}>Download CSV</Button.Success>
                     </div>
                 )}
+                <Modal open={showExportOptions} onClose={() => setShowExportOptions(false)}>
+                    <div className='flex flex-col gap-4'>
+                        <h3 className='text-lg font-semibold'>Download CSV</h3>
+                        <p className='text-sm text-gray-400'>Select which datasets to include in the ZIP export.</p>
+                        <label className='flex gap-3 items-center'>
+                            <input
+                                type='checkbox'
+                                checked={includeFull}
+                                onChange={(event) => setIncludeFull(event.target.checked)}
+                                className='w-4 h-4'
+                            />
+                            <span>Full data</span>
+                        </label>
+                        <label className='flex gap-3 items-center'>
+                            <input
+                                type='checkbox'
+                                checked={includeFiltered}
+                                onChange={(event) => setIncludeFiltered(event.target.checked)}
+                                disabled={!hasActiveFilters}
+                                className='w-4 h-4 disabled:opacity-50'
+                            />
+                            <span className={!hasActiveFilters ? 'text-gray-500' : ''}>Filtered data</span>
+                        </label>
+                        {!hasActiveFilters && (
+                            <p className='text-xs text-gray-500'>
+                                Add at least one active filter to include filtered results.
+                            </p>
+                        )}
+                        <div className='flex flex-row gap-2 justify-end'>
+                            <Button onClick={() => setShowExportOptions(false)}>Cancel</Button>
+                            <Button.Success
+                                onClickAsync={async () => {
+                                    try {
+                                        await downloadAnalysisCSVBySelection(analysis, {
+                                            includeFull,
+                                            includeFiltered,
+                                        })
+                                        setShowExportOptions(false)
+                                    } catch (error) {
+                                        const message =
+                                            error instanceof Error ? error.message : 'Failed to export CSV files.'
+                                        toast.error(message)
+                                    }
+                                }}
+                                disabled={!includeFull && !includeFiltered}
+                            >
+                                Download
+                            </Button.Success>
+                        </div>
+                    </div>
+                </Modal>
             </div>
         </section>
     )

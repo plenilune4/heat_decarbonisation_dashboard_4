@@ -40,9 +40,14 @@ export default function AdminClientsTable() {
                         cell: (client) => client.maxUsers ?? 'Unlimited',
                     },
                     {
-                        header: 'Created At',
-                        cell: (client) => format(new Date(client.createdAt), 'PPPp'),
-                        sort: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+                        header: 'Access End Date',
+                        cell: (client) =>
+                            client.accessEndAt ? format(new Date(client.accessEndAt), 'PPPp') : 'No end date',
+                        sort: (a, b) => {
+                            const aTime = a.accessEndAt ? new Date(a.accessEndAt).getTime() : Number.MAX_SAFE_INTEGER
+                            const bTime = b.accessEndAt ? new Date(b.accessEndAt).getTime() : Number.MAX_SAFE_INTEGER
+                            return aTime - bTime
+                        },
                     },
                     {
                         header: 'Updated At',

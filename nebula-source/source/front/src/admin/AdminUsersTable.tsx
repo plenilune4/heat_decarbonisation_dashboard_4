@@ -51,9 +51,9 @@ export default function AdminUsersTable() {
                     {
                         header: 'Role',
                         cell: (user) =>
-                            user?.permissions?.isAdmin ? 'System Admin' : user?.isClientAdmin ? 'Client Admin' : 'User',
+                            user?.permissions?.isAdmin ? 'Global Admin' : user?.isClientAdmin ? 'Client Admin' : 'User',
                         filter: [
-                            { label: 'System Admin', fn: (user) => user?.permissions?.isAdmin },
+                            { label: 'Global Admin', fn: (user) => user?.permissions?.isAdmin },
                             { label: 'Client Admin', fn: (user) => user?.isClientAdmin },
                             { label: 'User', fn: (user) => !user?.isClientAdmin && !user?.permissions?.isAdmin },
                         ],

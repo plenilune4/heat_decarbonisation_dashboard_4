@@ -1,10 +1,10 @@
 import { UserMinusIcon } from '@heroicons/react/20/solid'
 import { CheckBadgeIcon, XMarkIcon } from '@heroicons/react/24/solid'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { FormWrapper } from '@/form-control'
-import { ProfileImageField, TextField, ToggleField } from '@/form-control/fields'
+import { TextField } from '@/form-control/fields'
 import ROUTES from '@/ROUTES'
 
 import { IUser } from '@/MODELS/user.model'
@@ -44,7 +44,6 @@ export default function ProfileForm() {
         >
             {(f) => (
                 <>
-                    {/* <ProfileImageField {...f('profileImage')} /> */}
                     <Avatar.Base64 editable={true} className='mx-auto' size='lg' />
                     <div className='grid gap-x-5 md:grid-cols-2'>
                         <TextField {...f('firstName')} label='First Name' />

@@ -677,8 +677,6 @@ function ScalarDiscreetListField({
         setInputValue({ ...inputValue, values: nextValues.values })
     }
 
-    console.log('ScalarDiscreetListField', { inputValue })
-
     return (
         <ArrayFieldWrapper<string, { values: string[] }>
             field='values'

@@ -45,7 +45,16 @@ export interface IAnalysisChart {
     x: AxisDefinition
     y: AxisDefinition
     label?: string
+    /** @deprecated: use showParetoSet */
     showParetoOnly?: boolean
+    showParetoSet?: boolean
+    showFilteredOut?: boolean
+    colorByReference?: string
+    colorScheme?: 'viridis'
+    colorDomain?: {
+        min?: number
+        max?: number
+    }
     parallelCoordinates?: {
         references: { reference: string; visible: boolean }[]
         colourAxis: string
@@ -65,7 +74,6 @@ export interface IAnalysis {
     reference: string
     label?: string
     samplingStrategy: string
-    status: string
     scenarioInputs: AnalysisInput[]
     scenarioOutputs: AnalysisOutput[]
     exogenousSamplingStrategy: SamplingStrategy
@@ -78,7 +86,7 @@ export interface IAnalysis {
     updatedAt: Date
 }
 
-const scenarioRunSchema = new Schema<IAnalysis>(
+const analysisSchema = new Schema<IAnalysis>(
     {
         owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         client: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
@@ -86,7 +94,6 @@ const scenarioRunSchema = new Schema<IAnalysis>(
         reference: { type: String, required: true },
         label: { type: String },
         samplingStrategy: { type: String },
-        status: { type: String },
         scenarioInputs: [{ type: Object }],
         scenarioOutputs: [{ type: Object }],
         exogenousSamplingStrategy: { type: Object },
@@ -101,5 +108,5 @@ const scenarioRunSchema = new Schema<IAnalysis>(
     }
 )
 
-const Analysis = model<IAnalysis>('Analysis', scenarioRunSchema)
+const Analysis = model<IAnalysis>('Analysis', analysisSchema)
 export default Analysis

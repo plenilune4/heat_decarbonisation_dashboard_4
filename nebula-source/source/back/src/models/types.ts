@@ -20,6 +20,12 @@ export type InputType = 'exogenous' | 'lever'
 
 export type SamplingStrategy =
     | {
+          sampleMethod: 'csv-upload'
+          csv: string
+          csvFilename: string
+          mappings: { reference: string; columnIndex: number }[]
+      }
+    | {
           sampleMethod: 'full-factorial'
       }
     | {
