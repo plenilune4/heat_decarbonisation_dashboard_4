@@ -139,13 +139,13 @@ export default function ChartSandbox({
     }, [aggregatedResults, debouncedFilters, xAndYOptions])
 
     const filteredOutResults = useMemo(() => {
-        if (!simulationResults?.length || !filteredResults?.length) {
-            return simulationResults ?? []
+        if (!aggregatedResults?.length || !filteredResults?.length) {
+            return aggregatedResults ?? []
         }
 
         const filteredIndexes = new Set(filteredResults.map((result) => result.index))
-        return simulationResults.filter((result) => !filteredIndexes.has(result.index))
-    }, [simulationResults, filteredResults])
+        return aggregatedResults.filter((result) => !filteredIndexes.has(result.index))
+    }, [aggregatedResults, filteredResults])
 
     // Update debounced filters when filters prop changes
     useEffect(() => {
