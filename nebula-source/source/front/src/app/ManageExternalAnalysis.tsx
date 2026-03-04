@@ -263,6 +263,7 @@ function ResultsPanel({
                         inputs: functionInputs,
                         outputs: functionOutputs,
                     }}
+                    aggregation={analysis.aggregation}
                     simulationResults={analysis.results ?? []}
                     filters={analysis?.filters ?? []}
                     analysisCharts={analysis.charts?.length > 0 ? analysis.charts : []}
