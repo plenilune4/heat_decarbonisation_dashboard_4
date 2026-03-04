@@ -2,7 +2,7 @@ import { model, Schema } from 'mongoose'
 
 import { AnalysisFilter, AnalysisInput, AnalysisOutput, IAnalysisChart } from './analysis.model'
 import { IClient } from './client.model'
-import { InputType, ParetoSense, SimulationResult } from './types'
+import { InputType, ParetoSense, SimulationResult,AggregationType } from './types'
 import { IUser } from './user.model'
 
 export type ColumnMapping = {
@@ -24,7 +24,10 @@ export interface IExternalAnalysis {
     scenarioInputs: AnalysisInput[]
     scenarioOutputs: AnalysisOutput[]
     results?: SimulationResult[]
+    aggregation?: AggregationType
     filters?: AnalysisFilter[]
+    aggregatedResults?: SimulationResult[]
+    filteredResults?: SimulationResult[] // not sure if this is needed. TDH.
     charts?: IAnalysisChart[]
     createdAt: Date
     updatedAt: Date

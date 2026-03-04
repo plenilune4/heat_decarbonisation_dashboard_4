@@ -82,7 +82,7 @@ export interface IAnalysis {
     exogenousSamplingStrategy: SamplingStrategy
     leverSamplingStrategy: SamplingStrategy
     results?: SimulationResult[]
-    aggregation: AggregationType
+    aggregation?: AggregationType
     filters?: AnalysisFilter[]
     aggregatedResults?: SimulationResult[]
     filteredResults?: SimulationResult[]
