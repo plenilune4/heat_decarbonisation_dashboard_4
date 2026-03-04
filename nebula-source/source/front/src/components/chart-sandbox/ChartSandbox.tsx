@@ -284,7 +284,6 @@ export default function ChartSandbox({
                                 results={filteredResults}
                                 filteredOutResults={filteredOutResults}
                                 paretoResults={paretoResults}
-                                unfilteredResults={aggregatedResults}
                                 axisOptions={appropriatePaxplotAxes} // could cause problems if an axis currently shown on the plot suddenly has no variation; needs a bit of finessing.
                                 chart={chart}
                                 onChange={(chart: IAnalysisChart) => handleSetChart(index, chart)}
