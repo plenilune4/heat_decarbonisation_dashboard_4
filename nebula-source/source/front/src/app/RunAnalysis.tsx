@@ -9,7 +9,6 @@ import ROUTES from '@/ROUTES'
 
 import { IAnalysis, IAnalysisChart } from '@/MODELS/analysis.model'
 import { FunctionInput, FunctionOutput } from '@/MODELS/evaluationFunction.model'
-import { AnalysisInputVariable, SamplingStrategy, SimulationResult, VariationMethod } from '@/MODELS/types'
 import {
     AggregationType,
     AnalysisInputVariable,
