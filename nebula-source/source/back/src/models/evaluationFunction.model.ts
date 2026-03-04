@@ -28,7 +28,6 @@ export interface IEvaluationFunction {
     inputs?: FunctionInput[]
     outputs?: FunctionOutput[]
     defaultChart?: IAnalysisChart
-    isAvailable?: boolean
     isArchived?: boolean
     createdAt: Date
     updatedAt: Date
@@ -43,7 +42,6 @@ const evaluationFunctionSchema = new Schema<IEvaluationFunction>(
         inputs: { type: [Object], default: [] },
         outputs: { type: [Object], default: [] },
         defaultChart: { type: Object, default: null },
-        isAvailable: { type: Boolean, default: false },
         isArchived: { type: Boolean, default: false },
     },
     {

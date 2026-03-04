@@ -7,6 +7,7 @@ import SimpleSearchField from '@/form-control/fields/SimpleSearchField'
 import ROUTES from '@/ROUTES'
 
 import { IAnalysis } from '@/MODELS/analysis.model'
+import { IExternalAnalysis } from '@/MODELS/externalAnalysis.model'
 
 import { useAuth } from '@/services/authentication.service'
 import { useResource } from '@/services/resource.service'
@@ -15,41 +16,75 @@ import { cn } from '@/utils/cn'
 import AnalysisCard from '@/components/AnalysisCard'
 import { ButtonStylePrimary } from '@/components/Button'
 import Empty from '@/components/Empty'
+import ExternalAnalysisCard from '@/components/ExternalAnalysisCard'
 import Loading from '@/components/Loading'
+
+type AnalysisItem = {
+    type: 'analysis' | 'externalAnalysis'
+    updatedAt: Date
+    createdAt: Date
+} & ({ type: 'analysis'; analysis: IAnalysis } | { type: 'externalAnalysis'; analysis: IExternalAnalysis })
 
 export default function LoadPreviousAnalysis() {
     const { user } = useAuth()
     const navigate = useNavigate()
     const [analyses, , AnalysisResource] = useResource<IAnalysis[]>(ROUTES.app.analysis)
+    const [externalAnalyses, , ExternalAnalysisResource] = useResource<IExternalAnalysis[]>(ROUTES.app.externalAnalysis)
 
     const [search, setSearch] = useState('')
-    const [filterType, setFilterType] = useState<IAnalysis['status'] | null>(null)
     const [sortType, setSortType] = useState<'updated-desc' | 'created-desc' | 'created-asc'>('updated-desc')
 
-    const filteredAnalyses = useMemo(() => {
-        if (!analyses) return []
-
+    const filteredAnalyses: AnalysisItem[] = useMemo(() => {
         const searchRegex = new RegExp(search, 'i')
 
-        return analyses.filter((analysis) => {
+        let output: AnalysisItem[] = []
+
+        for (const analysis of analyses ?? []) {
             if (
-                search &&
-                !searchRegex.test(
+                !search ||
+                searchRegex.test(
                     [
-                        analysis.label,
-                        analysis.reference,
+                        analysis.label ?? '',
+                        analysis.reference ?? '',
                         analysis.evaluationFunction?.name ?? '',
                         analysis.owner?.firstName ?? '',
                         analysis.owner?.lastName ?? '',
                     ].join(' ')
                 )
-            )
-                return false
-            if (filterType && analysis.status !== filterType) return false
+            ) {
+                output.push({
+                    type: 'analysis',
+                    analysis,
+                    updatedAt: analysis.updatedAt,
+                    createdAt: analysis.createdAt,
+                })
+            }
+        }
 
-            return true
-        })
-    }, [analyses, search, filterType])
+        for (const externalAnalysis of externalAnalyses ?? []) {
+            if (
+                !search ||
+                searchRegex.test(
+                    [
+                        externalAnalysis.label ?? '',
+                        externalAnalysis.reference ?? '',
+                        externalAnalysis.inputData?.csvFilename ?? '',
+                        externalAnalysis.owner?.firstName ?? '',
+                        externalAnalysis.owner?.lastName ?? '',
+                    ].join(' ')
+                )
+            ) {
+                output.push({
+                    type: 'externalAnalysis',
+                    analysis: externalAnalysis,
+                    updatedAt: externalAnalysis.updatedAt,
+                    createdAt: externalAnalysis.createdAt,
+                })
+            }
+        }
+
+        return output
+    }, [analyses, externalAnalyses, search])
 
     const sortedAnalyses = useMemo(() => {
         switch (sortType) {
@@ -93,27 +128,6 @@ export default function LoadPreviousAnalysis() {
                         placeholder='Search by keywords...'
                         containerClass='mt-auto min-w-[300px] flex-[2]'
                     />
-                    {/* <SelectField
-                        value={filterType ?? 'all'}
-                        onChange={(value) => setFilterType(value === 'all' ? null : (value as IAnalysis['status']))}
-                        options={[
-                            {
-                                text: 'All',
-                                value: 'all',
-                            },
-                            {
-                                text: 'Active',
-                                value: 'active',
-                            },
-                            {
-                                text: 'Archived',
-                                value: 'archived',
-                            },
-                        ]}
-                        inputClass='bg-brand-800'
-                        containerClass='min-w-[200px] flex-1'
-                        label='Filter by status'
-                    /> */}
                     <SelectField
                         value={sortType}
                         onChange={(value) => setSortType(value as 'updated-desc' | 'created-desc' | 'created-asc')}
@@ -129,26 +143,48 @@ export default function LoadPreviousAnalysis() {
                 </div>
                 <p className='mt-2 text-base text-gray-300'>
                     Showing <span className='font-semibold text-white'>{filteredAnalyses.length}</span> of{' '}
-                    <span className='font-semibold text-white'>{analyses?.length}</span> analyses
+                    <span className='font-semibold text-white'>
+                        {[...(analyses ?? []), ...(externalAnalyses ?? [])].length}
+                    </span>{' '}
+                    analyses
                 </p>
             </section>
             <section className='grid [grid-template-columns:repeat(auto-fill,minmax(350px,1fr))] gap-2'>
-                {sortedAnalyses.map((analysis) => (
-                    <AnalysisCard key={analysis._id} analysis={analysis} onDelete={() => AnalysisResource.get()} />
-                ))}
+                {sortedAnalyses.map((analysis) => {
+                    switch (analysis.type) {
+                        case 'analysis':
+                            return (
+                                <AnalysisCard
+                                    key={analysis.analysis._id}
+                                    analysis={analysis.analysis}
+                                    onDelete={() => AnalysisResource.get()}
+                                />
+                            )
+                        case 'externalAnalysis':
+                            return (
+                                <ExternalAnalysisCard
+                                    key={analysis.analysis._id}
+                                    analysis={analysis.analysis}
+                                    onDelete={() => ExternalAnalysisResource.get()}
+                                />
+                            )
+                    }
+                })}
             </section>
-            {AnalysisResource.isLoading && <Loading mode='block' text='Loading analyses...' />}
-            {!AnalysisResource.isLoading && !filteredAnalyses.length && !!analyses?.length && (
-                <Empty
-                    icon={<MagnifyingGlassIcon className='w-16 h-16' />}
-                    text='No analyses match your search criteria'
-                    actionText='Reset'
-                    onAction={() => {
-                        setSearch('')
-                        setFilterType(null)
-                    }}
-                />
+            {AnalysisResource.isLoading && ExternalAnalysisResource.isLoading && (
+                <Loading mode='block' text='Loading analyses...' />
             )}
+            {!AnalysisResource.isLoading &&
+                !ExternalAnalysisResource.isLoading &&
+                !filteredAnalyses.length &&
+                !!analyses?.length && (
+                    <Empty
+                        icon={<MagnifyingGlassIcon className='w-16 h-16' />}
+                        text='No analyses match your search criteria'
+                        actionText='Reset'
+                        onAction={() => setSearch('')}
+                    />
+                )}
             {!AnalysisResource.isLoading && !analyses?.length && (
                 <Empty
                     icon={<ForwardIcon className='w-16 h-16' />}

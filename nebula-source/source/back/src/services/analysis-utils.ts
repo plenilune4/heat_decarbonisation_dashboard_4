@@ -1,4 +1,4 @@
-import { AnalysisInput, IAnalysis } from '../models/analysis.model'
+import { AnalysisInput } from '../models/analysis.model'
 import {
     SamplingStrategy,
     ScenarioArrayScalar,
@@ -45,6 +45,8 @@ function computeScenariosForGroup(
 ): [ScenarioConfiguration[], Error | null] {
     try {
         switch (groupSamplingStrategy.sampleMethod) {
+            case 'csv-upload':
+                return generateCsvUploadScenarios(inputs, groupSamplingStrategy)
             case 'latin-hypercube':
                 return generateLatinHypercubeScenarios(inputs, groupSamplingStrategy.numHypercubeSamples)
             case 'full-factorial':
@@ -81,7 +83,7 @@ function combineScenarios(
 
 function generateFullFactorialScenarios(
     inputs: AnalysisInput[],
-    groupSamplingStrategy: SamplingStrategy
+    groupSamplingStrategy: Extract<SamplingStrategy, { sampleMethod: 'full-factorial' }>
 ): [ScenarioConfiguration[], Error | null] {
     try {
         const timeSeries: ScenarioTimeSeries[] = []
@@ -278,6 +280,50 @@ function generateLatinHypercubeScenarios(
     }
 }
 
+function generateCsvUploadScenarios(
+    inputs: AnalysisInput[],
+    groupSamplingStrategy: Extract<SamplingStrategy, { sampleMethod: 'csv-upload' }>
+): [ScenarioConfiguration[], Error | null] {
+    const { csv, mappings } = groupSamplingStrategy
+
+    try {
+        const configurations: ScenarioConfiguration[] = []
+
+        const rows = csv.split('\n').slice(1)
+
+        for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+            const row = rows[rowIndex]
+            const rowValues: string[] = row.trim().split(',')
+            let configuration: ScenarioConfiguration = {}
+            for (const { reference, columnIndex } of mappings) {
+                const input = inputs.find((input) => input.reference === reference)
+                if (!input) {
+                    return [null, new Error(`Input ${reference} not found`)]
+                }
+                const scalarType = getScalarType(input.type)
+                const [value, parseError] = parseCsvScalarValue(rowValues[columnIndex], scalarType, {
+                    reference,
+                    columnIndex,
+                    rowNumber: rowIndex + 1,
+                })
+                if (parseError) {
+                    return [null, parseError]
+                }
+                configuration[reference] = {
+                    reference: reference,
+                    type: scalarType,
+                    value,
+                }
+            }
+            configurations.push(configuration)
+        }
+
+        return [configurations, null]
+    } catch (error) {
+        return [null, error as Error]
+    }
+}
+
 function getScalarType(inputType: string): 'float' | 'int' | 'str' | 'bool' {
     switch (inputType) {
         case 'scalar-continuous':
@@ -290,6 +336,69 @@ function getScalarType(inputType: string): 'float' | 'int' | 'str' | 'bool' {
             return 'str'
         default:
             return 'float'
+    }
+}
+
+function parseCsvScalarValue(
+    rawValue: string | undefined,
+    scalarType: 'float' | 'int' | 'str' | 'bool',
+    context: { reference: string; columnIndex: number; rowNumber: number }
+): [number | boolean | string | null, Error | null] {
+    const { reference, columnIndex, rowNumber } = context
+
+    if (rawValue === undefined) {
+        return [
+            null,
+            new Error(
+                `CSV parse error for "${reference}" at row ${rowNumber}, column ${columnIndex}: value is missing`
+            ),
+        ]
+    }
+
+    const trimmedValue = rawValue.trim()
+
+    switch (scalarType) {
+        case 'float': {
+            const value = Number(trimmedValue)
+            if (!Number.isFinite(value)) {
+                return [
+                    null,
+                    new Error(
+                        `CSV parse error for "${reference}" at row ${rowNumber}, column ${columnIndex}: "${rawValue}" is not a valid float`
+                    ),
+                ]
+            }
+            return [value, null]
+        }
+        case 'int': {
+            const value = Number(trimmedValue)
+            if (!Number.isFinite(value) || !Number.isInteger(value)) {
+                return [
+                    null,
+                    new Error(
+                        `CSV parse error for "${reference}" at row ${rowNumber}, column ${columnIndex}: "${rawValue}" is not a valid integer`
+                    ),
+                ]
+            }
+            return [value, null]
+        }
+        case 'bool': {
+            const normalizedValue = trimmedValue.toLowerCase()
+            if (normalizedValue === 'true' || normalizedValue === '1') {
+                return [true, null]
+            }
+            if (normalizedValue === 'false' || normalizedValue === '0') {
+                return [false, null]
+            }
+            return [
+                null,
+                new Error(
+                    `CSV parse error for "${reference}" at row ${rowNumber}, column ${columnIndex}: "${rawValue}" is not a valid boolean`
+                ),
+            ]
+        }
+        case 'str':
+            return [trimmedValue, null]
     }
 }
 

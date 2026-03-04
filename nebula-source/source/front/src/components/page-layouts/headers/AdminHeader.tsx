@@ -20,11 +20,11 @@ export function AdminHeader(props: {
     const { user } = useAuth()
 
     return (
-        <header className='flex flex-col items-center justify-center w-full transition-all bg-white border-b select-none h-14 border-gray-200'>
+        <header className='flex flex-col justify-center items-center w-full h-14 bg-white border-b border-gray-200 transition-all select-none'>
             {/* max width container */}
-            <div className='flex flex-row items-center w-full px-3 lg:max-w-5xl sm:px-6'>
+            <div className='flex flex-row items-center px-3 w-full lg:max-w-5xl sm:px-6'>
                 {/* Navigation; wide screen header */}
-                <nav className='flex-row items-center hidden ml-auto space-x-3 sm:flex w-fit md:space-x-8'>
+                <nav className='hidden flex-row items-center ml-auto space-x-3 sm:flex w-fit md:space-x-8'>
                     <ul className='flex flex-row items-center space-x-3'>
                         {props.primaryLinks?.map((link, index) => <AppLink key={index} {...link} />)}
                     </ul>
@@ -37,12 +37,12 @@ export function AdminHeader(props: {
                                 >
                                     Login
                                 </Button.Secondary>
-                                <Button.Outline
+                                {/* <Button.Outline
                                     className='text-xs rounded-full w-fit'
                                     onClick={() => navigate('/register')}
                                 >
                                     Register
-                                </Button.Outline>
+                                </Button.Outline> */}
                             </>
                         ) : (
                             <UserMenu links={props?.secondaryLinks} />

@@ -37,7 +37,7 @@ export default function DashboardPage() {
                             <h3 className='text-xl font-semibold text-gray-100'>Start New Analysis</h3>
                         </div>
                         <p className='text-gray-300'>Start an XLRM analysis from scratch using an available model</p>
-                        <Button.Success className='mt-auto w-full' onClick={() => navigate('/evaluations')}>
+                        <Button.Success className='mt-auto w-full' onClick={() => navigate('/analyses/create')}>
                             Start New Analysis
                         </Button.Success>
                     </div>

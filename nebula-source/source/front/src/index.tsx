@@ -20,7 +20,6 @@ import AdminLayout from '@/admin/_Layout'
 import ConfirmAccountPage from '@/auth/ConfirmAccount'
 import LoginPage from '@/auth/LoginPage'
 import LogoutPage from '@/auth/LogoutPage'
-import RegisterPage from '@/auth/RegisterPage'
 import RequestResetPage from '@/auth/RequestPasswordResetPage'
 import ResetPasswordPage from '@/auth/ResetPasswordPage'
 import ForbiddenPage from '@/error-pages/ForbiddenPage'
@@ -34,17 +33,22 @@ import {
 } from '@/services/authentication.service'
 import { ResourceStatusProvider } from '@/services/resource.service'
 
+import CreateAnalysisForm from '@/forms/CreateAnalysisForm'
+import CreateExternalAnalysisForm from '@/forms/CreateExternalAnalysisForm'
+
 import AppLayout from '@/app/_Layout'
 import ClientManagement from '@/app/ClientManagement'
+import ClientUserManagement from '@/app/ClientUserManagement'
+import CreateAnalysis from '@/app/CreateAnalysis'
+import Evaluations from '@/app/Evaluations'
+import LoadPreviousAnalysis from '@/app/LoadPreviousAnalysis'
+import ManageExternalAnalysis from '@/app/ManageExternalAnalysis'
 import Onboarding from '@/app/Onboarding'
 import Profile from '@/app/Profile'
+import RunAnalysis from '@/app/RunAnalysis'
+import SingleFunctionView from '@/app/SingleFunctionView'
 
-import ClientUserManagement from './app/ClientUserManagement'
-import Evaluations from './app/Evaluations'
-import LoadPreviousAnalysis from './app/LoadPreviousAnalysis'
-import ManageAnalysis from './app/RunAnalysis'
-import SingleFunctionView from './app/SingleFunctionView'
-import CreateAnalysisForm from './forms/CreateAnalysisForm'
+import AccessExpiredPage from './app/AccessExpiredPage'
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
@@ -54,7 +58,7 @@ root.render(
             <AuthProvider>
                 <Routes>
                     {/* Authentication Pages */}
-                    <Route path='/register' element={<RegisterPage />} />
+                    {/* <Route path='/register' element={<RegisterPage />} /> */}
                     <Route path='/login' element={<LoginPage />} />
                     <Route path='/logout' element={<LogoutPage />} />
                     <Route path='/request-reset' element={<RequestResetPage />} />
@@ -63,6 +67,7 @@ root.render(
 
                     {/* Public Routes */}
                     <Route path='/onboarding' element={<Onboarding />} />
+                    <Route path='/access-expired' element={<AccessExpiredPage />} />
 
                     <Route element={<AuthenticatedWrapper />}>
                         <Route element={<OnboardingWrapper />}>
@@ -73,8 +78,12 @@ root.render(
                                 {/*  */}
                                 <Route path='analyses'>
                                     <Route index element={<LoadPreviousAnalysis />} />
-                                    <Route path='create' element={<CreateAnalysisForm />} />
-                                    <Route path='run/:id' element={<ManageAnalysis />} />
+                                    <Route path='create' element={<CreateAnalysis />} />
+                                    <Route path='create-from-external' element={<CreateExternalAnalysisForm />} />
+                                    <Route path='create-from-external/:id' element={<CreateExternalAnalysisForm />} />
+                                    <Route path='create-from-function' element={<CreateAnalysisForm />} />
+                                    <Route path='run/:id' element={<RunAnalysis />} />
+                                    <Route path='external/:id' element={<ManageExternalAnalysis />} />
                                 </Route>
                                 {/*  */}
                                 <Route path='client-management' element={<ClientManagement />} />
@@ -96,8 +105,12 @@ root.render(
                                 {/*  */}
                                 <Route path='analyses'>
                                     <Route index element={<LoadPreviousAnalysis />} />
-                                    <Route path='create' element={<CreateAnalysisForm />} />
-                                    <Route path='run/:id' element={<ManageAnalysis />} />
+                                    <Route path='create' element={<CreateAnalysis />} />
+                                    <Route path='create-from-external' element={<CreateExternalAnalysisForm />} />
+                                    <Route path='create-from-external/:id' element={<CreateExternalAnalysisForm />} />
+                                    <Route path='create-from-function' element={<CreateAnalysisForm />} />
+                                    <Route path='run/:id' element={<RunAnalysis />} />
+                                    <Route path='external/:id' element={<ManageExternalAnalysis />} />
                                 </Route>
                                 {/*  */}
                                 <Route path='*' element={<NotFoundPage redirectTo='/admin' />} />

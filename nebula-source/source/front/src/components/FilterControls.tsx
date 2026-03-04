@@ -6,6 +6,7 @@ import { isDate } from 'date-fns'
 
 import { AnalysisFilter } from '@/MODELS/analysis.model'
 import { FunctionInput, FunctionOutput, IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
+import { IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
 import { SimulationResult } from '@/MODELS/types'
 
 import { cn } from '@/utils/cn'
@@ -43,7 +44,7 @@ export default function FilterControls({
     filters,
     setFilters,
 }: {
-    evaluationFunction: IEvaluationFunction
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
     results: SimulationResult[]
     filters: AnalysisFilter[]
     setFilters: (filters: AnalysisFilter[]) => void

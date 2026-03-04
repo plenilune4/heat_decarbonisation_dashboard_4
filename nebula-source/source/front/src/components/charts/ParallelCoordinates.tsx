@@ -9,7 +9,12 @@ import { SimulationResult } from '@/MODELS/types'
 
 import { cn } from '@/utils/cn'
 
-import { CHART_TYPE_LIMITS, ChartLimitExceeded } from '../chart-sandbox/ChartSandbox'
+import {
+    CHART_TYPE_LIMITS,
+    ChartLimitExceeded,
+    FILTERED_OUT_COLOUR_PAX,
+    PARETO_HIGHLIGHT_COLOUR,
+} from '../chart-sandbox/ChartSandbox'
 import Empty from '../Empty'
 import Loading from '../Loading'
 
@@ -23,13 +28,13 @@ const MARGINS = {
 }
 
 type Polylines = { [index: number]: Polyline }
-type Polyline = { [reference: string]: number }
+type Polyline = { [reference: string]: number | string }
 
 export default function ResultCountWrapper({
     title,
     results,
+    filteredOutResults,
     paretoResults,
-    unfilteredResults,
     axisOptions,
     chart,
     onChange,
@@ -39,8 +44,8 @@ export default function ResultCountWrapper({
 }: {
     title: string
     results: SimulationResult[]
+    filteredOutResults: SimulationResult[]
     paretoResults: SimulationResult[]
-    unfilteredResults: SimulationResult[]
     axisOptions: AxisDefinition[]
     chart: IAnalysisChart
     onChange: (chart: IAnalysisChart) => void
@@ -48,18 +53,26 @@ export default function ResultCountWrapper({
     onDownloadCSV: () => void
     isRunningAnalysis: boolean
 }) {
+    const hasDisplayableResults =
+        (results?.length ?? 0) > 0 ||
+        ((chart.showFilteredOut ?? false) && (filteredOutResults?.length ?? 0) > 0) ||
+        ((chart.showParetoSet ?? chart.showParetoOnly ?? false) && (paretoResults?.length ?? 0) > 0)
 
-
-    if (!isRunningAnalysis && (!results || results.length === 0)) {
+    if (!isRunningAnalysis && !hasDisplayableResults) {
         return <Empty icon={<ChartBarIcon className='w-10 h-10' />} text='No results to display.' />
     }
 
+    const totalVisibleResults =
+        (results?.length ?? 0) +
+        ((chart.showFilteredOut ?? false) ? filteredOutResults.length : 0) +
+        ((chart.showParetoSet ?? chart.showParetoOnly ?? false) ? paretoResults.length : 0)
+
     // Show limit exceeded UI if too many data points
-    if ((results ?? []).length > CHART_TYPE_LIMITS['parallel-coordinates']) {
+    if (totalVisibleResults > CHART_TYPE_LIMITS['parallel-coordinates']) {
         return (
             <ChartLimitExceeded
                 chartType={chart.chartType}
-                resultCount={results.length}
+                resultCount={totalVisibleResults}
                 limit={CHART_TYPE_LIMITS['parallel-coordinates']}
                 onDownloadCSV={onDownloadCSV}
             />
@@ -72,6 +85,7 @@ export default function ResultCountWrapper({
         <RenderParallelCoordinates
             title='Parallel Coordinates'
             results={results}
+            filteredOutResults={filteredOutResults}
             paretoResults={paretoResults}
             axisOptions={axisOptions}
             chart={chart}
@@ -84,6 +98,7 @@ export default function ResultCountWrapper({
 function RenderParallelCoordinates({
     title,
     results,
+    filteredOutResults,
     paretoResults,
     axisOptions,
     chart,
@@ -92,6 +107,7 @@ function RenderParallelCoordinates({
 }: {
     title: string
     results: SimulationResult[]
+    filteredOutResults: SimulationResult[]
     paretoResults: SimulationResult[]
     axisOptions: AxisDefinition[]
     chart: IAnalysisChart
@@ -187,11 +203,17 @@ function RenderParallelCoordinates({
         setIsProcessing(true)
         async function process() {
             setTimeout(() => {
-                let inputResults = chart?.showParetoOnly ? paretoResults : results // Worth looking at
-                // console.log("results arriving at process()")
-                // console.log(inputResults)
+                const baseResults = results
+                const greyResults = chart?.showFilteredOut ? filteredOutResults : []
+                const overlayPareto = chart?.showParetoSet ?? chart?.showParetoOnly
+                const paretoOverlayResults = overlayPareto ? paretoResults : []
+                const inputResults = [...greyResults, ...baseResults, ...paretoOverlayResults]
 
-                getReferencesAndPolylines(inputResults, axisOptions, evaluationFunction)
+                getReferencesAndPolylines(inputResults, axisOptions, evaluationFunction, {
+                    baseIndexes: new Set(baseResults.map((x) => x.index)),
+                    filteredOutIndexes: new Set(greyResults.map((x) => x.index)),
+                    paretoIndexes: new Set(paretoOverlayResults.map((x) => x.index)),
+                })
                     .then((data) => {
                         if (
                             data.references.some(
@@ -210,8 +232,8 @@ function RenderParallelCoordinates({
                             setReferences(chart.parallelCoordinates?.references || [])
                         }
 
-                        console.log(`Polylines data`)
-                        console.log(data.polylines)
+                        //console.log(`Polylines data`)
+                        //console.log(data.polylines)
 
                         setPolylines(data.polylines)
                         setDateAxes(data.dateAxes)
@@ -275,7 +297,15 @@ function RenderParallelCoordinates({
             }, 10)
         }
         process()
-    }, [results, axisOptions, paretoResults, chart?.showParetoOnly])
+    }, [
+        results,
+        filteredOutResults,
+        axisOptions,
+        paretoResults,
+        chart?.showFilteredOut,
+        chart?.showParetoSet,
+        chart?.showParetoOnly,
+    ])
 
     useEffect(() => {
         if (!axisScale) {
@@ -310,8 +340,16 @@ function RenderParallelCoordinates({
                 <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                     <g id={id + '-polylines'}>
                         {Object.values(polylines).map((polyline, lineIndex) => {
+                            const layerType = (polyline.__layerType as string) || 'base'
                             const color = colorScale(polyline[colourAxis] as number)
-                            const stroke = d3.interpolateViridis(color)
+                            const stroke =
+                                layerType === 'filtered-out'
+                                    ? FILTERED_OUT_COLOUR_PAX
+                                    : layerType === 'pareto'
+                                      ? PARETO_HIGHLIGHT_COLOUR
+                                      : d3.interpolateViridis(color)
+                            const layerOpacity =
+                                layerType === 'filtered-out' ? 0.08 : layerType === 'pareto' ? 0.95 : strokeOpacity
 
                             const visibleReferences = references.filter((r) => r.visible)
 
@@ -338,7 +376,7 @@ function RenderParallelCoordinates({
                                             y2={y2}
                                             stroke={stroke}
                                             stroke-width = "3"
-                                            strokeOpacity={strokeOpacity}
+                                            strokeOpacity={layerOpacity}
                                         />
                                     )
                                 } catch (error) {
@@ -592,7 +630,12 @@ function RenderParallelCoordinates({
 async function getReferencesAndPolylines(
     results: SimulationResult[],
     axisOptions: AxisDefinition[],
-    evaluationFunction?: any
+    evaluationFunction?: any,
+    layerSets?: {
+        baseIndexes: Set<number>
+        filteredOutIndexes: Set<number>
+        paretoIndexes: Set<number>
+    }
 ): Promise<{
     references: { reference: string; visible: boolean }[]
     polylines: Polylines
@@ -633,8 +676,18 @@ async function getReferencesAndPolylines(
     // console.timeEnd('frameworkTypeMap setup')
 
     // console.time('process results loop')
-    for (const result of results) {
+    for (const [resultOffset, result] of results.entries()) {
         // console.time(`process result ${result.index}`)
+        const layerType = layerSets?.filteredOutIndexes?.has(result.index)
+            ? 'filtered-out'
+            : layerSets?.paretoIndexes?.has(result.index)
+              ? 'pareto'
+              : 'base'
+        const polylineKey = `${layerType}:${result.index}:${resultOffset}`
+        _output[polylineKey] = {
+            ..._output[polylineKey],
+            __layerType: layerType,
+        }
 
         // Process time series inputs by adding .date and .value references
         // This will need attention. To do. We don't need the detailed time series data including here.
@@ -668,8 +721,8 @@ async function getReferencesAndPolylines(
 
                     let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                     let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-                    _output[result.index] = {
-                        ..._output[result.index],
+                    _output[polylineKey] = {
+                        ..._output[polylineKey],
                         [dateRef]: numberValue,
                     }
                 }
@@ -687,8 +740,8 @@ async function getReferencesAndPolylines(
 
                     let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                     let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-                    _output[result.index] = {
-                        ..._output[result.index],
+                    _output[polylineKey] = {
+                        ..._output[polylineKey],
                         [valueRef]: numberValue,
                     }
                 }
@@ -712,8 +765,8 @@ async function getReferencesAndPolylines(
 
             let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
             let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-            _output[result.index] = {
-                ..._output[result.index],
+            _output[polylineKey] = {
+                ..._output[polylineKey],
                 [key]: numberValue,
             }
         }
@@ -734,8 +787,8 @@ async function getReferencesAndPolylines(
 
             let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
             let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-            _output[result.index] = {
-                ..._output[result.index],
+            _output[polylineKey] = {
+                ..._output[polylineKey],
                 [key]: numberValue,
             }
         }
@@ -769,8 +822,8 @@ async function getReferencesAndPolylines(
 
                     let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                     let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-                    _output[result.index] = {
-                        ..._output[result.index],
+                    _output[polylineKey] = {
+                        ..._output[polylineKey],
                         [dateRef]: numberValue,
                     }
                 }
@@ -788,8 +841,8 @@ async function getReferencesAndPolylines(
 
                     let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                     let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-                    _output[result.index] = {
-                        ..._output[result.index],
+                    _output[polylineKey] = {
+                        ..._output[polylineKey],
                         [valueRef]: numberValue,
                     }
                 }
@@ -809,9 +862,8 @@ async function getReferencesAndPolylines(
 
                 let singleValue = Array.isArray(axisResult.value) ? axisResult.value[0] : axisResult.value
                 let numberValue = typeof singleValue === 'number' ? singleValue : Number(singleValue)
-
-                _output[result.index] = {
-                    ..._output[result.index],
+                _output[polylineKey] = {
+                    ..._output[polylineKey],
                     [key]: numberValue,
                 }
             }

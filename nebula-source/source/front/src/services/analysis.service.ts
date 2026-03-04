@@ -22,6 +22,26 @@ export type Runner = {
     numberOfScenarios: number
 }
 
+export type CSVExportSelection = {
+    includeFull: boolean
+    includeFiltered: boolean
+}
+
+type AnalysisExportable = Pick<
+    IAnalysis,
+    'reference' | 'label' | 'results' | 'filters' | 'scenarioInputs' | 'scenarioOutputs' | 'evaluationFunction'
+>
+
+export function hasActiveAnalysisFilters(filters?: AnalysisFilter[]): boolean {
+    if (!filters?.length) return false
+    return filters.some((filter) => {
+        const hasReference = !!filter.reference
+        const hasType = !!filter.type
+        const hasValue = filter.value !== undefined && filter.value !== null && String(filter.value).trim() !== ''
+        return hasReference && hasType && hasValue
+    })
+}
+
 export const useAnalysisRunner = (analysis: IAnalysis): Runner => {
     const numberOfScenarios = useMemo(() => {
         return countScenarios(analysis)
@@ -256,6 +276,11 @@ function countScenariosForInputs(inputs: AnalysisInput[], groupSamplingStrategy:
         return groupSamplingStrategy.numHypercubeSamples
     }
 
+    if (groupSamplingStrategy?.sampleMethod === 'csv-upload') {
+        const rows = groupSamplingStrategy.csv.split('\n')
+        return rows.length - 1 // -1 to remove the header row
+    }
+
     // For full-factorial, calculate the product of all individual variable counts
     let arrayScalarCounts: number[] = []
     let numCsvTimeSeries = 0
@@ -358,26 +383,44 @@ function timeSeriesDataToCSV(data: { date: string; [key: string]: any }[]): stri
 }
 
 export async function downloadAnalysis(analysis: IAnalysis): Promise<void> {
-    const hasActiveFilters = analysis.filters && analysis.filters.length > 0
     const hasTimeSeries = checkForTimeSeries(analysis)
 
     if (hasTimeSeries) {
         await downloadAnalysisData(analysis)
     } else {
-        downloadAnalysisCSV(analysis)
+        await downloadAnalysisCSV(analysis)
     }
+}
+
+export async function downloadAnalysisCSVBySelection(
+    analysis: AnalysisExportable,
+    selection: CSVExportSelection
+): Promise<void> {
+    if (!selection.includeFull && !selection.includeFiltered) {
+        throw new Error('Select at least one dataset to export.')
+    }
+
+    const hasTimeSeries = checkForTimeSeries(analysis)
+    if (hasTimeSeries) {
+        await downloadAnalysisData(analysis)
+        return
+    }
+
+    const zip = await convertSelectedScalarAnalysisToZip(analysis, selection)
+    const filename = generateZipFilename(analysis)
+    downloadBlob(zip, filename)
 }
 
 /**
  * Processes an analysis into a zip file with multiple CSVs
  */
-async function convertAnalysisToZip(analysis: IAnalysis): Promise<Blob> {
+async function convertAnalysisToZip(analysis: AnalysisExportable): Promise<Blob> {
     if (!analysis.results || analysis.results.length === 0) {
         throw new Error('No results available for export')
     }
 
     const zip = new JSZip()
-    const hasActiveFilters = analysis.filters && analysis.filters.length > 0
+    const hasActiveFilters = hasActiveAnalysisFilters(analysis.filters)
 
     // Apply filters if they exist
     let filteredResults: SimulationResult[] | undefined
@@ -635,7 +678,7 @@ Each time series file is named using the pattern: [reference]_[number].csv
 /**
  * Generates a filename for the zip download
  */
-function generateZipFilename(analysis: IAnalysis): string {
+function generateZipFilename(analysis: AnalysisExportable): string {
     const reference = analysis.reference.replace(/[^a-zA-Z0-9-_]/g, '_')
     const label = analysis.label ? analysis.label.replace(/[^a-zA-Z0-9-_]/g, '_') : 'results'
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
@@ -646,25 +689,11 @@ function generateZipFilename(analysis: IAnalysis): string {
 /**
  * Triggers a download of the analysis results as a zip file with CSVs
  */
-async function downloadAnalysisData(analysis: IAnalysis): Promise<void> {
+async function downloadAnalysisData(analysis: AnalysisExportable): Promise<void> {
     try {
         const zip = await convertAnalysisToZip(analysis)
         const filename = generateZipFilename(analysis)
-
-        // Create download link
-        const url = URL.createObjectURL(zip)
-        const link = document.createElement('a')
-
-        // Set up and trigger download
-        link.setAttribute('href', url)
-        link.setAttribute('download', filename)
-        link.style.visibility = 'hidden'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-
-        // Clean up the URL object
-        setTimeout(() => URL.revokeObjectURL(url), 100)
+        downloadBlob(zip, filename)
     } catch (error) {
         console.error('Error generating export:', error)
         alert('Failed to export results. See console for details.')
@@ -675,87 +704,73 @@ async function downloadAnalysisData(analysis: IAnalysis): Promise<void> {
  * For backward compatibility, you can still provide direct CSV download
  * for simulations without time series data
  */
-function downloadAnalysisCSV(analysis: IAnalysis): void {
+async function downloadAnalysisCSV(analysis: AnalysisExportable): Promise<void> {
     // First check if there are any time series
     const hasTimeSeries = checkForTimeSeries(analysis)
-    const hasActiveFilters = analysis.filters && analysis.filters.length > 0
+    const hasActiveFilters = hasActiveAnalysisFilters(analysis.filters)
 
     if (hasTimeSeries) {
         // If time series exist, use the zip download method
-        downloadAnalysisData(analysis)
+        await downloadAnalysisData(analysis)
     } else {
-        // Use the simple CSV download for scalar-only data
-        if (hasActiveFilters) {
-            const filteredResults = applyFilters(
-                analysis.results,
-                analysis.filters,
-                new Map(
-                    getAllAxisDefinitions(analysis.results, analysis.evaluationFunction).map((opt) => [
-                        opt.reference,
-                        opt,
-                    ])
-                )
-            )
-            // Create both filtered and full CSV downloads
-            const filteredCsv = convertAnalysisToCSV(analysis, filteredResults)
-            const fullCsv = convertAnalysisToCSV(analysis, analysis.results)
-
-            const filteredFilename = generateCSVFilename(analysis, 'filtered')
-            const fullFilename = generateCSVFilename(analysis, 'full')
-
-            // Download filtered CSV
-            const filteredBlob = new Blob([filteredCsv], { type: 'text/csv;charset=utf-8;' })
-            const filteredUrl = URL.createObjectURL(filteredBlob)
-            const filteredLink = document.createElement('a')
-            filteredLink.setAttribute('href', filteredUrl)
-            filteredLink.setAttribute('download', filteredFilename)
-            filteredLink.style.visibility = 'hidden'
-            document.body.appendChild(filteredLink)
-            filteredLink.click()
-            document.body.removeChild(filteredLink)
-
-            // Download full CSV
-            const fullBlob = new Blob([fullCsv], { type: 'text/csv;charset=utf-8;' })
-            const fullUrl = URL.createObjectURL(fullBlob)
-            const fullLink = document.createElement('a')
-            fullLink.setAttribute('href', fullUrl)
-            fullLink.setAttribute('download', fullFilename)
-            fullLink.style.visibility = 'hidden'
-            document.body.appendChild(fullLink)
-            fullLink.click()
-            document.body.removeChild(fullLink)
-
-            // Clean up URLs
-            setTimeout(() => {
-                URL.revokeObjectURL(filteredUrl)
-                URL.revokeObjectURL(fullUrl)
-            }, 100)
-        } else {
-            // Single CSV download
-            const csv = convertAnalysisToCSV(analysis, analysis.results)
-            const filename = generateCSVFilename(analysis)
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-            const url = URL.createObjectURL(blob)
-            const link = document.createElement('a')
-
-            link.setAttribute('href', url)
-            link.setAttribute('download', filename)
-            link.style.visibility = 'hidden'
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-
-            // Clean up URL
-            setTimeout(() => URL.revokeObjectURL(url), 100)
-        }
+        await downloadAnalysisCSVBySelection(analysis, {
+            includeFull: true,
+            includeFiltered: hasActiveFilters,
+        })
     }
+}
+
+async function convertSelectedScalarAnalysisToZip(
+    analysis: AnalysisExportable,
+    selection: CSVExportSelection
+): Promise<Blob> {
+    if (!analysis.results || analysis.results.length === 0) {
+        throw new Error('No results available for export')
+    }
+
+    const zip = new JSZip()
+    const hasActiveFilters = hasActiveAnalysisFilters(analysis.filters)
+
+    if (selection.includeFull) {
+        const fullCsv = convertAnalysisToCSV(analysis, analysis.results)
+        zip.file('full_results.csv', fullCsv)
+    }
+
+    if (selection.includeFiltered && hasActiveFilters) {
+        const filteredResults = applyFilters(
+            analysis.results,
+            analysis.filters,
+            new Map(
+                getAllAxisDefinitions(analysis.results, analysis.evaluationFunction).map((opt) => [opt.reference, opt])
+            )
+        )
+        const filteredCsv = convertAnalysisToCSV(analysis, filteredResults)
+        zip.file('filtered_results.csv', filteredCsv)
+    }
+
+    if (Object.keys(zip.files).length === 0) {
+        throw new Error('No datasets available for export with the current selection.')
+    }
+
+    return await zip.generateAsync({ type: 'blob' })
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', filename)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setTimeout(() => URL.revokeObjectURL(url), 100)
 }
 
 /**
  * Checks if the analysis contains any time series data
  */
-function checkForTimeSeries(analysis: IAnalysis): boolean {
+function checkForTimeSeries(analysis: AnalysisExportable): boolean {
     if (!analysis.results || analysis.results.length === 0) return false
 
     // Check first result for time series
@@ -781,7 +796,7 @@ function checkForTimeSeries(analysis: IAnalysis): boolean {
 /**
  * Original CSV conversion for backwards compatibility
  */
-function convertAnalysisToCSV(analysis: IAnalysis, results?: SimulationResult[]): string {
+function convertAnalysisToCSV(analysis: AnalysisExportable, results?: SimulationResult[]): string {
     const resultsToUse = results || analysis.results
     if (!resultsToUse || resultsToUse.length === 0) {
         return 'No results available for export'
@@ -841,17 +856,6 @@ function convertAnalysisToCSV(analysis: IAnalysis, results?: SimulationResult[])
     ].join('\n')
 
     return csvContent
-}
-
-/**
- * Generates a filename for the CSV download
- */
-function generateCSVFilename(analysis: IAnalysis, suffix?: string): string {
-    const reference = analysis.reference.replace(/[^a-zA-Z0-9-_]/g, '_')
-    const label = analysis.label ? analysis.label.replace(/[^a-zA-Z0-9-_]/g, '_') : 'results'
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19)
-
-    return `${reference}_${label}${suffix ? `_${suffix}` : ''}_${timestamp}.csv`
 }
 
 export function applyFilters(

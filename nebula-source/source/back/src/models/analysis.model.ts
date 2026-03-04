@@ -46,7 +46,16 @@ export interface IAnalysisChart {
     x: AxisDefinition
     y: AxisDefinition
     label?: string
+    /** @deprecated: use showParetoSet */
     showParetoOnly?: boolean
+    showParetoSet?: boolean
+    showFilteredOut?: boolean
+    colorByReference?: string
+    colorScheme?: 'viridis'
+    colorDomain?: {
+        min?: number
+        max?: number
+    }
     lockAxes?: boolean
     parallelCoordinates?: {
         references: { reference: string; visible: boolean }[]
@@ -83,7 +92,7 @@ export interface IAnalysis {
     updatedAt: Date
 }
 
-const scenarioRunSchema = new Schema<IAnalysis>(
+const analysisSchema = new Schema<IAnalysis>(
     {
         owner: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         client: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
@@ -106,5 +115,5 @@ const scenarioRunSchema = new Schema<IAnalysis>(
     }
 )
 
-const Analysis = model<IAnalysis>('Analysis', scenarioRunSchema)
+const Analysis = model<IAnalysis>('Analysis', analysisSchema)
 export default Analysis

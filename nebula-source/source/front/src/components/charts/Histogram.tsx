@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import * as d3 from 'd3'
 
 import { useChartColors } from '@/utils/color-utils'
 
@@ -16,10 +17,16 @@ export default function Histogram({
     xLabel,
     yLabel,
     discreteValueMappings,
+    colorByReference,
+    colorScaleDomain,
 }: HistogramProps) {
     const [error, setError] = useState<string | null>(null)
     const [bins, setBins] = useState<any[]>([])
     const colors = useChartColors(series.length)
+    const viridisScale = useMemo(() => {
+        if (!colorByReference || !colorScaleDomain) return null
+        return d3.scaleLinear<number>().domain(colorScaleDomain).range([0, 1]).clamp(true)
+    }, [colorByReference, colorScaleDomain])
 
     useEffect(() => {
         setError(null)
@@ -150,7 +157,17 @@ export default function Histogram({
                             name={s.name}
                             fill={s.color || colors[i % colors.length]}
                             barSize={20}
-                        />
+                        >
+                            {bins.map((bin, binIndex) => {
+                                const value = bin.binColorValue
+                                const isBaseLayer = (s.layerType ?? 'base') === 'base'
+                                const fill =
+                                    isBaseLayer && viridisScale && Number.isFinite(value)
+                                        ? d3.interpolateViridis(viridisScale(value))
+                                        : s.color || colors[i % colors.length]
+                                return <Cell key={`${s.name}-${binIndex}`} fill={fill} />
+                            })}
+                        </Bar>
                     ))}
                     {showDistribution && (
                         <Line
@@ -175,7 +192,7 @@ export default function Histogram({
 
 // Helper: Compute global bins and per-series frequencies
 function getGlobalBinnedData(
-    series: { name: string; data: { x: number }[] }[],
+    series: { name: string; data: { x: number; colorValue?: number }[]; layerType?: 'base' | 'filtered-out' | 'pareto' }[],
     options: { bins?: number; binWidth?: number; minBins?: number; roundBins?: boolean }
 ) {
     // Flatten all data to get global min/max
@@ -219,6 +236,8 @@ function getGlobalBinnedData(
             x: binStart + (i + 0.5) * binWidth!,
             binStart: binEdges[i],
             binEnd: binEdges[i + 1],
+            binColorSum: 0,
+            binColorCount: 0,
         }
         series.forEach((s) => {
             bin[s.name] = 0
@@ -234,6 +253,10 @@ function getGlobalBinnedData(
                 if (idx < 0) idx = 0
                 if (idx >= bins.length) idx = bins.length - 1
                 bins[idx][s.name] += 1
+                if ((s.layerType ?? 'base') === 'base' && typeof d.colorValue === 'number' && Number.isFinite(d.colorValue)) {
+                    bins[idx].binColorSum += d.colorValue
+                    bins[idx].binColorCount += 1
+                }
             })
         })
     } catch (e) {
@@ -241,7 +264,12 @@ function getGlobalBinnedData(
         return [[], 'Unable to bin data.', []]
     }
 
-    return [bins, null, binEdges]
+    const binsWithColorAggregate = bins.map((bin) => ({
+        ...bin,
+        binColorValue: bin.binColorCount > 0 ? bin.binColorSum / bin.binColorCount : undefined,
+    }))
+
+    return [binsWithColorAggregate, null, binEdges]
 }
 
 // Utility: Generate a normal distribution curve scaled to the bars (uses first series for mean/std)

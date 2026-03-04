@@ -144,7 +144,13 @@ function Icon({
 }
 
 function Trash({ className, iconClass, ...props }: { iconClass?: string } & ButtonProps) {
-    return <Icon icon={<TrashIcon />} className={cn('transition w-fit hover:text-rose-600', className)} {...props} />
+    return (
+        <Icon
+            icon={<TrashIcon className={iconClass} />}
+            className={cn('transition w-fit hover:text-rose-600', className)}
+            {...props}
+        />
+    )
 }
 
 function Back({ text = 'Back', ...props }: { text?: string } & ButtonProps) {

@@ -20,9 +20,9 @@ export function MobileSidebar(props: {
     const { user } = useAuth()
     return (
         <TransitionPanel from='right' open={props.isSidebarOpen} setOpen={props.setSidebarOpen}>
-            <header className='flex flex-row items-center justify-between w-full px-6 my-3 space-x-6'>
+            <header className='flex flex-row justify-between items-center px-6 my-3 space-x-6 w-full'>
                 <a href='/' className='flex flex-row items-center'>
-                    <img src={props?.logo} className='flex-shrink-0 w-16 h-auto my-auto' />
+                    <img src={props?.logo} className='flex-shrink-0 my-auto w-16 h-auto' />
                 </a>
             </header>
             <nav className='flex flex-col flex-1 px-6 mt-6 space-y-8'>
@@ -42,15 +42,15 @@ export function MobileSidebar(props: {
                     ))}
                 </ul>
             </nav>
-            <footer className='flex flex-col w-full px-6 my-6 mt-auto space-y-3'>
+            <footer className='flex flex-col px-6 my-6 mt-auto space-y-3 w-full'>
                 {!user ? (
                     <>
                         <Button.Secondary className='w-full' onClick={() => navigate('/login')}>
                             Login
                         </Button.Secondary>
-                        <Button.Outline className='w-full' onClick={() => navigate('/register')}>
+                        {/* <Button.Outline className='w-full' onClick={() => navigate('/register')}>
                             Register
-                        </Button.Outline>
+                        </Button.Outline> */}
                     </>
                 ) : (
                     <a className='text-lg heading' onClick={() => navigate('/logout', { replace: true })}>

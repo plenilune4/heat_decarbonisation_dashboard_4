@@ -1,6 +1,7 @@
+import { useMemo } from 'react'
+import * as d3 from 'd3'
 import {
     CartesianGrid,
-    Legend,
     Line,
     LineChart,
     ResponsiveContainer,
@@ -12,11 +13,24 @@ import {
 
 import { useChartColors } from '@/utils/color-utils'
 
+import { FILTERED_OUT_COLOUR, PARETO_HIGHLIGHT_COLOUR } from '../chart-sandbox/ChartSandbox'
 import { CustomTooltip } from './CustomTooltip'
 import { LineGraphProps } from './types'
 
-export default function LineGraph({ series, title, xLabel, yLabel, discreteValueMappings }: LineGraphProps) {
+export default function LineGraph({
+    series,
+    title,
+    xLabel,
+    yLabel,
+    discreteValueMappings,
+    colorByReference,
+    colorScaleDomain,
+}: LineGraphProps) {
     const colors = useChartColors(series.length)
+    const viridisScale = useMemo(() => {
+        if (!colorByReference || !colorScaleDomain) return null
+        return d3.scaleLinear<number>().domain(colorScaleDomain).range([0, 1]).clamp(true)
+    }, [colorByReference, colorScaleDomain])
 
     return (
         <div>
@@ -67,9 +81,44 @@ export default function LineGraph({ series, title, xLabel, yLabel, discreteValue
                             data={s.data}
                             dataKey='y'
                             name={s.name}
-                            stroke={s.color || colors[idx % colors.length]}
+                            stroke={
+                                s.layerType === 'filtered-out'
+                                    ? FILTERED_OUT_COLOUR
+                                    : s.layerType === 'pareto'
+                                      ? PARETO_HIGHLIGHT_COLOUR
+                                      : viridisScale
+                                        ? '#9ca3af'
+                                        : s.color || colors[idx % colors.length]
+                            }
+                            strokeOpacity={s.opacity ?? 1}
                             isAnimationActive={false}
-                            dot={false}
+                            dot={
+                                viridisScale
+                                    ? (dotProps: any) => {
+                                          const colorValue = dotProps?.payload?.colorValue
+                                          const viridisValue = Number.isFinite(colorValue)
+                                              ? viridisScale(colorValue)
+                                              : 0.35
+                                          const layerType = dotProps?.payload?.layerType ?? s.layerType
+                                          return (
+                                              <circle
+                                                  cx={dotProps.cx}
+                                                  cy={dotProps.cy}
+                                                  r={2.5}
+                                                  fill={
+                                                      layerType === 'filtered-out'
+                                                          ? FILTERED_OUT_COLOUR
+                                                          : layerType === 'pareto'
+                                                            ? PARETO_HIGHLIGHT_COLOUR
+                                                            : d3.interpolateViridis(viridisValue)
+                                                  }
+                                                  stroke='none'
+                                                  opacity={s.opacity ?? 1}
+                                              />
+                                          )
+                                      }
+                                    : false
+                            }
                         />
                     ))}
                 </LineChart>

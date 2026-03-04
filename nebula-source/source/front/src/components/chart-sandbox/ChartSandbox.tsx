@@ -33,6 +33,11 @@ export const CHART_TYPE_LIMITS: Record<ChartType, number> = {
     'parallel-coordinates': 10000,
 }
 
+const COLOR_BY_SUPPORTED_CHARTS: ChartType[] = ['scatter', 'line', 'histogram', 'time-series']
+export const PARETO_HIGHLIGHT_COLOUR = '#ff0000'
+export const FILTERED_OUT_COLOUR = '#6b7280'
+export const FILTERED_OUT_COLOUR_PAX = '#6b7280'
+
 export default function ChartSandbox({
     evaluationFunction,
     simulationResults,
@@ -43,7 +48,7 @@ export default function ChartSandbox({
     isRunningAnalysis,
     onDownloadCSV,
 }: {
-    evaluationFunction: IEvaluationFunction
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
     simulationResults: SimulationResult[]
     aggregation: AggregationType
     filters: AnalysisFilter[]
@@ -132,6 +137,15 @@ export default function ChartSandbox({
             new Map(xAndYOptions.map((opt) => [opt.reference, opt]))
         )
     }, [aggregatedResults, debouncedFilters, xAndYOptions])
+
+    const filteredOutResults = useMemo(() => {
+        if (!simulationResults?.length || !filteredResults?.length) {
+            return simulationResults ?? []
+        }
+
+        const filteredIndexes = new Set(filteredResults.map((result) => result.index))
+        return simulationResults.filter((result) => !filteredIndexes.has(result.index))
+    }, [simulationResults, filteredResults])
 
     // Update debounced filters when filters prop changes
     useEffect(() => {
@@ -268,6 +282,7 @@ export default function ChartSandbox({
                             <ParallelCoordinates
                                 title='Parallel Coordinates'
                                 results={filteredResults}
+                                filteredOutResults={filteredOutResults}
                                 paretoResults={paretoResults}
                                 unfilteredResults={aggregatedResults}
                                 axisOptions={appropriatePaxplotAxes} // could cause problems if an axis currently shown on the plot suddenly has no variation; needs a bit of finessing.
@@ -282,9 +297,12 @@ export default function ChartSandbox({
                             <RenderChart
                                 key={index + chart.chartType + currentIndex}
                                 evaluationFunction={evaluationFunction}
+                                allResults={simulationResults}
                                 results={filteredResults}
+                                filteredOutResults={filteredOutResults}
                                 paretoResults={paretoResults}
                                 chart={chart}
+                                axisOptions={xAndYOptions}
                                 isRunningAnalysis={isRunningAnalysis}
                                 onDownloadCSV={onDownloadCSV}
                             />
@@ -314,6 +332,33 @@ function ChartDefinitionSettings({
         })
         return output
     }, [axisOptions])
+
+    const colorByOptions = useMemo(() => {
+        return axisOptions
+            .filter((opt) => opt.reference !== 'index')
+            .map((opt) => ({
+                text: `(${frameworkTypeToLabel(opt.frameworkType)}) ${opt.label}`,
+                value: opt.reference,
+            }))
+    }, [axisOptions])
+
+    useEffect(() => {
+        if (!COLOR_BY_SUPPORTED_CHARTS.includes(chart.chartType)) {
+            return
+        }
+
+        const hasSelected = colorByOptions.some((opt) => opt.value === chart.colorByReference)
+        if (hasSelected) {
+            return
+        }
+
+        const fallbackColorBy = colorByOptions[0]?.value
+        if (!fallbackColorBy || fallbackColorBy === chart.colorByReference) {
+            return
+        }
+
+        onChange({ ...chart, colorByReference: fallbackColorBy } as IAnalysisChart)
+    }, [chart, colorByOptions, onChange])
 
     function updateDefinition(key: keyof IAnalysisChart, value: any) {
         onChange({ ...chart, [key]: value } as IAnalysisChart)
@@ -385,9 +430,23 @@ function ChartDefinitionSettings({
             )}
             {isParetoCompatible && (
                 <CheckboxField
-                    label='Show only Pareto-efficient results'
-                    value={chart?.showParetoOnly}
-                    onChange={(checked) => updateDefinition('showParetoOnly', checked)}
+                    label='Overlay Pareto-efficient results'
+                    value={chart?.showParetoSet ?? chart?.showParetoOnly ?? false}
+                    onChange={(checked) => updateDefinition('showParetoSet', checked)}
+                />
+            )}
+            <CheckboxField
+                label='Show filtered-out results in grey'
+                value={chart?.showFilteredOut ?? false}
+                onChange={(checked) => updateDefinition('showFilteredOut', checked)}
+            />
+            {COLOR_BY_SUPPORTED_CHARTS.includes(chart.chartType) && (
+                <SelectField
+                    label='Color By'
+                    options={colorByOptions}
+                    value={chart?.colorByReference}
+                    onChange={(value) => updateDefinition('colorByReference', value)}
+                    containerClass='w-fit min-w-[220px]'
                 />
             )}
             {['parallel-coordinates'].includes(chart.chartType) && (
@@ -403,15 +462,21 @@ function ChartDefinitionSettings({
 
 function RenderChart({
     evaluationFunction,
+    allResults,
     results,
+    filteredOutResults,
     chart,
+    axisOptions,
     isRunningAnalysis,
     paretoResults,
     onDownloadCSV,
 }: {
-    evaluationFunction: IEvaluationFunction
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
+    allResults: SimulationResult[]
     results: SimulationResult[]
+    filteredOutResults: SimulationResult[]
     chart: IAnalysisChart
+    axisOptions: AxisDefinition[]
     isRunningAnalysis: boolean
     paretoResults: SimulationResult[]
     onDownloadCSV: () => void
@@ -495,57 +560,191 @@ function RenderChart({
         return mappings
     }, [chart.x?.reference, chart.y?.reference, evaluationFunction.inputs, evaluationFunction.outputs, results])
 
-    const { allPoints, paretoPoints } = useMemo(() => {
-        const allPts = resultsToPoints(results, chart, evaluationFunction, discreteValueMappings)
-        const paretoPts = resultsToPoints(paretoResults, chart, evaluationFunction, discreteValueMappings)
+    const colorByAxis = useMemo(() => {
+        return axisOptions.find((opt) => opt.reference === chart.colorByReference)
+    }, [axisOptions, chart.colorByReference])
+
+    const { allPoints, filteredOutPoints, paretoPoints } = useMemo(() => {
+        const allPts = resultsToPoints(
+            results,
+            chart,
+            evaluationFunction,
+            discreteValueMappings,
+            colorByAxis,
+            chart.colorByReference
+        )
+        const paretoPts = resultsToPoints(
+            paretoResults,
+            chart,
+            evaluationFunction,
+            discreteValueMappings,
+            colorByAxis,
+            chart.colorByReference
+        )
         return {
             allPoints: allPts,
+            filteredOutPoints: resultsToPoints(
+                filteredOutResults,
+                chart,
+                evaluationFunction,
+                discreteValueMappings,
+                colorByAxis,
+                chart.colorByReference
+            ),
             paretoPoints: paretoPts,
         }
-    }, [results, paretoResults, chart, evaluationFunction, discreteValueMappings])
+    }, [results, filteredOutResults, paretoResults, chart, evaluationFunction, discreteValueMappings, colorByAxis])
 
     const chartSeries = useMemo(() => {
-        if (chart.showParetoOnly) {
-            const series = [
-                {
-                    name: 'Pareto-efficient',
-                    data: paretoPoints.map((pt) => ({
-                        ...pt,
-                        tooltipData: { ...pt.tooltipData, seriesName: 'Pareto-efficient' },
-                    })),
-                    color: '#eab308',
-                },
-            ]
-            return series
-        } else {
-            const series = [
-                {
-                    name: 'All Results',
-                    data: allPoints.map((pt) => ({
-                        ...pt,
-                        tooltipData: { ...pt.tooltipData, seriesName: 'All Results' },
-                    })),
-                    color: '#8884d8',
-                    opacity: 0.3,
-                },
-                {
-                    name: 'Pareto-efficient',
-                    data: paretoPoints.map((pt) => ({
-                        ...pt,
-                        tooltipData: { ...pt.tooltipData, seriesName: 'Pareto-efficient' },
-                    })),
-                    color: '#eab308',
-                },
-            ]
-            return series
+        const output: {
+            name: string
+            data: ChartPoint[]
+            color?: string
+            opacity?: number
+            layerType?: 'base' | 'filtered-out' | 'pareto'
+        }[] = []
+
+        if (chart.showFilteredOut && filteredOutPoints.length > 0) {
+            output.push({
+                name: 'Filtered-out',
+                data: filteredOutPoints.map((pt) => ({
+                    ...pt,
+                    layerType: 'filtered-out',
+                    tooltipData: { ...pt.tooltipData, seriesName: 'Filtered-out', layerType: 'filtered-out' },
+                })),
+                color: '#6b7280',
+                opacity: 0.35,
+                layerType: 'filtered-out',
+            })
         }
-    }, [chart.showParetoOnly, allPoints, paretoPoints])
+
+        output.push({
+            name: 'All Results',
+            data: allPoints.map((pt) => ({
+                ...pt,
+                layerType: 'base',
+                tooltipData: { ...pt.tooltipData, seriesName: 'All Results', layerType: 'base' },
+            })),
+            color: '#8884d8',
+            opacity: 0.9,
+            layerType: 'base',
+        })
+
+        if ((chart.showParetoSet ?? chart.showParetoOnly) && paretoPoints.length > 0) {
+            output.push({
+                name: 'Pareto-efficient',
+                data: paretoPoints.map((pt) => ({
+                    ...pt,
+                    layerType: 'pareto',
+                    tooltipData: { ...pt.tooltipData, seriesName: 'Pareto-efficient', layerType: 'pareto' },
+                })),
+                color: PARETO_HIGHLIGHT_COLOUR,
+                opacity: 1,
+                layerType: 'pareto',
+            })
+        }
+
+        return output
+    }, [chart.showFilteredOut, chart.showParetoSet, chart.showParetoOnly, allPoints, filteredOutPoints, paretoPoints])
+
+    const visiblePoints = useMemo(() => {
+        const points: ChartPoint[] = [...allPoints]
+        if (chart.showParetoSet ?? chart.showParetoOnly) {
+            points.push(...paretoPoints)
+        }
+        return points
+    }, [allPoints, paretoPoints, chart.showParetoSet, chart.showParetoOnly])
+
+    const colorValues = useMemo(() => {
+        if (!chart.colorByReference) {
+            return []
+        }
+
+        return visiblePoints.map((point) => point.colorValue).filter((value): value is number => Number.isFinite(value))
+    }, [visiblePoints, chart.colorByReference])
+
+    const colorScaleDomain = useMemo<[number, number] | null>(() => {
+        if (colorValues.length === 0) {
+            return null
+        }
+
+        const min = Math.min(...colorValues)
+        const max = Math.max(...colorValues)
+        if (!Number.isFinite(min) || !Number.isFinite(max)) {
+            return null
+        }
+        if (min === max) {
+            return [min, min + 1]
+        }
+        return [min, max]
+    }, [colorValues])
+
+    const hasColorBySelection = Boolean(chart.colorByReference)
+    const noNumericColorData = hasColorBySelection && colorScaleDomain === null
+    const colorByLabel = colorByAxis?.label || chart.colorByReference || 'selected variable'
 
     const timeSeries = useMemo(() => {
-        return resultsToTimeSeries(results, chart)
-    }, [results, chart])
+        const output: ReturnType<typeof resultsToTimeSeries> = []
+        if (chart.showFilteredOut) {
+            if (chart.chartType === 'time-series') {
+                output.push(
+                    ...resultsToTimeSeriesFilteredMask(
+                        allResults,
+                        results,
+                        chart,
+                        evaluationFunction,
+                        colorByAxis,
+                        chart.colorByReference
+                    )
+                )
+            } else {
+                output.push(
+                    ...resultsToTimeSeries(
+                        filteredOutResults,
+                        chart,
+                        evaluationFunction,
+                        colorByAxis,
+                        chart.colorByReference,
+                        'filtered-out'
+                    )
+                )
+            }
+        }
+        output.push(
+            ...resultsToTimeSeries(results, chart, evaluationFunction, colorByAxis, chart.colorByReference, 'base')
+        )
+        if (chart.showParetoSet ?? chart.showParetoOnly) {
+            output.push(
+                ...resultsToTimeSeries(
+                    paretoResults,
+                    chart,
+                    evaluationFunction,
+                    colorByAxis,
+                    chart.colorByReference,
+                    'pareto'
+                )
+            )
+        }
+        return output
+    }, [
+        chart,
+        chart.showFilteredOut,
+        chart.showParetoSet,
+        chart.showParetoOnly,
+        evaluationFunction,
+        colorByAxis,
+        allResults,
+        filteredOutResults,
+        results,
+        paretoResults,
+    ])
 
-    if (!isRunningAnalysis && (!results || results.length === 0)) {
+    const hasDisplayableResults =
+        (results?.length ?? 0) > 0 ||
+        ((chart.showFilteredOut ?? false) && (filteredOutResults?.length ?? 0) > 0) ||
+        ((chart.showParetoSet ?? chart.showParetoOnly ?? false) && (paretoResults?.length ?? 0) > 0)
+
+    if (!isRunningAnalysis && !hasDisplayableResults) {
         return <Empty icon={<ChartBarIcon className='w-10 h-10' />} text='No results to display.' />
     }
 
@@ -577,6 +776,11 @@ function RenderChart({
 
     return (
         <ChartErrorBoundary>
+            {noNumericColorData && (
+                <div className='mb-3 text-sm text-amber-300'>
+                    Color By is set to {colorByLabel}, but no numeric values are available for the current results.
+                </div>
+            )}
             {chart.chartType === 'scatter' && (
                 <CustomCanvasScatterPlot
                     key={`${chart?.x?.label}-${chart?.y?.label}-line`}
@@ -585,6 +789,10 @@ function RenderChart({
                     xLabel={chart?.x?.label}
                     yLabel={chart?.y?.label}
                     discreteValueMappings={discreteValueMappings}
+                    colorByReference={chart.colorByReference}
+                    colorByLabel={colorByLabel}
+                    colorScaleDomain={colorScaleDomain}
+                    noNumericColorData={noNumericColorData}
                 />
             )}
             {chart.chartType === 'line' && (
@@ -595,16 +803,28 @@ function RenderChart({
                     xLabel={chart?.x?.label}
                     yLabel={chart?.y?.label}
                     discreteValueMappings={discreteValueMappings}
+                    colorByReference={chart.colorByReference}
+                    colorByLabel={colorByLabel}
+                    colorScaleDomain={colorScaleDomain}
                 />
             )}
             {chart.chartType === 'histogram' && (
                 <Histogram
                     key={`${chart?.x?.label}-${chart?.y?.label}-histogram`}
-                    series={[{ name: 'Data', data: allPoints.map((d) => ({ x: Number(d.x) })) }]}
+                    series={chartSeries.map((series) => ({
+                        name: series.name,
+                        color: series.color,
+                        layerType: series.layerType,
+                        data: series.data.map((d) => ({ x: Number(d.x), colorValue: d.colorValue })),
+                    }))}
                     title={`${chart?.x?.label} Histogram`}
                     xLabel={chart?.x?.label}
                     yLabel='Frequency'
                     discreteValueMappings={discreteValueMappings}
+                    colorByReference={chart.colorByReference}
+                    colorByLabel={colorByLabel}
+                    colorScaleDomain={colorScaleDomain}
+                    noNumericColorData={noNumericColorData}
                 />
             )}
             {chart.chartType === 'time-series' && (
@@ -613,6 +833,9 @@ function RenderChart({
                     title='Time Series'
                     xLabel={chart?.x?.label ?? 'Date'}
                     yLabel={chart?.y?.label ?? 'Value'}
+                    colorByReference={chart.colorByReference}
+                    colorByLabel={colorByLabel}
+                    colorScaleDomain={colorScaleDomain}
                 />
             )}
         </ChartErrorBoundary>
@@ -687,7 +910,7 @@ class ChartErrorBoundary extends React.Component<{ children: React.ReactNode }, 
 
 export function getAllAxisDefinitions(
     results: SimulationResult[],
-    evaluationFunction: IEvaluationFunction
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
 ): AxisDefinition[] {
     if (!results || results.length === 0) return []
     // Collect all unique input and output references from results
@@ -832,8 +1055,10 @@ export function getAllAxisDefinitions(
 function resultsToPoints(
     results: SimulationResult[],
     chart: IAnalysisChart,
-    evaluationFunction: IEvaluationFunction,
-    discreteValueMappings?: { x?: string[]; y?: string[] }
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>,
+    discreteValueMappings?: { x?: string[]; y?: string[] },
+    colorByAxis?: AxisDefinition,
+    colorByReference?: string
 ): ChartPoint[] {
     let points: ChartPoint[] = []
 
@@ -846,6 +1071,13 @@ function resultsToPoints(
             chart?.y?.reference === 'index'
                 ? result.index + 1
                 : getAxisValue(result, chart?.y, chart?.y?.reference, evaluationFunction, discreteValueMappings)
+        const rawColorValue = getColorValue(
+            result,
+            colorByAxis,
+            colorByReference,
+            evaluationFunction,
+            discreteValueMappings
+        )
 
         const additionalInputs: { [reference: string]: { value: any; label: string } } = {}
         for (const [reference, value] of Object.entries(result.inputs || {})) {
@@ -862,13 +1094,17 @@ function resultsToPoints(
             for (let i = 0; i < maxLength; i++) {
                 const x = xVal[i] ?? xVal[xVal.length - 1] // Use last value if index out of bounds
                 const y = yVal[i] ?? yVal[yVal.length - 1] // Use last value if index out of bounds
+                const numericColorValue = getColorValueAtIndex(rawColorValue, i)
                 const point: ChartPoint = {
                     x: x,
                     y: y,
+                    colorValue: numericColorValue,
                     tooltipData: {
                         seriesName: 'All Results',
                         xLabel: chart?.x?.label ?? 'X',
                         yLabel: chart?.y?.label ?? 'Y',
+                        colorByLabel: colorByAxis?.label,
+                        colorValue: numericColorValue,
                         additionalInputs,
                     },
                 }
@@ -876,14 +1112,18 @@ function resultsToPoints(
             }
         } else if (Array.isArray(xVal)) {
             // Only X is an array
-            for (const x of xVal) {
+            for (const [i, x] of xVal.entries()) {
+                const numericColorValue = getColorValueAtIndex(rawColorValue, i)
                 const point: ChartPoint = {
                     x: x,
                     y: yVal,
+                    colorValue: numericColorValue,
                     tooltipData: {
                         seriesName: 'All Results',
                         xLabel: chart?.x?.label ?? 'X',
                         yLabel: chart?.y?.label ?? 'Y',
+                        colorByLabel: colorByAxis?.label,
+                        colorValue: numericColorValue,
                         additionalInputs,
                     },
                 }
@@ -891,20 +1131,25 @@ function resultsToPoints(
             }
         } else if (Array.isArray(yVal)) {
             // Only Y is an array
-            for (const y of yVal) {
+            for (const [i, y] of yVal.entries()) {
+                const numericColorValue = getColorValueAtIndex(rawColorValue, i)
                 const point: ChartPoint = {
                     x: xVal,
                     y: y,
+                    colorValue: numericColorValue,
                     tooltipData: {
                         seriesName: 'All Results',
                         xLabel: chart?.x?.label ?? 'X',
                         yLabel: chart?.y?.label ?? 'Y',
+                        colorByLabel: colorByAxis?.label,
+                        colorValue: numericColorValue,
                         additionalInputs,
                     },
                 }
                 points.push(point)
             }
         } else {
+            const numericColorValue = getColorValueAtIndex(rawColorValue)
             if (xVal === undefined || yVal === undefined) {
                 console.log({ xVal, yVal, result, chart })
             }
@@ -912,10 +1157,13 @@ function resultsToPoints(
             const point: ChartPoint = {
                 x: xVal,
                 y: yVal,
+                colorValue: numericColorValue,
                 tooltipData: {
                     seriesName: 'All Results',
                     xLabel: chart?.x?.label ?? 'X',
                     yLabel: chart?.y?.label ?? 'Y',
+                    colorByLabel: colorByAxis?.label,
+                    colorValue: numericColorValue,
                     additionalInputs,
                 },
             }
@@ -928,45 +1176,340 @@ function resultsToPoints(
 
 function resultsToTimeSeries(
     results: SimulationResult[],
-    chart: IAnalysisChart
-): { name: string; data: { x: number; y: any }[] }[] {
-    const timeSeries: { name: string; data: { x: number; y: any }[] }[] = []
+    chart: IAnalysisChart,
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>,
+    colorByAxis?: AxisDefinition,
+    colorByReference?: string,
+    layerType: 'base' | 'filtered-out' | 'pareto' = 'base'
+): {
+    name: string
+    data: {
+        x: number
+        y: any
+        colorValue?: number
+        layerType?: 'base' | 'filtered-out' | 'pareto'
+        pointState?: 'active' | 'filteredOut' | 'invalid' | 'pareto'
+        pointOpacity?: number
+        segmentOpacity?: number
+    }[]
+    colorValue?: number
+    layerType?: 'base' | 'filtered-out' | 'pareto'
+}[] {
+    const timeSeries: {
+        name: string
+        data: {
+            x: number
+            y: any
+            colorValue?: number
+            layerType?: 'base' | 'filtered-out' | 'pareto'
+            pointState?: 'active' | 'filteredOut' | 'invalid' | 'pareto'
+            pointOpacity?: number
+            segmentOpacity?: number
+        }[]
+        colorValue?: number
+        layerType?: 'base' | 'filtered-out' | 'pareto'
+    }[] = []
 
     if (!chart.x || !chart.y) return timeSeries
 
     const [dateSeriesReference, dateValueReference] = chart?.x?.reference?.split('.') ?? []
     const [valueSeriesReference, valueValueReference] = chart?.y?.reference?.split('.') ?? []
 
-    results.forEach(({ result, inputs }, idx) => {
+    results.forEach((simulationResult, idx) => {
+        const { result, inputs } = simulationResult
         const dateSeries = inputs?.[dateSeriesReference]?.value ?? result?.[dateSeriesReference]
         const valueSeries = inputs?.[valueSeriesReference]?.value ?? result?.[valueSeriesReference]
+        const rawColorValue = getColorValue(simulationResult, colorByAxis, colorByReference, evaluationFunction)
 
         if (!dateSeries || !valueSeries) return
         if (!Array.isArray(dateSeries) || !Array.isArray(valueSeries)) return
 
-        let data: { x: number; y: any }[] = []
+        let data: {
+            x: number
+            y: any
+            colorValue?: number
+            layerType?: 'base' | 'filtered-out' | 'pareto'
+            pointState?: 'active' | 'filteredOut' | 'invalid' | 'pareto'
+            pointOpacity?: number
+            segmentOpacity?: number
+        }[] = []
 
         for (const [index, row] of dateSeries?.entries() ?? []) {
-            const dateValue = row[dateValueReference]
-            const valueValue = valueSeries[index][valueValueReference]
+            const dateRow = dateSeries[index]
+            const valueRow = valueSeries[index]
+            const dateValue = getTimeSeriesFieldValue(dateRow, dateValueReference)
+            const valueValue = getTimeSeriesFieldValue(valueRow, valueValueReference)
+            const numericColorValue = getColorValueAtIndex(rawColorValue, index)
+            const xTimestamp = parseDateToTimestamp(dateValue)
+            const yValue = toNumericValue(valueValue)
 
-            data.push({ x: new Date(dateValue).getTime(), y: valueValue })
+            // Skip rows without a valid timestamp.
+            if (!Number.isFinite(xTimestamp)) {
+                continue
+            }
+
+            const hasValidY = Number.isFinite(yValue)
+            const pointStyle = getTimeSeriesPointStyle(layerType, hasValidY)
+
+            // Keep invalid y rows as null so line segments break naturally,
+            // while explicit pointState controls visibility/tooltip behavior.
+            data.push({
+                x: xTimestamp,
+                y: hasValidY ? yValue : null,
+                colorValue: numericColorValue,
+                layerType,
+                pointState: pointStyle.pointState,
+                pointOpacity: pointStyle.pointOpacity,
+                segmentOpacity: pointStyle.segmentOpacity,
+            })
         }
 
         timeSeries.push({
-            name: `Simulation ${idx + 1}`,
+            name:
+                layerType === 'filtered-out'
+                    ? `Filtered-out Simulation ${idx + 1}`
+                    : layerType === 'pareto'
+                      ? `Pareto Simulation ${idx + 1}`
+                      : `Simulation ${idx + 1}`,
             data,
+            colorValue: getColorValueAtIndex(rawColorValue),
+            layerType,
         })
     })
 
     return timeSeries
 }
 
+function resultsToTimeSeriesFilteredMask(
+    allResults: SimulationResult[],
+    filteredResults: SimulationResult[],
+    chart: IAnalysisChart,
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>,
+    colorByAxis?: AxisDefinition,
+    colorByReference?: string
+): {
+    name: string
+    data: {
+        x: number
+        y: any
+        colorValue?: number
+        layerType?: 'base' | 'filtered-out' | 'pareto'
+        pointState?: 'active' | 'filteredOut' | 'invalid' | 'pareto'
+        pointOpacity?: number
+        segmentOpacity?: number
+    }[]
+    colorValue?: number
+    layerType?: 'base' | 'filtered-out' | 'pareto'
+}[] {
+    if (!chart.x || !chart.y) return []
+
+    const [dateSeriesReference, dateValueReference] = chart?.x?.reference?.split('.') ?? []
+    const [valueSeriesReference, valueValueReference] = chart?.y?.reference?.split('.') ?? []
+    const filteredByIndex = new Map(filteredResults.map((result) => [result.index, result]))
+
+    const output: ReturnType<typeof resultsToTimeSeries> = []
+
+    for (const simulationResult of allResults) {
+        const filteredSimulation = filteredByIndex.get(simulationResult.index)
+        const originalDateSeries =
+            simulationResult.inputs?.[dateSeriesReference]?.value ?? simulationResult.result?.[dateSeriesReference]
+        const originalValueSeries =
+            simulationResult.inputs?.[valueSeriesReference]?.value ?? simulationResult.result?.[valueSeriesReference]
+        const filteredDateSeries =
+            filteredSimulation?.inputs?.[dateSeriesReference]?.value ??
+            filteredSimulation?.result?.[dateSeriesReference]
+        const filteredValueSeries =
+            filteredSimulation?.inputs?.[valueSeriesReference]?.value ??
+            filteredSimulation?.result?.[valueSeriesReference]
+        const rawColorValue = getColorValue(simulationResult, colorByAxis, colorByReference, evaluationFunction)
+
+        if (!Array.isArray(originalDateSeries) || !Array.isArray(originalValueSeries)) {
+            continue
+        }
+
+        const data: {
+            x: number
+            y: any
+            colorValue?: number
+            layerType?: 'base' | 'filtered-out' | 'pareto'
+            pointState?: 'active' | 'filteredOut' | 'invalid' | 'pareto'
+            pointOpacity?: number
+            segmentOpacity?: number
+        }[] = []
+
+        for (const [index] of originalDateSeries.entries()) {
+            const originalDate = getTimeSeriesFieldValue(originalDateSeries[index], dateValueReference)
+            const originalYRaw = getTimeSeriesFieldValue(originalValueSeries[index], valueValueReference)
+            const xTimestamp = parseDateToTimestamp(originalDate)
+            const originalY = toNumericValue(originalYRaw)
+            const colorValue = getColorValueAtIndex(rawColorValue, index)
+
+            if (!Number.isFinite(xTimestamp)) {
+                continue
+            }
+
+            let isFilteredOutPoint = false
+            if (!filteredSimulation) {
+                isFilteredOutPoint = true
+            } else if (Array.isArray(filteredDateSeries) && Array.isArray(filteredValueSeries)) {
+                const filteredDate = getTimeSeriesFieldValue(filteredDateSeries[index], dateValueReference)
+                const filteredYRaw = getTimeSeriesFieldValue(filteredValueSeries[index], valueValueReference)
+                const filteredX = parseDateToTimestamp(filteredDate)
+                const filteredY = toNumericValue(filteredYRaw)
+                isFilteredOutPoint = !Number.isFinite(filteredX) || !Number.isFinite(filteredY)
+            } else {
+                isFilteredOutPoint = true
+            }
+
+            if (!Number.isFinite(originalY)) {
+                data.push({
+                    x: xTimestamp,
+                    y: null,
+                    colorValue,
+                    layerType: 'filtered-out',
+                    pointState: 'invalid',
+                    pointOpacity: 0,
+                    segmentOpacity: 0,
+                })
+                continue
+            }
+
+            data.push({
+                x: xTimestamp,
+                y: isFilteredOutPoint ? originalY : null,
+                colorValue,
+                layerType: 'filtered-out',
+                pointState: isFilteredOutPoint ? 'filteredOut' : 'invalid',
+                pointOpacity: isFilteredOutPoint ? 0.35 : 0,
+                segmentOpacity: isFilteredOutPoint ? 0.25 : 0,
+            })
+        }
+
+        if (data.length > 0) {
+            output.push({
+                name: `Filtered-out Simulation ${simulationResult.index + 1}`,
+                data,
+                colorValue: getColorValueAtIndex(rawColorValue),
+                layerType: 'filtered-out',
+            })
+        }
+    }
+
+    return output
+}
+
+function getTimeSeriesFieldValue(row: any, field: string | undefined): unknown {
+    if (row === undefined || row === null) {
+        return undefined
+    }
+
+    if (typeof row !== 'object') {
+        return row
+    }
+
+    if (!field) {
+        return row
+    }
+
+    return row[field]
+}
+
+function parseDateToTimestamp(value: unknown): number {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : NaN
+    }
+
+    if (typeof value === 'string') {
+        const timestamp = new Date(value).getTime()
+        return Number.isFinite(timestamp) ? timestamp : NaN
+    }
+
+    return NaN
+}
+
+function getTimeSeriesPointStyle(
+    layerType: 'base' | 'filtered-out' | 'pareto',
+    hasValidY: boolean
+): {
+    pointState: 'active' | 'filteredOut' | 'invalid' | 'pareto'
+    pointOpacity: number
+    segmentOpacity: number
+} {
+    if (!hasValidY) {
+        return {
+            pointState: 'invalid',
+            pointOpacity: 0,
+            segmentOpacity: 0,
+        }
+    }
+
+    if (layerType === 'filtered-out') {
+        return {
+            pointState: 'filteredOut',
+            pointOpacity: 0.35,
+            segmentOpacity: 0.25,
+        }
+    }
+
+    if (layerType === 'pareto') {
+        return {
+            pointState: 'pareto',
+            pointOpacity: 1,
+            segmentOpacity: 1,
+        }
+    }
+
+    return {
+        pointState: 'active',
+        pointOpacity: 1,
+        segmentOpacity: 0.85,
+    }
+}
+
+function getColorValue(
+    simulationResult: SimulationResult,
+    colorByAxis: AxisDefinition | undefined,
+    colorByReference: string | undefined,
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>,
+    discreteValueMappings?: { x?: string[]; y?: string[] }
+): number | number[] | string | string[] | boolean | boolean[] | undefined {
+    if (!colorByAxis || !colorByReference) {
+        return undefined
+    }
+
+    return getAxisValue(simulationResult, colorByAxis, colorByReference, evaluationFunction, discreteValueMappings)
+}
+
+function toNumericValue(value: unknown): number | undefined {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : undefined
+    }
+
+    if (typeof value === 'boolean') {
+        return value ? 1 : 0
+    }
+
+    if (typeof value === 'string') {
+        const parsed = parseFloat(value)
+        return Number.isFinite(parsed) ? parsed : undefined
+    }
+
+    return undefined
+}
+
+function getColorValueAtIndex(value: unknown, index = 0): number | undefined {
+    if (Array.isArray(value)) {
+        const mapped = value[index] ?? value[value.length - 1]
+        return toNumericValue(mapped)
+    }
+    return toNumericValue(value)
+}
+
 function getAxisValue(
     simulationResult: SimulationResult,
     axis: AxisDefinition | undefined,
     ref: string | undefined,
-    evaluationFunction: IEvaluationFunction,
+    evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>,
     discreteValueMappings?: { x?: string[]; y?: string[] }
 ): number | number[] | string | string[] | boolean | boolean[] | undefined {
     if (!axis || !ref) return undefined

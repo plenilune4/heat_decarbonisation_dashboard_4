@@ -4,9 +4,11 @@ import { FormWrapper } from '@/form-control'
 import { CheckboxField, SelectField, TextField } from '@/form-control/fields'
 import ROUTES from '@/ROUTES'
 
+import { IClient } from '@/MODELS/client.model'
 import { IUser } from '@/MODELS/user.model'
 
 import { api, api_delete } from '@/services/api.service'
+import { useResource } from '@/services/resource.service'
 
 import Avatar from '@/components/Avatar'
 import Button from '@/components/Button'
@@ -15,6 +17,7 @@ export default function AdminUserForm(props: { id?: string }) {
     const navigate = useNavigate()
     const params = useParams()
     const id = props?.id ?? params?.id ?? 'new'
+    const [clients] = useResource<IClient[]>(ROUTES.admin.client)
 
     return (
         <div className='flex flex-col gap-5 py-10'>
@@ -22,16 +25,48 @@ export default function AdminUserForm(props: { id?: string }) {
                 <Button.BackArrow />
                 <div>
                     <h2 className='text-xl text-gray-400'>User Management</h2>
-                    <h1 className='text-4xl font-semibold text-gray-100'>{id === 'new' ? 'Create a' : 'Edit'} User</h1>
+                    <h1 className='text-4xl font-semibold text-gray-100'>{id === 'new' ? 'Invite a' : 'Edit'} User</h1>
                 </div>
             </header>
             <FormWrapper<IUser>
                 endpoint={ROUTES.admin.user}
                 id={id}
                 displayAs='standalone-card'
+                validationRules={[
+                    {
+                        field: 'client._id',
+                        isValid: (_, formValues) => {
+                            const value = formValues?.client?._id
+                            if (formValues?.permissions?.isAdmin) {
+                                return true
+                            }
+                            return !!value
+                        },
+                        prompt: 'A client is required unless the user is a site administrator.',
+                    },
+                ]}
+                errorMessages={{
+                    409: 'A user with this email address already exists.',
+                }}
                 additionalSubmissionRowContent={
                     <div className='flex gap-x-2 items-center h-fit'>
                         <Button.Back />
+                        {id !== 'new' && (
+                            <Button.Outline
+                                onClickAsync={async () => {
+                                    const response = await api(`${ROUTES.admin.user}/${id}/resend-invite`, {
+                                        method: 'POST',
+                                    })
+                                    if (response?.error || response?.status !== 200) {
+                                        toast.error(response?.error ?? 'Failed to resend invitation email')
+                                        return
+                                    }
+                                    toast.success('Invitation email resent')
+                                }}
+                            >
+                                Resend Invite
+                            </Button.Outline>
+                        )}
                         <Button.ConfirmedDelete
                             onConfirmDelete={async () => {
                                 await api_delete(`${ROUTES.admin.user}/${id}`)
@@ -48,7 +83,7 @@ export default function AdminUserForm(props: { id?: string }) {
                     </div>
                 }
             >
-                {(f, { formValues, setFormValues, submit }) => (
+                {(f, { formValues, setFormValues }) => (
                     <div className='space-y-10'>
                         <section>
                             <h1 className='text-2xl font-semibold'>User Information</h1>
@@ -99,8 +134,7 @@ export default function AdminUserForm(props: { id?: string }) {
                         <section>
                             <h1 className='text-2xl font-semibold'>Permissions</h1>
                             <div className='grid gap-x-5 md:grid-cols-2'>
-                                <CheckboxField {...f('permissions.isAdmin')} label='Site Administrator' />
-                                {/* <CheckboxField {...f('onboardingComplete')} label='Onboarding Complete' /> */}
+                                <CheckboxField {...f('permissions.isAdmin')} label='Global Administrator' />
                             </div>
                         </section>
                         <section>
@@ -113,10 +147,16 @@ export default function AdminUserForm(props: { id?: string }) {
                                         textKey: 'name',
                                     }}
                                     label='Client'
-                                    required
+                                    required={formValues?.permissions?.isAdmin ? false : true}
                                 />
                                 <CheckboxField {...f('isClientAdmin')} label='Client Admin' />
                             </div>
+                            {!formValues?.permissions?.isAdmin && formValues?.client?._id && (
+                                <p className='mt-2 text-sm text-gray-400'>
+                                    Client user limit:{' '}
+                                    {clients?.find((client) => client._id === formValues.client._id)?.maxUsers} users
+                                </p>
+                            )}
                         </section>
                     </div>
                 )}

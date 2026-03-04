@@ -1,16 +1,18 @@
 import { ChevronDownIcon, ExclamationCircleIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'react-toastify'
 import { ArrayFieldWrapper, FormWrapper, ValidationPrompt } from '@/form-control'
-import { CheckboxField, SelectField, SliderField, TextAreaField, TextField } from '@/form-control/fields'
+import { SelectField, SliderField, TextAreaField, TextField } from '@/form-control/fields'
 import CommaSeparatedListInput from '@/form-control/fields/CommaSeparatedListInput'
 import { DeepPartial, FormValidationStatus } from '@/form-control/FormWrapper'
 import ROUTES from '@/ROUTES'
 
+import { IClient } from '@/MODELS/client.model'
 import { IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
 
 import { api } from '@/services/api.service'
+import { useResource } from '@/services/resource.service'
 import { cn } from '@/utils/cn'
 
 import AnalysisVariableInputField from '@/components/analysis/AnalysisVariableInputField'
@@ -32,7 +34,10 @@ export default function AdminFunctionForm(props: { id?: string }) {
                 script: '',
             }}
             className='flex flex-col gap-5 py-10'
-            callbackAfterSubmit={async () => {
+            callbackAfterSubmit={async ({ postResponse }) => {
+                const targetId = id === 'new' ? postResponse?.data?.created?._id : id
+                if (!targetId) return
+
                 toast.success('Function saved')
             }}
             validationRules={[
@@ -133,14 +138,6 @@ export default function AdminFunctionForm(props: { id?: string }) {
                             <h3 className='text-3xl font-semibold'>Function Description</h3>
                             <div className='grid gap-x-5 md:grid-cols-2'>
                                 <TextField {...f('name')} label='Function Name' required />
-                                <CheckboxField
-                                    {...f('isAvailable')}
-                                    label='Available to users'
-                                    display='inline-reverse'
-                                    labelClass='text-gray-100 text-xl text-end'
-                                    containerClass='w-fit mx-auto mt-auto h-10 mb-2 flex flex-row items-center'
-                                    inputClass='w-8 h-8'
-                                />
                                 <TextAreaField
                                     {...f('description')}
                                     label='Description'
@@ -150,6 +147,55 @@ export default function AdminFunctionForm(props: { id?: string }) {
                                 />
                             </div>
                         </section>
+                        {/* <section className='flex flex-col gap-3'>
+                            <h3 className='text-2xl font-semibold'>Client Assignments</h3>
+                            <ArrayFieldWrapper<{ clientId: string }, { assignedClientIds: { clientId: string }[] }>
+                                field='assignedClientIds'
+                                formValues={{
+                                    assignedClientIds: assignedClientIds.map((clientId) => ({ clientId })),
+                                }}
+                                setFormValues={(update) => {
+                                    const previousFormValues = {
+                                        assignedClientIds: assignedClientIds.map((clientId) => ({ clientId })),
+                                    }
+                                    const nextFormValues =
+                                        update instanceof Function ? update(previousFormValues) : update
+                                    const nextIds = (nextFormValues?.assignedClientIds ?? [])
+                                        .map((item) => item?.clientId)
+                                        .filter((clientId): clientId is string => Boolean(clientId))
+                                    setAssignedClientIds(Array.from(new Set(nextIds)))
+                                }}
+                                listClass='grid grid-cols-3 gap-3'
+                                itemClass='flex flex-row gap-2 items-end'
+                                customAddButton={(addItem) => (
+                                    <SelectField
+                                        value=''
+                                        onChange={(nextClientId) => {
+                                            if (!nextClientId || assignedClientIds.includes(nextClientId)) return
+                                            addItem({ clientId: nextClientId })
+                                        }}
+                                        options={(clients ?? [])
+                                            .filter((client) => !assignedClientIds.includes(client._id))
+                                            .map((client) => ({
+                                                value: client._id,
+                                                text: client.name,
+                                            }))}
+                                        placeholder='Search clients to add...'
+                                    />
+                                )}
+                            >
+                                {(clientFields, { itemValues, deleteItem }) => {
+                                    const client = clients?.find((client) => client._id === itemValues?.clientId)
+                                    if (!client) return <></>
+                                    return (
+                                        <div className='flex flex-row flex-1 gap-2 items-center p-4 rounded-xl border border-gray-700 bg-gray-900/50'>
+                                            <p className='flex-1 min-w-0 text-base font-bold truncate'>{client.name}</p>
+                                            <Button.Trash onClick={() => deleteItem()} />
+                                        </div>
+                                    )
+                                }}
+                            </ArrayFieldWrapper>
+                        </section> */}
                         <hr className='border-gray-600' />
                         {/* Required Packages */}
                         <section className='flex flex-col gap-3'>

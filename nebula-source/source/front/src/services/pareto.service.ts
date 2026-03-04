@@ -18,7 +18,7 @@ export class ParetoService {
     findParetoFrontier(
         simulationResults: SimulationResult[],
         sense: Record<string, number> = {},
-        evaluationFunction: IEvaluationFunction,
+        evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>,
         progressCallback?: (progress: number) => void
     ): Set<number> {
         // Logging input
@@ -88,7 +88,7 @@ export class ParetoService {
      */
     private convertToDataFrame(
         simulationResults: SimulationResult[],
-        evaluationFunction: IEvaluationFunction
+        evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
     ): Record<string, number>[] {
         const dataFrame: Record<string, number>[] = []
 
@@ -163,7 +163,7 @@ export class ParetoService {
     getParetoEfficientSolutions(
         simulationResults: SimulationResult[],
         sense: Record<string, number> = {},
-        evaluationFunction: IEvaluationFunction
+        evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
     ): SimulationResult[] {
         const paretoIndices = this.findParetoFrontier(simulationResults, sense, evaluationFunction)
         return Array.from(paretoIndices).map((index) => simulationResults[index])

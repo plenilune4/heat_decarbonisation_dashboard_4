@@ -26,12 +26,12 @@ export default function LoginPage() {
     return (
         <AuthLayout info={<></>}>
             <h1 className='mb-3 text-3xl font-medium text-center'>Sign In</h1>
-            <h2 className='mb-5 text-center text-gray-500'>
+            {/* <h2 className='mb-5 text-center text-gray-500'>
                 Don't have an account?{' '}
                 <a className='text-brand-400 hover:text-brand-600' href='/register'>
                     Sign Up
                 </a>
-            </h2>
+            </h2> */}
             <FormWrapper<ICredentials>
                 endpoint={ROUTES.auth.login}
                 id={null}

@@ -23,9 +23,9 @@ export function WideSidebar(props: {
                 props?.className
             )}
         >
-            <header className='flex flex-row items-center w-full p-2'>
-                <a href='/' className='flex flex-row items-center gap-1'>
-                    <img src={props?.logo} className='flex-shrink-0 w-auto h-12 my-auto' />
+            <header className='flex flex-row items-center p-2 w-full'>
+                <a href='/' className='flex flex-row gap-1 items-center'>
+                    <img src={props?.logo} className='flex-shrink-0 my-auto w-auto h-12' />
                     <span className='text-2xl heading'>{import.meta.env.VITE_PROJECT_NAME}</span>
                 </a>
             </header>
@@ -44,12 +44,12 @@ export function WideSidebar(props: {
                     ))}
                 </ul>
             </nav>
-            <footer className='flex flex-col w-full p-2 mt-auto space-y-2'>
+            <footer className='flex flex-col p-2 mt-auto space-y-2 w-full'>
                 {!user ? (
                     <>
-                        <Button.Secondary className='w-full' onClick={() => navigate('/register')}>
+                        {/* <Button.Secondary className='w-full' onClick={() => navigate('/register')}>
                             Register
-                        </Button.Secondary>
+                        </Button.Secondary> */}
                         <Button.Outline className='w-full' onClick={() => navigate('/login')}>
                             Login
                         </Button.Outline>

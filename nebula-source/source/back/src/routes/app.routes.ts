@@ -1,18 +1,18 @@
 import crypto from 'crypto'
 import bcrypt from 'bcrypt'
 import { Request, Response, Router } from 'express'
+import ExternalAnalysis from 'src/models/externalAnalysis.model'
 import { computeScenarios } from 'src/services/analysis-utils'
+import { makeScenariosFromExternalData } from 'src/services/external-analysis-utils'
 
-import Analysis, { AnalysisInput, AnalysisOutput } from '../models/analysis.model'
+import Analysis, { AnalysisInput } from '../models/analysis.model'
 import Client from '../models/client.model'
+import ClientEvaluationFunction from '../models/clientEvaluationFunction.model'
 import EvaluationFunction from '../models/evaluationFunction.model'
 import Token from '../models/token.model'
 import {
     SamplingStrategy,
-    ScenarioArrayScalar,
     ScenarioConfiguration,
-    ScenarioScalar,
-    ScenarioTimeSeries,
     SimulationError,
     SimulationLog,
     SimulationResult,
@@ -32,6 +32,19 @@ const router = Router()
 const ROUTES = ENDPOINTS.app
 
 const POPULATE_ANALYSIS = ['evaluationFunction', 'owner', 'client']
+const POPULATE_EXTERNAL_ANALYSIS = ['owner', 'client']
+
+function isClientAccessActive(client: { accessStartAt?: Date; accessEndAt?: Date } | null | undefined) {
+    if (!client) return false
+    const now = new Date()
+    if (client.accessStartAt && new Date(client.accessStartAt).valueOf() > now.valueOf()) {
+        return false
+    }
+    if (client.accessEndAt && new Date(client.accessEndAt).valueOf() < now.valueOf()) {
+        return false
+    }
+    return true
+}
 
 // User routes with access control
 BaseRoutes(router, {
@@ -61,72 +74,116 @@ BaseRoutes(router, {
 router.post(ROUTES.clientUser, async (req: Request, res: Response) => {
     const { sessionUser } = res.locals
     if (!sessionUser.isClientAdmin) {
-        return res.status(403).json({ message: 'You are not authorized to update users' })
+        return res.status(403).json({ error: 'You are not authorized to update users' })
     }
 
     const { _id, ...body } = req.body
 
-    const user = await User.findById(_id)
-    if (user) {
-        const update = {
-            ...body,
-            passwordHash: undefined,
-            client: undefined,
-            permissions: undefined,
+    if (!_id || _id === 'new') {
+        // Create a new user
+        const client = await Client.findById(sessionUser.client._id)
+        if (!client) {
+            return res.status(404).json({ error: 'Client not found' })
+        }
+        const currentUserCount = await User.countDocuments({
+            client: sessionUser.client._id,
+            isArchived: { $ne: true },
+        })
+        if (currentUserCount >= client.maxUsers) {
+            return res.status(400).json({ error: 'You have reached the maximum number of users for your organization' })
         }
 
-        await User.findByIdAndUpdate(_id, update)
+        const { email } = req.body
 
-        return res.status(200).json({ message: 'User updated successfully' })
+        const existingUser = await User.findOne({ email })
+        if (existingUser) {
+            return res.status(400).json({ error: 'A user with this email address has already been invited' })
+        }
+
+        const randomBytes = crypto.randomBytes(32)
+        const placeholderPassword = await bcrypt.hash(randomBytes.toString('hex'), 10)
+
+        const newUser = new User({
+            email,
+            firstName: body.firstName,
+            lastName: body.lastName,
+            profileImage: body.profileImage,
+            isClientAdmin: body.isClientAdmin,
+            //
+            passwordHash: placeholderPassword,
+            client: sessionUser.client._id,
+            permissions: {
+                isAdmin: false,
+            },
+        })
+
+        await newUser.save()
+
+        // Send email to user with link to reset password
+        const token = crypto.randomBytes(32).toString('hex')
+        const hash = await bcrypt.hash(token, SALT_ROUNDS)
+        await new Token({ userId: newUser._id, token: hash, createdAt: Date.now() }).save()
+
+        const clientRecord = await Client.findById(sessionUser.client?._id)
+
+        try {
+            await SendEmail(
+                [{ Email: newUser.email, Name: newUser.firstName }],
+                {
+                    name: newUser.firstName,
+                    client: clientRecord?.name,
+                    link: `${process.env.SITE_URL}/confirm-account?token=${token}&id=${newUser._id}`,
+                },
+                `${process.env.PROJECT_NAME} - Confirm Account`,
+                EMAIL_TEMPLATES.confirmAccount
+            )
+        } catch (error) {
+            return res.status(500).json({ error: 'Failed to send invitation email' })
+        }
+
+        return res.status(201).json({ message: 'User invited successfully' })
+    } else {
+        const user = await User.findOne({ _id, client: sessionUser.client._id })
+        if (user) {
+            const update = {
+                firstName: body.firstName,
+                lastName: body.lastName,
+                profileImage: body.profileImage,
+                isClientAdmin: body.isClientAdmin,
+            }
+
+            await User.findByIdAndUpdate(_id, update)
+
+            return res.status(200).json({ message: 'User updated successfully' })
+        }
+    }
+})
+
+router.post(ROUTES.clientUser + '/:id/resend-invite', async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+    if (!sessionUser.isClientAdmin) {
+        return res.status(403).json({ message: 'You are not authorized to re-send user invitations' })
     }
 
-    // Create a new user
-
-    const client = await Client.findById(sessionUser.client._id)
-    if (!client) {
-        return res.status(404).json({ message: 'Client not found' })
-    }
-    const currentUserCount = await User.countDocuments({ client: sessionUser.client._id, isArchived: { $ne: true } })
-    if (currentUserCount >= client.maxUsers) {
-        return res.status(400).json({ message: 'You have reached the maximum number of users for your organization' })
+    const user = await User.findOne({ _id: req.params.id, client: sessionUser.client._id }).populate('client')
+    if (!user) {
+        return res.status(404).json({ message: 'User not found' })
     }
 
-    const { email, ...rest } = req.body
-
-    const existingUser = await User.findOne({ email })
-    if (existingUser) {
-        return res.status(400).json({ message: 'User already exists' })
-    }
-
-    const randomBytes = crypto.randomBytes(32)
-    const placeholderPassword = await bcrypt.hash(randomBytes.toString('hex'), 10)
-
-    const newUser = new User({
-        email,
-        ...rest,
-        passwordHash: placeholderPassword,
-        client: sessionUser.client._id,
-        permissions: {
-            isAdmin: false,
-        },
-    })
-
-    await newUser.save()
-
-    // Send email to user with link to reset password
     const token = crypto.randomBytes(32).toString('hex')
     const hash = await bcrypt.hash(token, SALT_ROUNDS)
-    await new Token({ userId: newUser._id, token: hash, createdAt: Date.now() }).save()
 
-    const clientRecord = await Client.findById(sessionUser.client?._id)
+    // Invalidate any outstanding invite/reset token and issue a fresh one.
+    await Token.deleteMany({ userId: user._id })
+    await new Token({ userId: user._id, token: hash, createdAt: Date.now() }).save()
 
     try {
         await SendEmail(
-            [{ Email: newUser.email, Name: newUser.firstName }],
+            [{ Email: user.email, Name: user.firstName }],
             {
-                name: newUser.firstName,
-                client: clientRecord?.name,
-                link: `${process.env.SITE_URL}/confirm-account?token=${token}&id=${newUser._id}`,
+                name: user.firstName,
+                client: user.client?.name ?? 'Nebula',
+                link: `${process.env.SITE_URL}/confirm-account?token=${token}&id=${user._id}`,
             },
             `${process.env.PROJECT_NAME} - Confirm Account`,
             EMAIL_TEMPLATES.confirmAccount
@@ -135,7 +192,7 @@ router.post(ROUTES.clientUser, async (req: Request, res: Response) => {
         return res.status(500).json({ message: 'Failed to send invitation email' })
     }
 
-    return res.status(201).json({ message: 'User invited successfully' })
+    return res.status(200).json({ message: 'Invitation re-sent successfully' })
 })
 
 router.delete(ROUTES.clientUser + '/:id', async (req: Request, res: Response) => {
@@ -212,28 +269,74 @@ router.get(ROUTES.analysis, async (req: Request, res: Response) => {
     return res.status(200).json(analyses)
 })
 
+// External Analysis routes with access control
+BaseRoutes(router, {
+    model: ExternalAnalysis,
+    route: ROUTES.externalAnalysis,
+    excludedRoutes: ['get'],
+    userSpecific: true,
+    ownerField: 'client',
+    ownerComparisonFunction: (res) => res.locals.sessionUser?.client?._id?.toString(),
+    populate: ['owner', 'client'],
+})
+router.get(ROUTES.externalAnalysis, async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+
+    const targetClient = await Client.findById(sessionUser.client._id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+
+    const analyses = await ExternalAnalysis.find({ client: targetClient._id })
+        .sort({ createdAt: -1 })
+        .select('-results')
+        .populate(POPULATE_EXTERNAL_ANALYSIS)
+
+    return res.status(200).json(analyses)
+})
+
 // EvaluationFunction routes
 router.get(ROUTES.evaluationFunction, async (req: Request, res: Response) => {
     const { sessionUser } = res.locals
 
-    let filter = {
-        isAvailable: true,
-        isArchived: { $ne: true },
-    }
-
     if (sessionUser?.permissions?.isAdmin) {
-        delete filter.isAvailable
+        const functions = await EvaluationFunction.find({ isArchived: { $ne: true } })
+        return res.status(200).json(functions)
     }
 
-    const functions = await EvaluationFunction.find(filter)
+    const targetClient = await Client.findById(sessionUser?.client?._id)
+    if (!isClientAccessActive(targetClient)) {
+        return res.status(200).json([])
+    }
+
+    const allowedLinks = await ClientEvaluationFunction.find({ client: targetClient._id }).select('evaluationFunction')
+    const allowedFunctionIds = allowedLinks.map((link) => link.evaluationFunction)
+    const functions = await EvaluationFunction.find({
+        _id: { $in: allowedFunctionIds },
+        isArchived: { $ne: true },
+    })
     return res.status(200).json(functions)
 })
 router.get(ROUTES.evaluationFunction + '/:id', async (req: Request, res: Response) => {
-    const targetFunction = await EvaluationFunction.findOne({
-        _id: req.params.id,
-        isAvailable: true,
-        isArchived: { $ne: true },
-    })
+    const { sessionUser } = res.locals
+    const baseFilter: any = { _id: req.params.id, isArchived: { $ne: true } }
+
+    if (!sessionUser?.permissions?.isAdmin) {
+        const targetClient = await Client.findById(sessionUser?.client?._id)
+        if (!isClientAccessActive(targetClient)) {
+            return res.status(404).json({ message: 'Evaluation function not found' })
+        }
+
+        const link = await ClientEvaluationFunction.findOne({
+            client: targetClient._id,
+            evaluationFunction: req.params.id,
+        })
+        if (!link) {
+            return res.status(404).json({ message: 'Evaluation function not found' })
+        }
+    }
+
+    const targetFunction = await EvaluationFunction.findOne(baseFilter)
     if (!targetFunction) {
         return res.status(404).json({ message: 'Evaluation function not found' })
     }
@@ -583,6 +686,191 @@ router.post(ROUTES.runAnalysis + '/parallel', async (req, res) => {
     res.end()
 })
 
+// Client External Analyses
+
+router.get(ROUTES.client + '/:client_id/external-analyses', async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+
+    if (!req.params.client_id || req.params.client_id === 'undefined') {
+        return res.status(400).json({ message: 'Client ID is required' })
+    }
+
+    const targetClient = await Client.findById(req.params.client_id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+
+    if (sessionUser.client._id.toString() !== targetClient._id.toString()) {
+        return res.status(403).json({ message: 'You are not authorized to view analyses for this client' })
+    }
+
+    const analyses = await ExternalAnalysis.find({ client: targetClient._id })
+        .sort({ createdAt: -1 })
+        .populate(POPULATE_EXTERNAL_ANALYSIS)
+    return res.status(200).json(analyses)
+})
+router.get(ROUTES.client + '/:client_id/external-analyses/make-reference', async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+
+    if (!req.params.client_id || req.params.client_id === 'undefined') {
+        return res.status(400).json({ message: 'Client ID is required' })
+    }
+
+    const targetClient = await Client.findById(req.params.client_id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+    if (sessionUser.client._id.toString() !== targetClient._id.toString()) {
+        return res.status(403).json({ message: 'You are not authorized to make a reference for this client' })
+    }
+
+    const analyses = await ExternalAnalysis.find({ client: targetClient._id }).sort({ createdAt: -1 })
+
+    const highestReference = analyses.reduce((max, analysis) => {
+        const reference = parseInt(analysis.reference.split('-')[1])
+        return reference > max ? reference : max
+    }, 0)
+
+    const nextReference = `${targetClient.name.slice(0, 4).toUpperCase()}-${(highestReference + 1).toString().padStart(3, '0')}`
+
+    return res.status(200).json({ nextReference })
+})
+router.get(ROUTES.client + '/:client_id/external-analyses/:analysis_id', async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+
+    if (!req.params.client_id || req.params.client_id === 'undefined') {
+        return res.status(400).json({ message: 'Client ID is required' })
+    }
+
+    const targetClient = await Client.findById(req.params.client_id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+
+    if (sessionUser.client._id.toString() !== targetClient._id.toString()) {
+        return res.status(403).json({ message: 'You are not authorized to view analyses for this client' })
+    }
+
+    const analysis = await ExternalAnalysis.findOne({
+        _id: req.params.analysis_id,
+        client: targetClient._id,
+    }).populate(POPULATE_EXTERNAL_ANALYSIS)
+
+    if (!analysis) {
+        return res.status(404).json({ message: 'Analysis not found' })
+    }
+
+    return res.status(200).json(analysis)
+})
+
+router.post(ROUTES.client + '/:client_id/external-analyses', async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+    const targetClient = await Client.findById(req.params.client_id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+    if (sessionUser.client._id.toString() !== targetClient._id.toString()) {
+        return res.status(403).json({ message: 'You are not authorized to create analyses for this client' })
+    }
+
+    const { _id } = req.body
+
+    if (!_id || _id === 'new') {
+        const { label, reference, inputData, inputColumnMappings } = req.body
+
+        const { scenarioInputs, scenarioOutputs, results } = makeScenariosFromExternalData(
+            inputData,
+            inputColumnMappings
+        )
+        if (!scenarioInputs || !scenarioOutputs || !results) {
+            return res.status(400).json({ message: 'Error creating analysis' })
+        }
+
+        const newAnalysis = new ExternalAnalysis({
+            client: targetClient._id,
+            owner: res.locals.sessionUser._id,
+            label,
+            reference,
+            inputData,
+            inputColumnMappings,
+            scenarioInputs,
+            scenarioOutputs,
+            results,
+        })
+        await newAnalysis.save()
+
+        return res
+            .status(201)
+            .json({ created: await ExternalAnalysis.findById(newAnalysis._id).populate(POPULATE_EXTERNAL_ANALYSIS) })
+    } else {
+        const existingAnalysis = await ExternalAnalysis.findOne({ _id, client: targetClient._id })
+        if (!existingAnalysis) {
+            return res.status(404).json({ message: 'Analysis not found' })
+        }
+
+        const { label, inputData, inputColumnMappings, filters, charts } = req.body
+
+        const { scenarioInputs, scenarioOutputs, results } = makeScenariosFromExternalData(
+            inputData,
+            inputColumnMappings
+        )
+        if (!scenarioInputs || !scenarioOutputs || !results) {
+            return res.status(400).json({ message: 'Error creating analysis' })
+        }
+
+        const update = {
+            label,
+            inputData,
+            inputColumnMappings,
+            scenarioInputs,
+            scenarioOutputs,
+            results,
+            filters,
+            charts,
+            client: targetClient._id,
+            owner: res.locals.sessionUser._id,
+        }
+        await ExternalAnalysis.findByIdAndUpdate(_id, update)
+
+        return res.status(200).json({
+            updated: await ExternalAnalysis.findById(existingAnalysis._id).populate(POPULATE_EXTERNAL_ANALYSIS),
+        })
+    }
+})
+
+router.post(ROUTES.client + '/:client_id/external-analyses/:analysis_id', async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+    const targetClient = await Client.findById(req.params.client_id)
+    if (!targetClient) {
+        return res.status(404).json({ message: 'Client not found' })
+    }
+    if (sessionUser.client._id.toString() !== targetClient._id.toString()) {
+        return res.status(403).json({ message: 'You are not authorized to update analyses for this client' })
+    }
+
+    const analysis = await ExternalAnalysis.findById(req.params.analysis_id)
+    if (!analysis) {
+        return res.status(404).json({ message: 'Analysis not found' })
+    }
+
+    const update = {
+        inputColumnMappings: req.body?.inputColumnMappings ?? undefined,
+        scenarioInputs: req.body?.scenarioInputs ?? undefined,
+        scenarioOutputs: req.body?.scenarioOutputs ?? undefined,
+        filters: req.body?.filters ?? undefined,
+        results: req.body?.results ?? undefined,
+        charts: req.body?.charts ?? undefined,
+    }
+
+    await ExternalAnalysis.findByIdAndUpdate(req.params.analysis_id, update)
+
+    return res
+        .status(200)
+        .json({ updated: await ExternalAnalysis.findById(analysis._id).populate(POPULATE_EXTERNAL_ANALYSIS) })
+})
+
+// Client Docker Routes
+
 router.get(ROUTES.dockerStatus, async (req: Request, res: Response) => {
     const { sessionUser } = res.locals
     if (!sessionUser.dockerService?.containerId) {
@@ -638,5 +926,7 @@ router.get(ROUTES.dockerStart, async (req: Request, res: Response) => {
         return res.status(500).json({ error: 'Something went wrong while starting your docker container' })
     }
 })
+
+//
 
 export default router

@@ -30,12 +30,28 @@ export default function ClientAdminUserForm() {
             redirectAfterSubmit
             additionalSubmissionRowContent={
                 userId !== 'new' && (
-                    <Button.ConfirmedDelete
-                        onConfirmDelete={async () => {
-                            await api_delete(ROUTES.app.clientUser + '/' + userId)
-                            navigate(-1)
-                        }}
-                    />
+                    <div className='flex gap-x-2 items-center h-fit'>
+                        <Button.Outline
+                            onClickAsync={async () => {
+                                const response = await api(`${ROUTES.app.clientUser}/${userId}/resend-invite`, {
+                                    method: 'POST',
+                                })
+                                if (response?.error || response?.status !== 200) {
+                                    toast.error(response?.error ?? 'Failed to resend invitation email')
+                                    return
+                                }
+                                toast.success('Invitation email resent')
+                            }}
+                        >
+                            Resend Invite
+                        </Button.Outline>
+                        <Button.ConfirmedDelete
+                            onConfirmDelete={async () => {
+                                await api_delete(ROUTES.app.clientUser + '/' + userId)
+                                navigate(-1)
+                            }}
+                        />
+                    </div>
                 )
             }
         >

@@ -1,15 +1,8 @@
 import { Menu, Transition } from '@headlessui/react'
-import {
-    BuildingOfficeIcon,
-    CodeBracketIcon,
-    CodeBracketSquareIcon,
-    ForwardIcon,
-    PlusIcon,
-} from '@heroicons/react/20/solid'
+import { BuildingOfficeIcon, CodeBracketIcon, ForwardIcon, PlusIcon } from '@heroicons/react/20/solid'
 import {
     BuildingOfficeIcon as BuildingOfficeIconOutline,
     CodeBracketIcon as CodeBracketIconOutline,
-    CodeBracketSquareIcon as CodeBracketSquareIconOutline,
     ForwardIcon as ForwardIconOutline,
     PlusIcon as PlusIconOutline,
     UserIcon as UserIconOutline,
@@ -35,12 +28,6 @@ const ADMIN_LINKS: INavLink[] = [
         href: '/admin/clients',
         icon: (isActive) => (isActive ? <BuildingOfficeIcon /> : <BuildingOfficeIconOutline />),
     },
-    // {
-    //     text: 'Analyses',
-    //     href: '/admin/analyses',
-    //     icon: (isActive) => (isActive ? <ForwardIcon /> : <ForwardIconOutline />),
-    // },
-    // { text: 'separator' },
     {
         text: 'Functions',
         href: '/admin/functions',
@@ -147,9 +134,9 @@ function MobileSidebar(props: {
                         <Button.Secondary className='w-full' onClick={() => navigate('/login')}>
                             Login
                         </Button.Secondary>
-                        <Button.Outline className='w-full' onClick={() => navigate('/register')}>
+                        {/* <Button.Outline className='w-full' onClick={() => navigate('/register')}>
                             Register
-                        </Button.Outline>
+                        </Button.Outline> */}
                     </>
                 ) : (
                     <a className='text-lg heading' onClick={() => navigate('/logout', { replace: true })}>
@@ -195,11 +182,10 @@ function DesktopSidebar(props: {
         >
             <header className='flex flex-row items-center px-4 py-3 w-full'>
                 <a href='/' className='flex flex-row gap-2 items-center'>
-                    <img src={props?.logo} className='flex-shrink-0 my-auto w-auto h-12' />
-                    {/* <span className='text-3xl font-normal text-gray-100'>{import.meta.env.VITE_PROJECT_NAME}</span> */}
-                    <span className='text-3xl font-normal text-brand'>Admin</span>
+                    <img src={props?.logo} className='flex-shrink-0 my-auto h-auto w-will' />
                 </a>
             </header>
+            <span className='px-4 text-2xl font-bold text-brand'>Global Admin</span>
             <nav className='flex flex-col flex-1 gap-y-8 px-2'>
                 <ul className='flex flex-col gap-y-2'>
                     {props.primaryLinks.map((link, index) => (
@@ -218,9 +204,9 @@ function DesktopSidebar(props: {
             <footer className='flex flex-col p-2 mt-auto space-y-2 w-full'>
                 {!user ? (
                     <>
-                        <Button.Secondary className='w-full' onClick={() => navigate('/register')}>
+                        {/* <Button.Secondary className='w-full' onClick={() => navigate('/register')}>
                             Register
-                        </Button.Secondary>
+                        </Button.Secondary> */}
                         <Button.Outline className='w-full' onClick={() => navigate('/login')}>
                             Login
                         </Button.Outline>
@@ -305,12 +291,12 @@ function Header(props: {
                                 >
                                     Login
                                 </Button.Secondary>
-                                <Button.Outline
+                                {/* <Button.Outline
                                     className='text-xs rounded-full w-fit'
                                     onClick={() => navigate('/register')}
                                 >
                                     Register
-                                </Button.Outline>
+                                </Button.Outline> */}
                             </>
                         ) : (
                             <Menu as='div' className='hidden relative md:block'>
