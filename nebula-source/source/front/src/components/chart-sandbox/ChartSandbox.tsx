@@ -2,7 +2,7 @@ import { ChartBarIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
 import React, { useEffect, useMemo, useState } from 'react'
 import { CheckboxField, SelectField } from '@/form-control/fields'
 
-import { AnalysisFilter, AxisDefinition, ChartType, IAnalysisChart } from '@/MODELS/analysis.model'
+import { AnalysisFilter, AxisDefinition, ChartType, IAnalysisChart, AnalysisInput } from '@/MODELS/analysis.model'
 import { FunctionInput, FunctionOutput, IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
 import { SimulationResult, AggregationType } from '@/MODELS/types'
 
@@ -40,6 +40,7 @@ export const FILTERED_OUT_COLOUR_PAX = '#6b7280'
 
 export default function ChartSandbox({
     evaluationFunction,
+    runInputs,
     simulationResults,
     aggregation,
     filters,
@@ -49,6 +50,7 @@ export default function ChartSandbox({
     onDownloadCSV,
 }: {
     evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
+    runInputs: AnalysisInput[]
     simulationResults: SimulationResult[]
     aggregation: AggregationType
     filters: AnalysisFilter[]
@@ -105,6 +107,8 @@ export default function ChartSandbox({
         // console.log('===== Filter Effect =====', { filters: debouncedFilters })
         // const completeFilters = (debouncedFilters ?? []).filter((f) => f.reference && f.type)
         if (!aggregation || aggregation === "none") return simulationResults
+        console.log("Raw results...")
+        console.log(simulationResults)
         console.log(`Aggregating results...raw results have ${simulationResults.length} rows...`)
         // We need the Pareto senses for aggregations such as 'worst case'.
         // To do: there is a bit of inefficiency here in that the senses are not needed if the aggregation is e.g. 'mean'.
@@ -115,8 +119,14 @@ export default function ChartSandbox({
             else sense[output.reference] = 0
         })
 
-        const leverInputs = evaluationFunction.inputs.filter((input) => input.inputType === "lever")
+
+        //const leverInputs = evaluationFunction.inputs.filter((input) => input.inputType === "lever")
+        const leverInputs = runInputs.filter((input) => input.inputType === "lever") // might be an option to use XandYoptions instead of doing this fresh. To do.
+
         const leverInputRefs = leverInputs.map((lever)=>lever.reference)
+
+        console.log("Lever input refs:")
+        console.log(leverInputRefs)
 
         return aggregations(
             leverInputRefs,

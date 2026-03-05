@@ -536,6 +536,7 @@ function ResultsPanel({
                                 inputs,
                                 outputs: outputs as FunctionOutput[],
                             }}
+                            runInputs ={analysis.scenarioInputs}
                             simulationResults={runner.results}
                             aggregation={analysis.aggregation}
                             filters={analysis.filters}
