@@ -7,7 +7,7 @@ import { DateField, NumberField, SelectField, SliderField, TextField } from '@/f
 import { isDate } from 'date-fns'
 
 import { AnalysisFilter } from '@/MODELS/analysis.model'
-import { FunctionInput, FunctionOutput, IEvaluationFunction } from '@/MODELS/evaluationFunction.model'
+import { FunctionInput, FunctionOutput} from '@/MODELS/evaluationFunction.model'
 import { SimulationResult, AggregationType } from '@/MODELS/types'
 
 import { cn } from '@/utils/cn'
@@ -16,13 +16,9 @@ import Button from './Button'
 
 
 export default function AggregationControls({
-    evaluationFunction,
-    results,
     agg,
     setAgg,
 }: {
-    evaluationFunction: IEvaluationFunction
-    results: SimulationResult[]
     agg: AggregationType
     setAgg: (agg: AggregationType) => void
 }) {

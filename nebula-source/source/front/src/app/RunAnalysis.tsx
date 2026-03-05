@@ -519,8 +519,6 @@ function ResultsPanel({
                 {!!runner.results?.length && (
                     <>
                         <AggregationControls
-                            evaluationFunction={analysis.evaluationFunction} // might not need these first two properties
-                            results={runner.results}
                             agg={analysis.aggregation}
                             setAgg={(aggregation:AggregationType) => updateAnalysis({ aggregation })}
                         />
