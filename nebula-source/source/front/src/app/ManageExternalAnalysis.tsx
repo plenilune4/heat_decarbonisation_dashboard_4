@@ -24,6 +24,8 @@ import FilterControls from '@/components/FilterControls'
 import FrameworkBadge from '@/components/FrameworkBadge'
 import Loading from '@/components/Loading'
 import Modal from '@/components/Modal'
+import AggregationControls from "@/components/aggregationControls.tsx";
+import {AggregationType} from "@/MODELS/types.ts";
 
 export default function ManageExternalAnalysis() {
     const { user } = useAuth()
@@ -249,6 +251,11 @@ function ResultsPanel({
                 </ul>
             </header>
             <div className='flex relative flex-col flex-1 gap-2 p-5'>
+                <AggregationControls
+                    agg={analysis.aggregation}
+                    setAgg={(aggregation:AggregationType) => updateAnalysis({ aggregation })}
+                />
+
                 <FilterControls
                     evaluationFunction={{
                         inputs: functionInputs,
