@@ -11,6 +11,8 @@ async function preBuildOperations() {
     const emailTemplatesPath = path.resolve(__dirname, './src/services/email-templates')
 
     try {
+        console.log(`Building with envFilePath ${envFilePath}`)
+
         await fs.emptyDir(distPath)
         console.log('Cleared the /dist folder.')
 
