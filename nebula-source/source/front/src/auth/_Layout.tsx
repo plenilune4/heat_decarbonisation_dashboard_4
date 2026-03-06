@@ -6,17 +6,17 @@ import background from '../../background.jpg'
 export default function AuthLayout({ info, children }: { info: React.ReactNode; children: React.ReactNode }) {
     return (
         <main className='flex h-[100dvh] bg-gray-900'>
-            <aside className='hidden flex-1 max-w-3xl md:flex bg-brand/10'>
+            <aside className='hidden flex-1 max-w-2xl md:flex bg-brand/10'>
                 <div className='m-auto'>
                     <img src={logo} className='h-40 w-fit' />
                     {info}
                 </div>
             </aside>
             <div
-              className="relative flex flex-col flex-1 items-center p-2 mx-auto w-full md:max-w-3xl bg-cover bg-center"
+              className="relative flex flex-col flex-1 items-center p-2 mx-auto w-full md:max-w-3xl bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: `url(${background})` }}
             >
-                <div className="absolute inset-0 bg-black/50"></div>
+                {/*<div className="absolute inset-0 bg-black/50"></div>*/}
 
                 <div className='flex flex-col flex-1 items-center m-2 mx-auto w-full md:max-w-3xl'>
                     <div className='px-6 my-auto w-full md:max-w-xl'>
