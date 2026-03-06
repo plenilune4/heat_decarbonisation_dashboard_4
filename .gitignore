@@ -15,3 +15,4 @@ node_modules/
 .flaskenv*
 !.env.project
 !.env.vault
+/fancy_csv_input - Copy.csv
