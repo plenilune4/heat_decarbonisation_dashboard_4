@@ -1,6 +1,7 @@
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 import logo from '../../logo.png'
+import background from '../../background.png'
 
 export default function AuthLayout({ info, children }: { info: React.ReactNode; children: React.ReactNode }) {
     return (
@@ -11,6 +12,12 @@ export default function AuthLayout({ info, children }: { info: React.ReactNode; 
                     {info}
                 </div>
             </aside>
+            <div
+              className="relative flex flex-col flex-1 items-center p-2 mx-auto w-full md:max-w-3xl bg-cover bg-center"
+              style={{ backgroundImage: `url(${background})` }}
+            >
+            <div className="absolute inset-0 bg-black/50"></div>
+
             <div className='flex flex-col flex-1 items-center m-2 mx-auto w-full md:max-w-3xl'>
                 <div className='px-6 my-auto w-full md:max-w-xl'>
                     <div className='px-5 py-10 card'>
