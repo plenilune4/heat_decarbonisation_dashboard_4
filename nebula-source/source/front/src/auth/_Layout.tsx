@@ -12,13 +12,12 @@ export default function AuthLayout({ info, children }: { info: React.ReactNode; 
                     {info}
                 </div>
             </aside>
+
             <div
-              className="relative flex flex-col flex-1 items-center p-2 mx-auto w-full md:max-w-3xl bg-cover bg-center bg-no-repeat"
+              className="relative flex flex-col flex-1 items-center p-2 w-full bg-cover bg-center bg-no-repeat"
               style={{ backgroundImage: `url(${background})` }}
             >
-                {/*<div className="absolute inset-0 bg-black/50"></div>*/}
-
-                <div className='flex flex-col flex-1 items-center m-2 mx-auto w-full md:max-w-3xl'>
+                <div className='flex flex-col flex-1 items-center m-2 mx-auto w-full max-w-3xl'>
                     <div className='px-6 my-auto w-full md:max-w-xl'>
                         <div className='px-5 py-10 card'>
                             <img src={logo} className='mx-auto mb-6 h-40 md:hidden' />
