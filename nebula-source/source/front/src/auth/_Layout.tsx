@@ -1,7 +1,7 @@
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 import logo from '../../logo.png'
-import background from '../../background.png'
+import background from '../../background.jpg'
 
 export default function AuthLayout({ info, children }: { info: React.ReactNode; children: React.ReactNode }) {
     return (
