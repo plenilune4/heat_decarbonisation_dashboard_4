@@ -553,16 +553,16 @@ function ResultsPanel({
                         />
                     </>
                 )}
-                {!!runner.results?.length && (
-                    <div className='flex flex-row gap-2 justify-end'>
+
+                {runner.results?.length ? (
+                    <div className="flex flex-row gap-2 justify-end">
                         <Button.Success>Save image</Button.Success>
+                        <Button.Success onClick={openExportOptionsModal}>
+                            Download CSV
+                        </Button.Success>
                     </div>
-                )}
-                {!!runner.results?.length && (
-                    <div className='flex flex-row gap-2 justify-end'>
-                        <Button.Success onClick={openExportOptionsModal}>Download CSV</Button.Success>
-                    </div>
-                )}
+                ) : null}
+
                 <Modal open={showExportOptions} onClose={() => setShowExportOptions(false)}>
                     <div className='flex flex-col gap-4'>
                         <h3 className='text-lg font-semibold'>Download CSV</h3>

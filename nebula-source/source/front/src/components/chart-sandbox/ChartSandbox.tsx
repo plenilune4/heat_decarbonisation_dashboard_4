@@ -23,7 +23,7 @@ import EditableTitle from '../EditableTitle'
 import Empty from '../Empty'
 import ErrorAlert from '../ErrorAlert'
 import { ChartPoint } from './types'
-import { toPng } from "html-to-image"
+import { toPng } from 'html-to-image'
 
 // Chart type limits - maximum number of data points each chart type can handle efficiently
 export const CHART_TYPE_LIMITS: Record<ChartType, number> = {
