@@ -307,7 +307,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                         )}
                         {chart.chartType !== 'parallel-coordinates' && (
                             <RenderChart
-                                chartref={(el) => (index === currentIndex ? chartref : null)}
+                                chartref={index === currentIndex ? chartref : null}
                                 key={index + chart.chartType + currentIndex}
                                 evaluationFunction={evaluationFunction}
                                 allResults={simulationResults}
