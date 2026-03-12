@@ -1,5 +1,5 @@
 import { ChartBarIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
-import React, { useEffect, useMemo, useState, useRef } from 'react'
+import React, { useEffect, useMemo, useState, forwardRef} from 'react'
 import { CheckboxField, SelectField } from '@/form-control/fields'
 
 import { AnalysisFilter, AxisDefinition, ChartType, IAnalysisChart, AnalysisInput } from '@/MODELS/analysis.model'
@@ -23,7 +23,7 @@ import EditableTitle from '../EditableTitle'
 import Empty from '../Empty'
 import ErrorAlert from '../ErrorAlert'
 import { ChartPoint } from './types'
-import { toPng } from 'html-to-image'
+
 
 // Chart type limits - maximum number of data points each chart type can handle efficiently
 export const CHART_TYPE_LIMITS: Record<ChartType, number> = {
@@ -39,17 +39,7 @@ export const PARETO_HIGHLIGHT_COLOUR = '#ff0000'
 export const FILTERED_OUT_COLOUR = '#6b7280'
 export const FILTERED_OUT_COLOUR_PAX = '#6b7280'
 
-export default function ChartSandbox({
-    evaluationFunction,
-    runInputs,
-    simulationResults,
-    aggregation,
-    filters,
-    analysisCharts,
-    setAnalysisCharts,
-    isRunningAnalysis,
-    onDownloadCSV,
-}: {
+type ChartSandboxProps = {
     evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
     runInputs: AnalysisInput[]
     simulationResults: SimulationResult[]
@@ -59,8 +49,19 @@ export default function ChartSandbox({
     setAnalysisCharts: (charts: IAnalysisChart[]) => void
     isRunningAnalysis: boolean
     onDownloadCSV: () => void
-}) {
-    const chartRef = useRef<HTMLDivElement>(null)
+}
+
+export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>(({
+    evaluationFunction,
+    runInputs,
+    simulationResults,
+    aggregation,
+    filters,
+    analysisCharts,
+    setAnalysisCharts,
+    isRunningAnalysis,
+    onDownloadCSV,
+}, chartref) => {
     const [currentIndex, setCurrentIndex] = useState<number>(0)
     const [confirmDelete, setConfirmDelete] = useState<boolean>(false)
 
@@ -306,6 +307,7 @@ export default function ChartSandbox({
                         )}
                         {chart.chartType !== 'parallel-coordinates' && (
                             <RenderChart
+                                chartref={(el) => (index === currentIndex ? chartref : null)}
                                 key={index + chart.chartType + currentIndex}
                                 evaluationFunction={evaluationFunction}
                                 allResults={simulationResults}
@@ -323,7 +325,7 @@ export default function ChartSandbox({
             </main>
         </section>
     )
-}
+})
 
 function ChartDefinitionSettings({
     chart,
@@ -471,17 +473,7 @@ function ChartDefinitionSettings({
     )
 }
 
-function RenderChart({
-    evaluationFunction,
-    allResults,
-    results,
-    filteredOutResults,
-    chart,
-    axisOptions,
-    isRunningAnalysis,
-    paretoResults,
-    onDownloadCSV,
-}: {
+type RenderChartProps = {
     evaluationFunction: Pick<IEvaluationFunction, 'inputs' | 'outputs'>
     allResults: SimulationResult[]
     results: SimulationResult[]
@@ -491,8 +483,23 @@ function RenderChart({
     isRunningAnalysis: boolean
     paretoResults: SimulationResult[]
     onDownloadCSV: () => void
-}) {
-    const chartRef = useRef<HTMLDivElement>(null)
+}
+
+/**
+ * forwardRef is being used to assign a ref we can use for image export. To do - is there a less cumbersome way to approach this?
+ */
+export const RenderChart = forwardRef<HTMLDivElement | null, RenderChartProps>
+(({
+    evaluationFunction,
+    allResults,
+    results,
+    filteredOutResults,
+    chart,
+    axisOptions,
+    isRunningAnalysis,
+    paretoResults,
+    onDownloadCSV,
+}, chartref) => {
     // Create discrete value mappings for axes
     const discreteValueMappings = useMemo(() => {
         const mappings: { x?: string[]; y?: string[] } = {}
@@ -787,8 +794,7 @@ function RenderChart({
     }
 
     return (
-        <div ref ={chartRef}>
-            {/*will this work with multiple tabs??? would like one download button outside the tabs really.*/}
+        <div ref ={chartref}>
             <ChartErrorBoundary>
                 {noNumericColorData && (
                     <div className='mb-3 text-sm text-amber-300'>
@@ -855,7 +861,7 @@ function RenderChart({
             </ChartErrorBoundary>
         </div>
     )
-}
+})
 
 // Components
 

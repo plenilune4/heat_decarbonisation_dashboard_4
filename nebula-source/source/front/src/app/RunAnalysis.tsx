@@ -1,6 +1,6 @@
 import { LockClosedIcon } from '@heroicons/react/20/solid'
 import { ForwardIcon, XMarkIcon } from '@heroicons/react/24/solid'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef, forwardRef} from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { TextField } from '@/form-control/fields'
@@ -43,6 +43,7 @@ import Modal from '@/components/Modal'
 import AnalysisInputField, { CSVStrategyField } from '../components/analysis/AnalysisInputField'
 import { ModifiableAnalysisInput } from '../components/analysis/AnalysisVariableInputField'
 import AggregationControls from "@/components/aggregationControls.tsx";
+import { toPng } from 'html-to-image'
 
 export default function ManageAnalysis() {
     const { user } = useAuth()
@@ -475,6 +476,23 @@ function ResultsPanel({
         setShowExportOptions(true)
     }
 
+    const chartref = useRef<HTMLDivElement | null>(null)
+
+    const saveCurrentImage = async () => {
+        const node = chartref.current
+        if (!node) return
+
+        const dataUrl = await toPng(node, {
+            pixelRatio: 2,
+            backgroundColor: "#ffffff"
+        })
+
+        const link = document.createElement("a")
+        link.download = "chart.png"
+        link.href = dataUrl
+        link.click()
+}
+
     return (
         <section className='flex flex-col flex-1 gap-5 overflow-clip card bg-gray-800/70 h-fit min-h-[300px]'>
             <header className='flex flex-row gap-x-2 items-center px-5 pt-5'>
@@ -556,7 +574,7 @@ function ResultsPanel({
 
                 {runner.results?.length ? (
                     <div className="flex flex-row gap-2 justify-end">
-                        <Button.Success>Save image</Button.Success>
+                        <Button.Success onClick={saveCurrentImage}>Save image</Button.Success>
                         <Button.Success onClick={openExportOptionsModal}>
                             Download CSV
                         </Button.Success>
