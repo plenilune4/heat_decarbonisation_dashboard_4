@@ -483,7 +483,7 @@ function ResultsPanel({
         if (!node) return
 
         const dataUrl = await toPng(node, {
-            pixelRatio: 2,
+            pixelRatio: 3,
             backgroundColor: "#ffffff"
         })
 
