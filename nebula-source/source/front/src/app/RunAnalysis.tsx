@@ -30,7 +30,7 @@ import { useResource } from '@/services/resource.service'
 
 import { SelectCombinedSamplingStrategyField } from '@/components/analysis/SelectSamplingStrategy'
 import Button from '@/components/Button'
-import ChartSandbox from '@/components/chart-sandbox/ChartSandbox'
+import {ChartSandbox} from '@/components/chart-sandbox/ChartSandbox'
 import Confirm from '@/components/ConfirmModal'
 import EditableTitle from '@/components/EditableTitle'
 import Empty from '@/components/Empty'

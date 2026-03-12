@@ -16,7 +16,7 @@ import { useResource } from '@/services/resource.service'
 import { downloadAnalysisCSVBySelection, hasActiveAnalysisFilters } from '@/services/analysis.service'
 
 import Button from '@/components/Button'
-import ChartSandbox from '@/components/chart-sandbox/ChartSandbox'
+import {ChartSandbox} from '@/components/chart-sandbox/ChartSandbox'
 import Confirm from '@/components/ConfirmModal'
 import { CSVPreview } from '@/components/CSVPreview'
 import EditableTitle from '@/components/EditableTitle'
