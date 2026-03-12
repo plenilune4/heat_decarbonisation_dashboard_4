@@ -1,6 +1,6 @@
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '@heroicons/react/20/solid'
 import { ChartBarIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/solid'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, forwardRef } from 'react'
 import * as d3 from 'd3'
 
 import { AxisDefinition, IAnalysisChart } from '@/MODELS/analysis.model'
@@ -30,18 +30,8 @@ const MARGINS = {
 type Polylines = { [index: number]: Polyline }
 type Polyline = { [reference: string]: number | string }
 
-export default function ResultCountWrapper({
-    title,
-    results,
-    filteredOutResults,
-    paretoResults,
-    axisOptions,
-    chart,
-    onChange,
-    evaluationFunction,
-    onDownloadCSV,
-    isRunningAnalysis,
-}: {
+
+type PaxPlotProps = {
     title: string
     results: SimulationResult[]
     filteredOutResults: SimulationResult[]
@@ -52,7 +42,19 @@ export default function ResultCountWrapper({
     evaluationFunction: any
     onDownloadCSV: () => void
     isRunningAnalysis: boolean
-}) {
+}
+export const ParallelCoordinates = forwardRef<HTMLDivElement | null, PaxPlotProps>(({
+    title,
+    results,
+    filteredOutResults,
+    paretoResults,
+    axisOptions,
+    chart,
+    onChange,
+    evaluationFunction,
+    onDownloadCSV,
+    isRunningAnalysis,
+},ref) => {
     const hasDisplayableResults =
         (results?.length ?? 0) > 0 ||
         ((chart.showFilteredOut ?? false) && (filteredOutResults?.length ?? 0) > 0) ||
@@ -91,20 +93,12 @@ export default function ResultCountWrapper({
             chart={chart}
             onChange={(chart: IAnalysisChart) => onChange(chart)}
             evaluationFunction={evaluationFunction}
+            ref ={ref}
         />
     )
-}
+})
 
-function RenderParallelCoordinates({
-    title,
-    results,
-    filteredOutResults,
-    paretoResults,
-    axisOptions,
-    chart,
-    onChange,
-    evaluationFunction,
-}: {
+type RenderPaxplotProps = {
     title: string
     results: SimulationResult[]
     filteredOutResults: SimulationResult[]
@@ -113,7 +107,21 @@ function RenderParallelCoordinates({
     chart: IAnalysisChart
     onChange: (chart: IAnalysisChart) => void
     evaluationFunction: any
-}) {
+}
+
+/**
+ * Is there a way to pass on these refs through multiple layers which is less cumbersome than forwardRef?
+ */
+export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, RenderPaxplotProps>(({
+    title,
+    results,
+    filteredOutResults,
+    paretoResults,
+    axisOptions,
+    chart,
+    onChange,
+    evaluationFunction,
+}, ref) => {
     const id = useId()
     const svgRef = useRef<SVGSVGElement>(null)
 
@@ -337,79 +345,118 @@ function RenderParallelCoordinates({
         <div className='flex relative flex-col gap-y-5 justify-center items-center w-full h-full'>
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
             {axisScale && colorScale && references.length && (
-                <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
-                    <g id={id + '-polylines'}>
-                        {Object.values(polylines).map((polyline, lineIndex) => {
-                            const layerType = (polyline.__layerType as string) || 'base'
-                            const color = colorScale(polyline[colourAxis] as number)
-                            const stroke =
-                                layerType === 'filtered-out'
-                                    ? FILTERED_OUT_COLOUR_PAX
-                                    : layerType === 'pareto'
-                                      ? PARETO_HIGHLIGHT_COLOUR
-                                      : d3.interpolateViridis(color)
-                            const layerOpacity =
-                                layerType === 'filtered-out' ? 0.08 : layerType === 'pareto' ? 0.95 : strokeOpacity
+                <div ref ={ref}>
+                    <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
+                        <g id={id + '-polylines'}>
+                            {Object.values(polylines).map((polyline, lineIndex) => {
+                                const layerType = (polyline.__layerType as string) || 'base'
+                                const color = colorScale(polyline[colourAxis] as number)
+                                const stroke =
+                                    layerType === 'filtered-out'
+                                        ? FILTERED_OUT_COLOUR_PAX
+                                        : layerType === 'pareto'
+                                          ? PARETO_HIGHLIGHT_COLOUR
+                                          : d3.interpolateViridis(color)
+                                const layerOpacity =
+                                    layerType === 'filtered-out' ? 0.08 : layerType === 'pareto' ? 0.95 : strokeOpacity
 
-                            const visibleReferences = references.filter((r) => r.visible)
+                                const visibleReferences = references.filter((r) => r.visible)
 
-                            return visibleReferences.map(({ reference }, refIndex) => {
-                                if (refIndex === 0) return null
-                                try {
-                                    const ref1 = visibleReferences[refIndex - 1].reference
-                                    const ref2 = reference
-                                    const x1 = axisScale?.scale!(ref1) as number
-                                    const x2 = axisScale?.scale!(ref2) as number
-                                    const y1 = valueScales[ref1](polyline[ref1] as number)
-                                    const y2 = valueScales[ref2](polyline[ref2] as number)
+                                return visibleReferences.map(({ reference }, refIndex) => {
+                                    if (refIndex === 0) return null
+                                    try {
+                                        const ref1 = visibleReferences[refIndex - 1].reference
+                                        const ref2 = reference
+                                        const x1 = axisScale?.scale!(ref1) as number
+                                        const x2 = axisScale?.scale!(ref2) as number
+                                        const y1 = valueScales[ref1](polyline[ref1] as number)
+                                        const y2 = valueScales[ref2](polyline[ref2] as number)
 
-                                    if (isNaN(x1) || isNaN(x2) || isNaN(y1) || isNaN(y2)) {
+                                        if (isNaN(x1) || isNaN(x2) || isNaN(y1) || isNaN(y2)) {
+                                            return null
+                                        }
+                                        // Here, the actual line segment is built.
+                                        return (
+                                            <line
+                                                key={x1}
+                                                x1={x1}
+                                                y1={y1}
+                                                x2={x2}
+                                                y2={y2}
+                                                stroke={stroke}
+                                                stroke-width = "3"
+                                                strokeOpacity={layerOpacity}
+                                            />
+                                        )
+                                    } catch (error) {
                                         return null
                                     }
-                                    // Here, the actual line segment is built.
-                                    return (
-                                        <line
-                                            key={x1}
-                                            x1={x1}
-                                            y1={y1}
-                                            x2={x2}
-                                            y2={y2}
-                                            stroke={stroke}
-                                            stroke-width = "3"
-                                            strokeOpacity={layerOpacity}
-                                        />
-                                    )
-                                } catch (error) {
+                                })
+                            })}
+                        </g>
+                        <g id={id + '-axes'}>
+                            {references.map(({ reference, visible }, index) => {
+                                if (!visible) {
                                     return null
                                 }
-                            })
-                        })}
-                    </g>
-                    <g id={id + '-axes'}>
-                        {references.map(({ reference, visible }, index) => {
-                            if (!visible) {
-                                return null
-                            }
-                            try {
-                                const ticks = valueScales[reference]
-                                    .ticks(10)
-                                    .map((value) => ({ value, offset: valueScales[reference](value) }))
-                                const x = axisScale?.scale!(reference) as number
+                                try {
+                                    const ticks = valueScales[reference]
+                                        .ticks(10)
+                                        .map((value) => ({ value, offset: valueScales[reference](value) }))
+                                    const x = axisScale?.scale!(reference) as number
 
-                                // console.log(discreteValueMappings)
+                                    // console.log(discreteValueMappings)
 
-                                return (
-                                    <g key={reference + index + x} transform={`translate(${x}, 0)`}>
-                                        <line
-                                            y1={MARGINS.top}
-                                            y2={HEIGHT - MARGINS.bottom}
-                                            stroke='white'
-                                            strokeWidth='2'
-                                        />
-                                        {ticks.map(({ value, offset }) => {
-                                            // For date axes, format timestamps as readable dates
-                                            if (dateAxes.has(reference) && typeof value === 'number') {
-                                                const displayValue = formatDate(value)
+                                    return (
+                                        <g key={reference + index + x} transform={`translate(${x}, 0)`}>
+                                            <line
+                                                y1={MARGINS.top}
+                                                y2={HEIGHT - MARGINS.bottom}
+                                                stroke='white'
+                                                strokeWidth='2'
+                                            />
+                                            {ticks.map(({ value, offset }) => {
+                                                // For date axes, format timestamps as readable dates
+                                                if (dateAxes.has(reference) && typeof value === 'number') {
+                                                    const displayValue = formatDate(value)
+                                                    return (
+                                                        <g key={value} transform={`translate(0, ${offset})`}>
+                                                            <line x1='-4' x2='4' stroke='white' />
+                                                            <text
+                                                                key={value}
+                                                                fontSize='14px'
+                                                                fontWeight='bold'
+                                                                textAnchor='start'
+                                                                dominantBaseline='middle'
+                                                                fill='white'
+                                                                x='-10'
+                                                            >
+                                                                {displayValue}
+                                                            </text>
+                                                        </g>
+                                                    )
+                                                }
+
+                                                // For discrete values, show the string label instead of the numeric index
+                                                let displayValue =
+                                                    discreteValueMappings[reference] &&
+                                                    typeof value === 'number' &&
+                                                    value >= 0 &&
+                                                    value < discreteValueMappings[reference].length
+                                                        ? discreteValueMappings[reference][value]
+                                                        : value
+
+                                                // Format numeric values to 2 decimal places
+                                                if (typeof displayValue === 'number') {
+                                                    displayValue = Number(displayValue.toFixed(3))
+                                                }
+
+                                                if (!isNaN(parseFloat(String(displayValue)))) {
+                                                    displayValue = Number(parseFloat(String(displayValue)).toFixed(3))
+                                                }
+
+                                                // console.log(`display value ${displayValue}; value ${value}; offset ${offset}; value type ${typeof value}`)
+
                                                 return (
                                                     <g key={value} transform={`translate(0, ${offset})`}>
                                                         <line x1='-4' x2='4' stroke='white' />
@@ -417,7 +464,7 @@ function RenderParallelCoordinates({
                                                             key={value}
                                                             fontSize='14px'
                                                             fontWeight='bold'
-                                                            textAnchor='start'
+                                                            textAnchor='end'
                                                             dominantBaseline='middle'
                                                             fill='white'
                                                             x='-10'
@@ -426,83 +473,46 @@ function RenderParallelCoordinates({
                                                         </text>
                                                     </g>
                                                 )
-                                            }
+                                            })}
+                                        </g>
+                                    )
+                                } catch (error) {
+                                    return null
+                                }
+                            })}
+                        </g>
+                        <g id={id + '-labels'}>
+                            {references.map(({ reference, visible }, index) => {
+                                if (!visible) {
+                                    return null
+                                }
+                                try {
+                                    const x = axisScale?.scale!(reference) as number
+                                    const label =
+                                        axisOptions.find((input) => input.reference === reference)?.label || reference
 
-                                            // For discrete values, show the string label instead of the numeric index
-                                            let displayValue =
-                                                discreteValueMappings[reference] &&
-                                                typeof value === 'number' &&
-                                                value >= 0 &&
-                                                value < discreteValueMappings[reference].length
-                                                    ? discreteValueMappings[reference][value]
-                                                    : value
+                                    return (
+                                        //This is the x' label for the individual axis.
+                                        <text
+                                            transform = {`rotate(35, ${x}, ${HEIGHT - MARGINS.bottom + 25})`}
+                                            key={reference + index + x}
+                                            x={x}
+                                            y={HEIGHT - MARGINS.bottom + 25}
+                                            textAnchor='start'
+                                            fontSize='18px'
+                                            fill='white'
 
-                                            // Format numeric values to 2 decimal places
-                                            if (typeof displayValue === 'number') {
-                                                displayValue = Number(displayValue.toFixed(3))
-                                            }
-
-                                            if (!isNaN(parseFloat(String(displayValue)))) {
-                                                displayValue = Number(parseFloat(String(displayValue)).toFixed(3))
-                                            }
-
-                                            // console.log(`display value ${displayValue}; value ${value}; offset ${offset}; value type ${typeof value}`)
-
-                                            return (
-                                                <g key={value} transform={`translate(0, ${offset})`}>
-                                                    <line x1='-4' x2='4' stroke='white' />
-                                                    <text
-                                                        key={value}
-                                                        fontSize='14px'
-                                                        fontWeight='bold'
-                                                        textAnchor='end'
-                                                        dominantBaseline='middle'
-                                                        fill='white'
-                                                        x='-10'
-                                                    >
-                                                        {displayValue}
-                                                    </text>
-                                                </g>
-                                            )
-                                        })}
-                                    </g>
-                                )
-                            } catch (error) {
-                                return null
-                            }
-                        })}
-                    </g>
-                    <g id={id + '-labels'}>
-                        {references.map(({ reference, visible }, index) => {
-                            if (!visible) {
-                                return null
-                            }
-                            try {
-                                const x = axisScale?.scale!(reference) as number
-                                const label =
-                                    axisOptions.find((input) => input.reference === reference)?.label || reference
-
-                                return (
-                                    //This is the x' label for the individual axis.
-                                    <text
-                                        transform = {`rotate(35, ${x}, ${HEIGHT - MARGINS.bottom + 25})`}
-                                        key={reference + index + x}
-                                        x={x}
-                                        y={HEIGHT - MARGINS.bottom + 25}
-                                        textAnchor='start'
-                                        fontSize='18px'
-                                        fill='white'
-
-                                    >
-                                        {label}
-                                    </text>
-                                )
-                            } catch (error) {
-                                return null
-                            }
-                        })}
-                    </g>
-                </svg>
+                                        >
+                                            {label}
+                                        </text>
+                                    )
+                                } catch (error) {
+                                    return null
+                                }
+                            })}
+                        </g>
+                    </svg>
+                </div>
             )}
             <div className='w-full'>
                 <h2 className='mb-2 text-lg font-medium'>Axis Control</h2>
@@ -625,7 +635,7 @@ function RenderParallelCoordinates({
             </div>
         </div>
     )
-}
+})
 
 async function getReferencesAndPolylines(
     results: SimulationResult[],

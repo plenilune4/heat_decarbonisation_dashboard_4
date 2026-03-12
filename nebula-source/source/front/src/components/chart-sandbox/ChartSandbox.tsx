@@ -303,6 +303,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                                 evaluationFunction={evaluationFunction}
                                 onDownloadCSV={onDownloadCSV}
                                 isRunningAnalysis={isRunningAnalysis}
+                                ref={index === currentIndex ? ref : null}
                             />
                         )}
                         {chart.chartType !== 'parallel-coordinates' && (
