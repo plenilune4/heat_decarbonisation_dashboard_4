@@ -555,6 +555,11 @@ function ResultsPanel({
                 )}
                 {!!runner.results?.length && (
                     <div className='flex flex-row gap-2 justify-end'>
+                        <Button.Success>Save image</Button.Success>
+                    </div>
+                )}
+                {!!runner.results?.length && (
+                    <div className='flex flex-row gap-2 justify-end'>
                         <Button.Success onClick={openExportOptionsModal}>Download CSV</Button.Success>
                     </div>
                 )}

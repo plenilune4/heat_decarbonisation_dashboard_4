@@ -1,5 +1,5 @@
 import { ChartBarIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/solid'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { CheckboxField, SelectField } from '@/form-control/fields'
 
 import { AnalysisFilter, AxisDefinition, ChartType, IAnalysisChart, AnalysisInput } from '@/MODELS/analysis.model'
@@ -23,6 +23,7 @@ import EditableTitle from '../EditableTitle'
 import Empty from '../Empty'
 import ErrorAlert from '../ErrorAlert'
 import { ChartPoint } from './types'
+import { toPng } from "html-to-image"
 
 // Chart type limits - maximum number of data points each chart type can handle efficiently
 export const CHART_TYPE_LIMITS: Record<ChartType, number> = {
@@ -59,6 +60,7 @@ export default function ChartSandbox({
     isRunningAnalysis: boolean
     onDownloadCSV: () => void
 }) {
+    const chartRef = useRef<HTMLDivElement>(null)
     const [currentIndex, setCurrentIndex] = useState<number>(0)
     const [confirmDelete, setConfirmDelete] = useState<boolean>(false)
 
@@ -490,6 +492,7 @@ function RenderChart({
     paretoResults: SimulationResult[]
     onDownloadCSV: () => void
 }) {
+    const chartRef = useRef<HTMLDivElement>(null)
     // Create discrete value mappings for axes
     const discreteValueMappings = useMemo(() => {
         const mappings: { x?: string[]; y?: string[] } = {}
@@ -784,70 +787,73 @@ function RenderChart({
     }
 
     return (
-        <ChartErrorBoundary>
-            {noNumericColorData && (
-                <div className='mb-3 text-sm text-amber-300'>
-                    Color By is set to {colorByLabel}, but no numeric values are available for the current results.
-                </div>
-            )}
-            {chart.chartType === 'scatter' && (
-                <CustomCanvasScatterPlot
-                    key={`${chart?.x?.label}-${chart?.y?.label}-line`}
-                    series={chartSeries}
-                    title={`${chart?.x?.label} vs ${chart?.y?.label}`}
-                    xLabel={chart?.x?.label}
-                    yLabel={chart?.y?.label}
-                    discreteValueMappings={discreteValueMappings}
-                    colorByReference={chart.colorByReference}
-                    colorByLabel={colorByLabel}
-                    colorScaleDomain={colorScaleDomain}
-                    noNumericColorData={noNumericColorData}
-                />
-            )}
-            {chart.chartType === 'line' && (
-                <LineGraph
-                    key={`${chart?.x?.label}-${chart?.y?.label}-line`}
-                    series={chartSeries}
-                    title={`${chart?.x?.label} vs ${chart?.y?.label}`}
-                    xLabel={chart?.x?.label}
-                    yLabel={chart?.y?.label}
-                    discreteValueMappings={discreteValueMappings}
-                    colorByReference={chart.colorByReference}
-                    colorByLabel={colorByLabel}
-                    colorScaleDomain={colorScaleDomain}
-                />
-            )}
-            {chart.chartType === 'histogram' && (
-                <Histogram
-                    key={`${chart?.x?.label}-${chart?.y?.label}-histogram`}
-                    series={chartSeries.map((series) => ({
-                        name: series.name,
-                        color: series.color,
-                        layerType: series.layerType,
-                        data: series.data.map((d) => ({ x: Number(d.x), colorValue: d.colorValue })),
-                    }))}
-                    title={`${chart?.x?.label} Histogram`}
-                    xLabel={chart?.x?.label}
-                    yLabel='Frequency'
-                    discreteValueMappings={discreteValueMappings}
-                    colorByReference={chart.colorByReference}
-                    colorByLabel={colorByLabel}
-                    colorScaleDomain={colorScaleDomain}
-                    noNumericColorData={noNumericColorData}
-                />
-            )}
-            {chart.chartType === 'time-series' && (
-                <TimeSeriesChart
-                    series={timeSeries}
-                    title='Time Series'
-                    xLabel={chart?.x?.label ?? 'Date'}
-                    yLabel={chart?.y?.label ?? 'Value'}
-                    colorByReference={chart.colorByReference}
-                    colorByLabel={colorByLabel}
-                    colorScaleDomain={colorScaleDomain}
-                />
-            )}
-        </ChartErrorBoundary>
+        <div ref ={chartRef}>
+            {/*will this work with multiple tabs??? would like one download button outside the tabs really.*/}
+            <ChartErrorBoundary>
+                {noNumericColorData && (
+                    <div className='mb-3 text-sm text-amber-300'>
+                        Color By is set to {colorByLabel}, but no numeric values are available for the current results.
+                    </div>
+                )}
+                {chart.chartType === 'scatter' && (
+                    <CustomCanvasScatterPlot
+                        key={`${chart?.x?.label}-${chart?.y?.label}-line`}
+                        series={chartSeries}
+                        title={`${chart?.x?.label} vs ${chart?.y?.label}`}
+                        xLabel={chart?.x?.label}
+                        yLabel={chart?.y?.label}
+                        discreteValueMappings={discreteValueMappings}
+                        colorByReference={chart.colorByReference}
+                        colorByLabel={colorByLabel}
+                        colorScaleDomain={colorScaleDomain}
+                        noNumericColorData={noNumericColorData}
+                    />
+                )}
+                {chart.chartType === 'line' && (
+                    <LineGraph
+                        key={`${chart?.x?.label}-${chart?.y?.label}-line`}
+                        series={chartSeries}
+                        title={`${chart?.x?.label} vs ${chart?.y?.label}`}
+                        xLabel={chart?.x?.label}
+                        yLabel={chart?.y?.label}
+                        discreteValueMappings={discreteValueMappings}
+                        colorByReference={chart.colorByReference}
+                        colorByLabel={colorByLabel}
+                        colorScaleDomain={colorScaleDomain}
+                    />
+                )}
+                {chart.chartType === 'histogram' && (
+                    <Histogram
+                        key={`${chart?.x?.label}-${chart?.y?.label}-histogram`}
+                        series={chartSeries.map((series) => ({
+                            name: series.name,
+                            color: series.color,
+                            layerType: series.layerType,
+                            data: series.data.map((d) => ({ x: Number(d.x), colorValue: d.colorValue })),
+                        }))}
+                        title={`${chart?.x?.label} Histogram`}
+                        xLabel={chart?.x?.label}
+                        yLabel='Frequency'
+                        discreteValueMappings={discreteValueMappings}
+                        colorByReference={chart.colorByReference}
+                        colorByLabel={colorByLabel}
+                        colorScaleDomain={colorScaleDomain}
+                        noNumericColorData={noNumericColorData}
+                    />
+                )}
+                {chart.chartType === 'time-series' && (
+                    <TimeSeriesChart
+                        series={timeSeries}
+                        title='Time Series'
+                        xLabel={chart?.x?.label ?? 'Date'}
+                        yLabel={chart?.y?.label ?? 'Value'}
+                        colorByReference={chart.colorByReference}
+                        colorByLabel={colorByLabel}
+                        colorScaleDomain={colorScaleDomain}
+                    />
+                )}
+            </ChartErrorBoundary>
+        </div>
     )
 }
 
