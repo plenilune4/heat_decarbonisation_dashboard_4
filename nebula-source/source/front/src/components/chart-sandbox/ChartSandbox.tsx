@@ -794,7 +794,7 @@ export const RenderChart = forwardRef<HTMLDivElement | null, RenderChartProps>
     }
 
     return (
-        <div ref ={chartref}>
+        <div ref ={ref}>
             <ChartErrorBoundary>
                 {noNumericColorData && (
                     <div className='mb-3 text-sm text-amber-300'>
