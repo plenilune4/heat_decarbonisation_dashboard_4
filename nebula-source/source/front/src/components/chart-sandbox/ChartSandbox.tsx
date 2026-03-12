@@ -61,7 +61,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
     setAnalysisCharts,
     isRunningAnalysis,
     onDownloadCSV,
-}, chartref) => {
+}, ref) => {
     const [currentIndex, setCurrentIndex] = useState<number>(0)
     const [confirmDelete, setConfirmDelete] = useState<boolean>(false)
 
@@ -307,7 +307,6 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                         )}
                         {chart.chartType !== 'parallel-coordinates' && (
                             <RenderChart
-                                chartref={index === currentIndex ? chartref : null}
                                 key={index + chart.chartType + currentIndex}
                                 evaluationFunction={evaluationFunction}
                                 allResults={simulationResults}
@@ -318,6 +317,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                                 axisOptions={xAndYOptions}
                                 isRunningAnalysis={isRunningAnalysis}
                                 onDownloadCSV={onDownloadCSV}
+                                ref={index === currentIndex ? ref : null}
                             />
                         )}
                     </div>
@@ -499,7 +499,7 @@ export const RenderChart = forwardRef<HTMLDivElement | null, RenderChartProps>
     isRunningAnalysis,
     paretoResults,
     onDownloadCSV,
-}, chartref) => {
+}, ref) => {
     // Create discrete value mappings for axes
     const discreteValueMappings = useMemo(() => {
         const mappings: { x?: string[]; y?: string[] } = {}
