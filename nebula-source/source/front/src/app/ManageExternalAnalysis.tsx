@@ -296,6 +296,7 @@ function ResultsPanel({
                     setAnalysisCharts={(charts: IAnalysisChart[]) => updateAnalysis({ charts })}
                     isRunningAnalysis={false}
                     onDownloadCSV={openExportOptionsModal}
+                    ref = {chartref}
                 />
 
                 {analysis.results?.length ? (
