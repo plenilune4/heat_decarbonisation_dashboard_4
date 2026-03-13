@@ -491,7 +491,7 @@ function ResultsPanel({
         link.download = "chart.png"
         link.href = dataUrl
         link.click()
-}
+    }
 
     return (
         <section className='flex flex-col flex-1 gap-5 overflow-clip card bg-gray-800/70 h-fit min-h-[300px]'>
