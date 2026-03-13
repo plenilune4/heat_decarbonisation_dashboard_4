@@ -1,5 +1,5 @@
 import { PencilIcon } from '@heroicons/react/20/solid'
-import { useEffect, useMemo, useState } from 'react'
+import {useEffect, useMemo, useRef, useState} from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { Link } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -26,6 +26,7 @@ import Loading from '@/components/Loading'
 import Modal from '@/components/Modal'
 import AggregationControls from "@/components/aggregationControls.tsx";
 import {AggregationType} from "@/MODELS/types.ts";
+import {toPng} from "html-to-image";
 
 export default function ManageExternalAnalysis() {
     const { user } = useAuth()
@@ -208,6 +209,23 @@ function ResultsPanel({
     analysis: IExternalAnalysis
     updateAnalysis: (update: Partial<IExternalAnalysis>) => void
 }) {
+    const chartref = useRef<HTMLDivElement | null>(null)
+    const saveCurrentImage = async () => {
+        const node = chartref.current
+        if (!node) return
+
+        const dataUrl = await toPng(node, {
+            pixelRatio: 3,
+            backgroundColor: "#ffffff"
+        })
+
+        const link = document.createElement("a")
+        link.download = "chart.png"
+        link.href = dataUrl
+        link.click()
+    }
+
+
     const functionInputs: FunctionInput[] = analysis.scenarioInputs.map((input) => ({
         label: input.label,
         reference: input.reference,
@@ -279,6 +297,16 @@ function ResultsPanel({
                     isRunningAnalysis={false}
                     onDownloadCSV={openExportOptionsModal}
                 />
+
+                {analysis.results?.length ? (
+                    <div className="flex flex-row gap-2 justify-end">
+                        <Button.Success onClick={saveCurrentImage}>Save image</Button.Success>
+                        <Button.Success onClick={openExportOptionsModal}>
+                            Download CSV
+                        </Button.Success>
+                    </div>
+                ) : null}
+
                 <Modal open={showExportOptions} onClose={() => setShowExportOptions(false)}>
                     <div className='flex flex-col gap-4'>
                         <h3 className='text-lg font-semibold'>Download CSV</h3>
