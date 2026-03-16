@@ -225,7 +225,7 @@ router.post(AUTH_ROUTES.forgotPassword, async (req: Request, res: Response) => {
 
     const hash = await bcrypt.hash(resetToken, SALT_ROUNDS)
 
-    await new Token({ userId: user._id, token: hash, createdAt: Date.now() }).save()
+    await new Token({ userId: user._id, token: hash, createdAt: Date.now(), expiresAt: Date.now() + 3600*1000 }).save()
 
     SendEmail(
         [{ Email: user.email, Name: `${user.firstName} ${user.lastName}` }],

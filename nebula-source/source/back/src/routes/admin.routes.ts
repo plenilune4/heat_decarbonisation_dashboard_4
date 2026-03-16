@@ -81,7 +81,7 @@ router.post(ROUTES.user, async (req, res) => {
     // Send email to user with link to reset password
     const token = crypto.randomBytes(32).toString('hex')
     const hash = await bcrypt.hash(token, SALT_ROUNDS)
-    await new Token({ userId: newUser._id, token: hash, createdAt: Date.now() }).save()
+    await new Token({ userId: newUser._id, token: hash, createdAt: Date.now(), expiresAt: Date.now() + 3600*48*1000 }).save()
 
     try {
         await SendEmail(
@@ -114,7 +114,7 @@ router.post(ROUTES.user + '/:id/resend-invite', async (req, res) => {
 
     // Invalidate any outstanding invite/reset token and issue a fresh one.
     await Token.deleteMany({ userId: user._id })
-    await new Token({ userId: user._id, token: hash, createdAt: Date.now() }).save()
+    await new Token({ userId: user._id, token: hash, createdAt: Date.now(), expiresAt: Date.now() + 1000*3600*48 }).save()
 
     try {
         await SendEmail(
