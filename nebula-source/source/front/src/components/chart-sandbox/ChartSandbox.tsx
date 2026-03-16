@@ -201,6 +201,8 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
         }
     }
 
+    const [isDarkPlot, setIsDarkPlot] = useState(true)
+
     return (
         <section>
             <header>
@@ -283,6 +285,9 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                                 onClick={() => setConfirmDelete(true)}
                             />
                         </header>
+                        <button onClick={() => setIsDarkPlot(v => !v)}>
+                            Toggle plot theme
+                        </button>
                         <ChartDefinitionSettings
                             chart={chart}
                             onChange={(chart: IAnalysisChart) => handleSetChart(index, chart)}
@@ -303,6 +308,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                                 evaluationFunction={evaluationFunction}
                                 onDownloadCSV={onDownloadCSV}
                                 isRunningAnalysis={isRunningAnalysis}
+                                darkmode ={isDarkPlot}
                                 ref={index === currentIndex ? ref : null}
                             />
                         )}
@@ -318,6 +324,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                                 axisOptions={xAndYOptions}
                                 isRunningAnalysis={isRunningAnalysis}
                                 onDownloadCSV={onDownloadCSV}
+                                darkmode ={isDarkPlot}
                                 ref={index === currentIndex ? ref : null}
                             />
                         )}
@@ -370,6 +377,8 @@ function ChartDefinitionSettings({
         if (!fallbackColorBy || fallbackColorBy === chart.colorByReference) {
             return
         }
+
+
 
         onChange({ ...chart, colorByReference: fallbackColorBy } as IAnalysisChart)
     }, [chart, colorByOptions, onChange])
@@ -484,6 +493,7 @@ type RenderChartProps = {
     isRunningAnalysis: boolean
     paretoResults: SimulationResult[]
     onDownloadCSV: () => void
+    darkmode: boolean
 }
 
 /**
@@ -500,6 +510,7 @@ export const RenderChart = forwardRef<HTMLDivElement | null, RenderChartProps>
     isRunningAnalysis,
     paretoResults,
     onDownloadCSV,
+    darkmode,
 }, ref) => {
     // Create discrete value mappings for axes
     const discreteValueMappings = useMemo(() => {

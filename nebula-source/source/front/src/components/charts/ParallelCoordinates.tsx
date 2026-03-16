@@ -17,6 +17,7 @@ import {
 } from '../chart-sandbox/ChartSandbox'
 import Empty from '../Empty'
 import Loading from '../Loading'
+import {clsx} from 'clsx'
 
 const WIDTH = 1190
 const HEIGHT = 800
@@ -42,6 +43,7 @@ type PaxPlotProps = {
     evaluationFunction: any
     onDownloadCSV: () => void
     isRunningAnalysis: boolean
+    darkmode: boolean
 }
 export const ParallelCoordinates = forwardRef<HTMLDivElement | null, PaxPlotProps>(({
     title,
@@ -54,6 +56,7 @@ export const ParallelCoordinates = forwardRef<HTMLDivElement | null, PaxPlotProp
     evaluationFunction,
     onDownloadCSV,
     isRunningAnalysis,
+    darkmode
 },ref) => {
     const hasDisplayableResults =
         (results?.length ?? 0) > 0 ||
@@ -93,6 +96,7 @@ export const ParallelCoordinates = forwardRef<HTMLDivElement | null, PaxPlotProp
             chart={chart}
             onChange={(chart: IAnalysisChart) => onChange(chart)}
             evaluationFunction={evaluationFunction}
+            darkmode={darkmode}
             ref ={ref}
         />
     )
@@ -107,6 +111,7 @@ type RenderPaxplotProps = {
     chart: IAnalysisChart
     onChange: (chart: IAnalysisChart) => void
     evaluationFunction: any
+    darkmode: boolean
 }
 
 /**
@@ -121,6 +126,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
     chart,
     onChange,
     evaluationFunction,
+    darkmode
 }, ref) => {
     const id = useId()
     const svgRef = useRef<SVGSVGElement>(null)
@@ -342,10 +348,11 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
     }, [references, axisScale?.scale?.domain()])
 
     return (
-        <div className='flex relative flex-col gap-y-5 justify-center items-center w-full h-full'>
+        <div className={clsx('flex relative flex-col gap-y-5 justify-center items-center w-full h-full',
+                            darkmode && "dark")}>
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
             {axisScale && colorScale && references.length && (
-                <div ref ={ref}>
+                <div ref ={ref} bg-white dark:bg-inherit>
                     <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                         <g id={id + '-polylines'}>
                             {Object.values(polylines).map((polyline, lineIndex) => {
