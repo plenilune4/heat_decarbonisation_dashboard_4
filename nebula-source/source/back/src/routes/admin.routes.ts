@@ -94,6 +94,8 @@ router.post(ROUTES.user, async (req, res) => {
             `${process.env.PROJECT_NAME} - Confirm Account`,
             EMAIL_TEMPLATES.confirmAccount
         )
+        console.log(`Created new user ${newUser.firstName} for client ${clientRecord?.name ?? 'Nebula'}.`)
+        console.log(`Their invite link ${process.env.SITE_URL}/confirm-account?token=${token}&id=${newUser._id}`)
     } catch (error) {
         return res.status(500).json({ error: 'Failed to send invitation email' })
     }
