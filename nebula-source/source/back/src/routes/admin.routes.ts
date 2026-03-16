@@ -131,6 +131,9 @@ router.post(ROUTES.user + '/:id/resend-invite', async (req, res) => {
         return res.status(500).json({ error: 'Failed to send invitation email' })
     }
 
+    console.log(`Resending invite email to ${user.firstName} for client ${user.client?.name ?? 'Nebula'}.`)
+    console.log(`Their invite link ${process.env.SITE_URL}/confirm-account?token=${token}&id=${user._id}`)
+
     return res.status(200).json({ message: 'Invitation re-sent successfully' })
 })
 
