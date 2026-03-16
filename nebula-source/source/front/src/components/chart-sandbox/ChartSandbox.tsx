@@ -285,9 +285,20 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                                 onClick={() => setConfirmDelete(true)}
                             />
                         </header>
-                        <button onClick={() => setIsDarkPlot(v => !v)}>
-                            Toggle plot theme
-                        </button>
+
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={isDarkPlot}
+                            onChange={(e) => {
+                              const newValue = e.target.checked
+                              setIsDarkPlot(newValue)
+                              console.log("isDarkPlot:", newValue)
+                            }}
+                          />
+                          dark background
+                        </label>
+
                         <ChartDefinitionSettings
                             chart={chart}
                             onChange={(chart: IAnalysisChart) => handleSetChart(index, chart)}
