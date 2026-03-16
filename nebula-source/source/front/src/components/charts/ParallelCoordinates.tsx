@@ -352,8 +352,8 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                             darkmode && "dark")}>
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
             {axisScale && colorScale && references.length && (
-                <div ref ={ref} bg-white dark:bg-green-200>
-                    <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
+                <div ref ={ref}>
+                    <svg ref={svgRef} fill={darkmode? "none":"white"} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                         <g id={id + '-polylines'}>
                             {Object.values(polylines).map((polyline, lineIndex) => {
                                 const layerType = (polyline.__layerType as string) || 'base'
