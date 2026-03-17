@@ -354,7 +354,10 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                             darkmode && "dark")}>
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
             {axisScale && colorScale && references.length && (
-                <div ref ={ref} style={{ backgroundColor: darkmode ? "inherit" : "white" }}>
+                <div ref ={ref} style={darkmode ? { backgroundColor: "inherit",
+                                                    } : {
+                                                    backgroundColor: "white",
+                                                        }}>
                     <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                         <g id={id + '-polylines'}>
                             {Object.values(polylines).map((polyline, lineIndex) => {
@@ -421,7 +424,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                             <line
                                                 y1={MARGINS.top}
                                                 y2={HEIGHT - MARGINS.bottom}
-                                                stroke='white'
+                                                stroke={darkmode? 'white':'dimgrey'}
                                                 strokeWidth='2'
                                             />
                                             {ticks.map(({ value, offset }) => {
@@ -430,14 +433,14 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                                     const displayValue = formatDate(value)
                                                     return (
                                                         <g key={value} transform={`translate(0, ${offset})`}>
-                                                            <line x1='-4' x2='4' stroke='white' />
+                                                            <line x1='-4' x2='4' stroke={darkmode? 'white' : 'dimgrey'} />
                                                             <text
                                                                 key={value}
                                                                 fontSize='14px'
                                                                 fontWeight='bold'
                                                                 textAnchor='start'
                                                                 dominantBaseline='middle'
-                                                                fill='white'
+                                                                fill={darkmode? 'white' : 'dimgrey'}
                                                                 x='-10'
                                                             >
                                                                 {displayValue}
@@ -468,14 +471,14 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
 
                                                 return (
                                                     <g key={value} transform={`translate(0, ${offset})`}>
-                                                        <line x1='-4' x2='4' stroke='white' />
+                                                        <line x1='-4' x2='4' stroke= {darkmode? 'white' : 'dimgrey'} />
                                                         <text
                                                             key={value}
                                                             fontSize='14px'
                                                             fontWeight='bold'
                                                             textAnchor='end'
                                                             dominantBaseline='middle'
-                                                            fill='white'
+                                                            fill= {darkmode? 'white' : 'dimgrey'}
                                                             x='-10'
                                                         >
                                                             {displayValue}
@@ -509,7 +512,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                             y={HEIGHT - MARGINS.bottom + 25}
                                             textAnchor='start'
                                             fontSize='18px'
-                                            fill='white'
+                                            fill={darkmode? 'white':'dimgrey'}
 
                                         >
                                             {label}
