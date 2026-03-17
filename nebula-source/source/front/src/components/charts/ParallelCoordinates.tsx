@@ -354,7 +354,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                             darkmode && "dark")}>
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
             {axisScale && colorScale && references.length && (
-                <div ref ={ref} background-color={darkmode? "inherit":"white"}>
+                <div ref ={ref} style={{ backgroundColor: darkmode ? "inherit" : "white" }}>
                     <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                         <g id={id + '-polylines'}>
                             {Object.values(polylines).map((polyline, lineIndex) => {
