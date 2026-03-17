@@ -22,9 +22,9 @@ import {clsx} from 'clsx'
 const WIDTH = 1190
 const HEIGHT = 800
 const MARGINS = {
-    top: 5,
-    right: 120,
-    bottom: 160,
+    top: 25,
+    right: 150,
+    bottom: 200,
     left: 60,
 }
 
