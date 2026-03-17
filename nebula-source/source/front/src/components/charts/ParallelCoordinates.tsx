@@ -350,14 +350,15 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
     }, [references, axisScale?.scale?.domain()])
 
     return (
-        <div className={clsx('flex relative flex-col gap-y-5 justify-center items-center w-full h-full',
-                            darkmode && "dark")}>
-            {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
-            {axisScale && colorScale && references.length && (
-                <div ref ={ref} style={darkmode ? { backgroundColor: "inherit",
+        <div className={'flex relative flex-col gap-y-5 justify-center items-center w-full h-full'}
+             style={darkmode ? { backgroundColor: "inherit",
                                                     } : {
                                                     backgroundColor: "white",
-                                                        }}>
+                                                        }}
+        >
+            {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
+            {axisScale && colorScale && references.length && (
+                <div ref ={ref}>
                     <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                         <g id={id + '-polylines'}>
                             {Object.values(polylines).map((polyline, lineIndex) => {
