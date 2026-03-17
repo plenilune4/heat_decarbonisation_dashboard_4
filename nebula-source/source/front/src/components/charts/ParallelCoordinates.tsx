@@ -88,7 +88,7 @@ export const ParallelCoordinates = forwardRef<HTMLDivElement | null, PaxPlotProp
 
     return (
         <RenderParallelCoordinates
-            title='Parallel Coordinates'
+            title={title}
             results={results}
             filteredOutResults={filteredOutResults}
             paretoResults={paretoResults}
@@ -360,7 +360,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                                     color: "dimgrey"
                                                         }}
         >
-            {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
+            {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8, fontSize:'30px'}}>{title}</h1>}
             {axisScale && colorScale && references.length && (
                 <div ref ={ref}>
                     <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>

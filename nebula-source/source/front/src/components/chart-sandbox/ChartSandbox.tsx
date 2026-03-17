@@ -309,7 +309,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                         />
                         {chart.chartType === 'parallel-coordinates' && (
                             <ParallelCoordinates
-                                title='Parallel Coordinates'
+                                title={chart.label?? "Parallel coordinates"}
                                 results={filteredResults}
                                 filteredOutResults={filteredOutResults}
                                 paretoResults={paretoResults}
