@@ -436,7 +436,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                                             <line x1='-4' x2='4' stroke={darkmode? 'white' : 'dimgrey'} />
                                                             <text
                                                                 key={value}
-                                                                fontSize='14px'
+                                                                fontSize='24px'
                                                                 fontWeight='bold'
                                                                 textAnchor='start'
                                                                 dominantBaseline='middle'
@@ -474,7 +474,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                                         <line x1='-4' x2='4' stroke= {darkmode? 'white' : 'dimgrey'} />
                                                         <text
                                                             key={value}
-                                                            fontSize='14px'
+                                                            fontSize='24px'
                                                             fontWeight='bold'
                                                             textAnchor='end'
                                                             dominantBaseline='middle'
@@ -511,7 +511,7 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                                             x={x}
                                             y={HEIGHT - MARGINS.bottom + 25}
                                             textAnchor='start'
-                                            fontSize='18px'
+                                            fontSize='24px'
                                             fill={darkmode? 'white':'dimgrey'}
 
                                         >
