@@ -143,6 +143,8 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
 
     const [isProcessing, setIsProcessing] = useState(false)
 
+    console.log(`darkmode: ${darkmode}`)
+
     //results array with aggregated results looks fine so far
 
     // This should deal with the simple_values of time-series data as well. To do.
@@ -352,8 +354,8 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
                             darkmode && "dark")}>
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
             {axisScale && colorScale && references.length && (
-                <div ref ={ref}>
-                    <svg ref={svgRef} fill={darkmode? "none":"white"} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
+                <div ref ={ref} background-color={darkmode? "inherit":"white"}>
+                    <svg ref={svgRef} width={WIDTH} height={HEIGHT} style={{ opacity: isProcessing ? 0.5 : 1 }}>
                         <g id={id + '-polylines'}>
                             {Object.values(polylines).map((polyline, lineIndex) => {
                                 const layerType = (polyline.__layerType as string) || 'base'

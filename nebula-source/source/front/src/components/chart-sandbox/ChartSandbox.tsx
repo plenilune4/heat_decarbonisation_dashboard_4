@@ -293,7 +293,7 @@ export const ChartSandbox = forwardRef<HTMLDivElement | null, ChartSandboxProps>
                             onChange={(e) => {
                               const newValue = e.target.checked
                               setIsDarkPlot(newValue)
-                              console.log("isDarkPlot:", newValue)
+                              // console.log("isDarkPlot:", newValue)
                             }}
                           />
                           dark background
