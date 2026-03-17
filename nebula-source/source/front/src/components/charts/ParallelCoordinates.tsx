@@ -196,7 +196,9 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
     }, [evaluationFunction, results])
 
     const strokeOpacity = useMemo(() => {
-        return getStrokeOpacity(Object.keys(polylines).length)
+        // Light mode seems to struggle a bit more with visibility of labels - try lower opacity for lines.
+        let opacity = darkmode? getStrokeOpacity(Object.keys(polylines).length, 0.8) : getStrokeOpacity(Object.keys(polylines).length, 0.65)
+        return opacity
     }, [polylines])
 
     const colorScale = useMemo(() => {
@@ -1040,7 +1042,7 @@ function getAxisValue(
     return { value: undefined, isDate: false }
 }
 
-function getStrokeOpacity(numberOfPolylines: number): string {
+function getStrokeOpacity(numberOfPolylines: number, rescale: number): string {
     // Define the thresholds and their corresponding opacity values
     const thresholds = [
         { count: 0, opacity: 0.8 },
@@ -1059,7 +1061,7 @@ function getStrokeOpacity(numberOfPolylines: number): string {
         if (numberOfPolylines >= current.count && numberOfPolylines <= next.count) {
             // Linear interpolation between the two thresholds
             const progress = (numberOfPolylines - current.count) / (next.count - current.count)
-            const interpolatedOpacity = current.opacity + (next.opacity - current.opacity) * progress
+            const interpolatedOpacity = rescale*(current.opacity + (next.opacity - current.opacity) * progress)
             return interpolatedOpacity.toFixed(3)
         }
     }
