@@ -352,8 +352,10 @@ export const RenderParallelCoordinates = forwardRef<HTMLDivElement | null, Rende
     return (
         <div className={'flex relative flex-col gap-y-5 justify-center items-center w-full h-full'}
              style={darkmode ? { backgroundColor: "inherit",
+                                    color: "white"
                                                     } : {
                                                     backgroundColor: "white",
+                                                    color: "dimgrey"
                                                         }}
         >
             {title && <h1 style={{ textAlign: 'center', fontWeight: 600, marginBottom: 8 }}>{title}</h1>}
