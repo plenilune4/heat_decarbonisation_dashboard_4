@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt'
 import { Request, Response, Router } from 'express'
 import { createUserContainer } from 'src/services/docker.service'
 
-import Client from '../models/client.model'
 import RefreshToken from '../models/refreshToken.model'
 import Token from '../models/token.model'
 import User from '../models/user.model'
@@ -25,69 +24,49 @@ const AUTH_ROUTES = ENDPOINTS.auth
 
 const router = Router()
 
-// router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
-//     if (!req.body || !req.body.email || !req.body.password) {
-//         return res.status(400).json({ error: 'Missing required data' })
-//     }
+router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
+    if (!req.body || !req.body.email || !req.body.password) {
+        return res.status(400).json({ error: 'Missing required data' })
+    }
 
-//     const existing_user = await User.findOne({ $or: [{ email: req.body.email }] })
-//     if (existing_user) {
-//         if (existing_user.email == req.body.email) {
-//             return res.status(409).json({
-//                 error: 'An account with this email already exists. Please log in or enter a different address.',
-//             })
-//         }
-//     }
+    const existing_user = await User.findOne({ $or: [{ email: req.body.email }] })
+    if (existing_user) {
+        if (existing_user.email == req.body.email) {
+            return res.status(409).json({
+                error: 'An account with this email already exists. Please log in or enter a different address.',
+            })
+        }
+    }
 
-//     const { clientName, email, firstName, lastName } = req.body
+    const {email, firstName, lastName, organisation} = req.body
 
-//     const new_client = new Client({ name: clientName })
-//     await new_client.save()
+    const new_user = new User({
+        email,
+        firstName,
+        lastName,
+        passwordHash: await bcrypt.hash(req.body.password, SALT_ROUNDS),
+        organisation: organisation,
+        // dockerService: { containerId },
+    })
 
-//     const new_user = new User({
-//         email,
-//         firstName,
-//         lastName,
-//         passwordHash: await bcrypt.hash(req.body.password, SALT_ROUNDS),
-//         client: new_client._id,
-//         isClientAdmin: true,
-//         // dockerService: { containerId },
-//     })
+    const [jwt, err] = await createTokenForUser(new_user)
+    if (err) {
+        LoggingService.log({
+            level: 'error',
+            service: 'AUTH',
+            message: 'Failed to create token during registration',
+            data: {
+                user: new_user,
+                error: err.message,
+            },
+        })
+        return res.status(400).json({ error: err.message })
+    }
 
-//     try {
-//         const containerId = await createUserContainer(new_user)
-//         new_user.dockerService = { containerId }
-//         await new_user.save()
-//     } catch (dockerError) {
-//         LoggingService.log({
-//             level: 'error',
-//             service: 'AUTH',
-//             message: 'Failed to create Docker container during registration',
-//             data: {
-//                 user: new_user,
-//                 error: dockerError.message,
-//             },
-//         })
-//     }
-
-//     const [jwt, err] = await createTokenForUser(new_user)
-//     if (err) {
-//         LoggingService.log({
-//             level: 'error',
-//             service: 'AUTH',
-//             message: 'Failed to create token during registration',
-//             data: {
-//                 user: new_user,
-//                 error: err.message,
-//             },
-//         })
-//         return res.status(400).json({ error: err.message })
-//     }
-
-//     return res.status(201).json({
-//         token: jwt,
-//     })
-// })
+    return res.status(201).json({
+        token: jwt,
+    })
+})
 
 router.post(AUTH_ROUTES.login, async (req: Request, res: Response) => {
     if (!req.body || !req.body.email || !req.body.password) {
@@ -142,9 +121,9 @@ router.post(AUTH_ROUTES.login, async (req: Request, res: Response) => {
     }
 
     let redirect = undefined
-    if (user.permissions.isAdmin) {
-        redirect = '/admin'
-    }
+    // if (user.permissions.isAdmin) {
+    //     redirect = '/admin'
+    // }
 
     return res.status(200).json({
         redirectUrl: redirect,
