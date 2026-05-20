@@ -72,7 +72,7 @@
         @apply my-2 w-full;
     }
     .field-label {
-        @apply block mb-1 ml-1 text-base font-light text-gray-400;
+        @apply block mb-1 ml-1 text-xl font-light text-white;
     }
     .field-input {
         @apply flex flex-row px-3 py-2 w-full text-base text-gray-100 bg-gray-900 rounded-lg border-0 ring-1 shadow-none outline-none ring-brand-500/30 placeholder:text-gray-500 focus-within:ring-brand-500;

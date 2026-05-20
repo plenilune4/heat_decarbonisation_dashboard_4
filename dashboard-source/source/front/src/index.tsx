@@ -20,6 +20,7 @@ import AdminLayout from '@/admin/_Layout'
 import ConfirmAccountPage from '@/auth/ConfirmAccount'
 import LoginPage from '@/auth/LoginPage'
 import LogoutPage from '@/auth/LogoutPage'
+import RegisterPage from '@/auth/RegisterPage'
 import RequestResetPage from '@/auth/RequestPasswordResetPage'
 import ResetPasswordPage from '@/auth/ResetPasswordPage'
 import ForbiddenPage from '@/error-pages/ForbiddenPage'
@@ -58,7 +59,7 @@ root.render(
             <AuthProvider>
                 <Routes>
                     {/* Authentication Pages */}
-                    {/* <Route path='/register' element={<RegisterPage />} /> */}
+                    <Route path='/register' element={<RegisterPage />} />
                     <Route path='/login' element={<LoginPage />} />
                     <Route path='/logout' element={<LogoutPage />} />
                     <Route path='/request-reset' element={<RequestResetPage />} />
