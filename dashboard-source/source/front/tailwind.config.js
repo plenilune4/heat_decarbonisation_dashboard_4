@@ -9,18 +9,27 @@ module.exports = {
             },
             colors: {
                 brand: {
-                    DEFAULT: '#3dc58e',
+                    // These are the SYSC brand colours:
+                    DEFAULT: '#025a57',
+                    900: '#011f26',
+                    500: '#025a57',
+                    400: '#008e8b',
+                    300: '#10c1be',
+                    200: '#c6ffeb',
+                    100: '#ffed00',
+
+                    // These are the Nebula colours:
                     50: '#edfcf4',
-                    100: '#d4f7e4',
-                    200: '#adedcd',
-                    300: '#78ddb1',
-                    400: '#3dc58e',
-                    500: '#1eab76',
+                    // 100: '#d4f7e4',
+                    // 200: '#adedcd',
+                    // 300: '#78ddb1',
+                    // 400: '#3dc58e',
+                    // 500: '#1eab76',
                     600: '#118a60',
                     700: '#0d6f4f',
                     800: '#0d5840',
                     900: '#0c4836',
-                    950: '#05291f',
+                    // 950: '#05291f',
                 },
                 // brand: {
                 //     DEFAULT: '#32722c',

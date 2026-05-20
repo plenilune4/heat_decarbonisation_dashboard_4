@@ -28,7 +28,7 @@ import Button from '@/components/Button'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import TransitionPanel from '@/components/TransitionPanel'
 
-import logo from '../../logo.png'
+import logo from '../../SYSC-logo-reversed.svg'
 
 const PUBLIC_LINKS: INavLink[] = []
 const APPLICATION_LINKS: INavLink[] = [
