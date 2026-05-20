@@ -25,7 +25,8 @@ export async function userMw(req: Request, res: Response, next: NextFunction) {
         return res.status(401).json({ error: 'Invalid token' })
     }
 
-    const sessionUser = await User.findById(payload.uuid).populate('client')
+    const sessionUser = await User.findById(payload.uuid)
+    // const sessionUser = await User.findById(payload.uuid).populate('client')
     if (!sessionUser) {
         return res.sendStatus(401)
     }

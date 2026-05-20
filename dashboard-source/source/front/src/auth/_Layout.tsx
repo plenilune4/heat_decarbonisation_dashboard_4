@@ -1,14 +1,16 @@
 import ErrorBoundary from '@/components/ErrorBoundary'
 
-import logo from '../../logo.png'
-import background from '../../background.jpg'
+import logo from '../../SYSC-logo-reversed.svg'
+import dash_logo from '../../dashboard_text.png'
+import background from '../../Upperthorpe2.jpg'
 
 export default function AuthLayout({ info, children }: { info: React.ReactNode; children: React.ReactNode }) {
     return (
         <main className='flex h-[100dvh] bg-gray-900'>
-            <aside className='hidden flex-1 max-w-2xl md:flex bg-brand/10'>
-                <div className='m-auto'>
-                    <img src={logo} className='h-40 w-fit' />
+            <aside className='hidden flex-1 max-w-2xl md:flex bg-brand-900/10'>
+                <div className='flex flex-col items-center text-4xl font-medium pt-5'>
+                    <img src={dash_logo}/>
+                    <img src={logo} className='h-40 w-3/5' />
                     {info}
                 </div>
             </aside>
@@ -19,7 +21,7 @@ export default function AuthLayout({ info, children }: { info: React.ReactNode; 
             >
                 <div className='flex flex-col flex-1 items-center m-2 mx-auto w-full max-w-3xl'>
                     <div className='px-6 my-auto w-full md:max-w-xl'>
-                        <div className='px-5 py-10 card'>
+                        <div className='px-5 py-10 card bg-gray-900/70 text-white'>
                             <img src={logo} className='mx-auto mb-6 h-40 md:hidden' />
                             <ErrorBoundary componentName='Auth'>{children}</ErrorBoundary>
                         </div>
