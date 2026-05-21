@@ -25,6 +25,9 @@ const AUTH_ROUTES = ENDPOINTS.auth
 const router = Router()
 
 router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
+
+
+
     if (!req.body || !req.body.email || !req.body.password) {
         return res.status(400).json({ error: 'Missing required data' })
     }
@@ -69,6 +72,9 @@ router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
 })
 
 router.post(AUTH_ROUTES.login, async (req: Request, res: Response) => {
+    console.log("request arriving at login:")
+    console.log(req.body)
+
     if (!req.body || !req.body.email || !req.body.password) {
         return res.status(400).json({ error: 'Missing required data' })
     }
