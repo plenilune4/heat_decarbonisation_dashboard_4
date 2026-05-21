@@ -7,26 +7,26 @@ import { ApiResponse } from '@/services/api.service'
 
 import AuthLayout from './_Layout'
 
-interface IConfirmAccountForm {
+interface IResetForm {
     password: string
     confirmPassword: string
     token: string | null
     id: string | null
 }
 
-interface IConfirmAccountResponse {
+interface IResetResponse {
     message: string
 }
 
-export default function ConfirmAccountPage() {
+export default function ResetPasswordPage() {
     const [searchParams] = useSearchParams()
 
     return (
         <>
             <AuthLayout info={<></>}>
-                <h1 className='mb-3 text-3xl font-medium text-center'>Confirm Account</h1>
-                <h2 className='mb-5 text-center text-gray-500'>Enter a password below to confirm your account</h2>
-                <FormWrapper<IConfirmAccountForm>
+                <h1 className='mb-3 text-3xl font-medium text-center'>Reset Password</h1>
+                <h2 className='mb-5 text-center text-gray-500'>Enter your new password below</h2>
+                <FormWrapper<IResetForm>
                     endpoint={ROUTES.auth.resetPassword}
                     isPublic
                     id={null}
@@ -38,11 +38,7 @@ export default function ConfirmAccountPage() {
                         id: searchParams.get('id'),
                     }}
                     //
-                    callbackAfterSubmit={async ({
-                        postResponse,
-                    }: {
-                        postResponse?: ApiResponse<IConfirmAccountResponse>
-                    }) => {
+                    callbackAfterSubmit={async ({ postResponse }: { postResponse?: ApiResponse<IResetResponse> }) => {
                         if (postResponse?.data?.message === 'success') {
                             window.location.replace('/login')
                         } else {
@@ -54,7 +50,7 @@ export default function ConfirmAccountPage() {
                         }
                     }}
                     //
-                    submitButtonText='Confirm Account'
+                    submitButtonText='Reset Password'
                     submitButtonAlignment='center'
                     validationMode='on-input'
                     //
