@@ -1,24 +1,13 @@
 const endpoints = {
     app: {
         user: '/user',
-        client: '/client',
-        clientUser: '/client-user',
-        evaluationFunction: '/evaluation-function',
-        analysis: '/analysis',
-        externalAnalysis: '/external-analysis',
-        runAnalysis: '/run',
-        dockerStatus: '/docker/status',
-        dockerStart: '/docker/start',
     },
     admin: {
-        client: '/client',
-        evaluationFunction: '/evaluation-function',
-        analysis: '/analysis',
         user: '/user',
     },
     public: {},
     auth: {
-        // register: '/register',
+        register: '/register',
         login: '/login',
         logout: '/logout',
         whoami: '/whoami',

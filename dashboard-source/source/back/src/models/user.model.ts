@@ -1,7 +1,6 @@
 import { model, Schema } from 'mongoose'
 
 import { IPermissions } from '../services/authentication.service'
-import { IClient } from './client.model'
 
 export interface IUser {
     _id: string
@@ -15,9 +14,7 @@ export interface IUser {
     lastLoginAt?: Date
     createdAt: Date
     updatedAt: Date
-    client?: IClient
-    isClientAdmin?: boolean
-    dockerService?: { containerId: string }
+    organisation?: String
     isArchived?: boolean
 }
 
@@ -31,16 +28,8 @@ const userSchema = new Schema<IUser>(
         profileImage: { type: String },
         onboardingComplete: { type: Boolean },
         lastLoginAt: { type: Date },
-        client: {
-            type: Schema.Types.ObjectId,
-            ref: 'Client',
-            required: function (this: IUser) {
-                return !this.permissions?.isAdmin
-            },
-        },
-        isClientAdmin: { type: Boolean, default: false },
+        organisation: {type: String},
         isArchived: { type: Boolean, default: false },
-        dockerService: { type: Object },
     },
     {
         timestamps: true,
