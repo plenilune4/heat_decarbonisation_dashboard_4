@@ -27,6 +27,6 @@ if (process.env.NODE_ENV === 'staging') {
 app.use('/api', BaseRouter)
 app.use('/api/log', logRouter)
 
-startClientAccessReminderScheduler()
+// startClientAccessReminderScheduler()
 
 export default app
