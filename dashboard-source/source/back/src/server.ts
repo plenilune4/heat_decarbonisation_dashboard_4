@@ -4,7 +4,7 @@ import helmet from 'helmet'
 
 import { logRouter, morganMiddleware } from './logger'
 import BaseRouter from './routes/api'
-import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
+// import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
 
 const app = express()
 
