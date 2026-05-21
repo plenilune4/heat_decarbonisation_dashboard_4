@@ -26,15 +26,19 @@ const router = Router()
 
 router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
 
+    console.log("request arriving at register:")
+    console.log(req.body)
 
 
     if (!req.body || !req.body.email || !req.body.password) {
+        console.log("Register req missing required data.")
         return res.status(400).json({ error: 'Missing required data' })
     }
 
     const existing_user = await User.findOne({ $or: [{ email: req.body.email }] })
     if (existing_user) {
         if (existing_user.email == req.body.email) {
+            console.log(`Register req for ${req.body.email}: email already registered.`)
             return res.status(409).json({
                 error: 'An account with this email already exists. Please log in or enter a different address.',
             })
@@ -54,6 +58,7 @@ router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
 
     const [jwt, err] = await createTokenForUser(new_user)
     if (err) {
+        console.log(`Register: failed to create token for ${req.body.email}.`)
         LoggingService.log({
             level: 'error',
             service: 'AUTH',
@@ -65,15 +70,13 @@ router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
         })
         return res.status(400).json({ error: err.message })
     }
-
+    console.log(`Register: successfully registered ${req.body.email}.`)
     return res.status(201).json({
         token: jwt,
     })
 })
 
 router.post(AUTH_ROUTES.login, async (req: Request, res: Response) => {
-    console.log("request arriving at login:")
-    console.log(req.body)
 
     if (!req.body || !req.body.email || !req.body.password) {
         return res.status(400).json({ error: 'Missing required data' })
