@@ -56,6 +56,8 @@ router.post(AUTH_ROUTES.register, async (req: Request, res: Response) => {
         // dockerService: { containerId },
     })
 
+    await new_user.save()
+
     const [jwt, err] = await createTokenForUser(new_user)
     if (err) {
         console.log(`Register: failed to create token for ${req.body.email}.`)
