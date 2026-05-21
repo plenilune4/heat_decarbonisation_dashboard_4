@@ -1,24 +1,15 @@
 import { Menu, Transition } from '@headlessui/react'
+import { BuildingOfficeIcon, CodeBracketIcon, ForwardIcon, PlusIcon } from '@heroicons/react/20/solid'
 import {
+    BuildingOfficeIcon as BuildingOfficeIconOutline,
+    CodeBracketIcon as CodeBracketIconOutline,
     ForwardIcon as ForwardIconOutline,
-    HomeIcon as HomeIconOutline,
     PlusIcon as PlusIconOutline,
-    UserGroupIcon as UserGroupIconOutline,
-    WrenchScrewdriverIcon as WrenchScrewdriverIconOutline,
+    UserIcon as UserIconOutline,
 } from '@heroicons/react/24/outline'
-import {
-    ArrowRightOnRectangleIcon,
-    Bars3Icon,
-    ChevronDownIcon,
-    ForwardIcon,
-    HomeIcon,
-    PlusIcon,
-    UserGroupIcon,
-    WrenchScrewdriverIcon,
-} from '@heroicons/react/24/solid'
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ArrowRightOnRectangleIcon, Bars3Icon, ChevronDownIcon, UserIcon } from '@heroicons/react/24/solid'
+import { ReactNode, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { isBefore } from 'date-fns'
 
 import { useAuth } from '@/services/authentication.service'
 import { cn } from '@/utils/cn'
@@ -30,41 +21,34 @@ import TransitionPanel from '@/components/TransitionPanel'
 
 import logo from '../../SYSC-logo-reversed.svg'
 
-const PUBLIC_LINKS: INavLink[] = []
-const APPLICATION_LINKS: INavLink[] = [
-    { text: 'Home', href: '/', icon: (isActive: boolean) => (isActive ? <HomeIcon /> : <HomeIconOutline />) },
+const ADMIN_LINKS: INavLink[] = [
+    { text: 'Users', href: '/admin', icon: (isActive) => (isActive ? <UserIcon /> : <UserIconOutline />) },
+    {
+        text: 'Clients',
+        href: '/admin/clients',
+        icon: (isActive) => (isActive ? <BuildingOfficeIcon /> : <BuildingOfficeIconOutline />),
+    },
+    {
+        text: 'Functions',
+        href: '/admin/functions',
+        icon: (isActive) => (isActive ? <CodeBracketIcon /> : <CodeBracketIconOutline />),
+    },
     {
         text: 'Load Previous Analysis',
-        href: '/analyses',
-        icon: (isActive: boolean) => (isActive ? <ForwardIcon /> : <ForwardIconOutline />),
+        href: '/admin/analyses',
+        icon: (isActive) => (isActive ? <ForwardIcon /> : <ForwardIconOutline />),
     },
     {
         text: 'Start New Analysis',
-        href: '/analyses/create',
-        icon: (isActive: boolean) => (isActive ? <PlusIcon /> : <PlusIconOutline />),
-    },
-]
-const CLIENT_MANAGEMENT_LINKS: INavLink[] = [
-    {
-        text: 'Client Management',
-        href: '/client-management',
-        icon: (isActive: boolean) => (isActive ? <UserGroupIcon /> : <UserGroupIconOutline />),
-    },
-]
-const ACCOUNT_LINKS: INavLink[] = [{ text: 'My Account', href: '/profile' }]
-const ADMIN_LINKS: INavLink[] = [
-    {
-        text: 'Global Admin',
-        href: '/admin',
-        icon: (isActive: boolean) => (isActive ? <WrenchScrewdriverIcon /> : <WrenchScrewdriverIconOutline />),
+        href: '/admin/analyses/create',
+        icon: (isActive) => (isActive ? <PlusIcon /> : <PlusIconOutline />),
     },
 ]
 const FOOTER_LINKS = [
     { text: 'Home', href: '/' },
     { text: 'Logout', href: '/logout' },
 ]
-
-const FULL_BLEED_PAGES = ['/analyses/run']
+const FULL_BLEED_PAGES = ['/admin/analyses/run']
 
 interface INavLink {
     text: string
@@ -73,47 +57,25 @@ interface INavLink {
 }
 
 export default function AppLayout() {
-    const { user } = useAuth()
-    const location = useLocation()
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const navigate = useNavigate()
-
-    const primaryLinks = useMemo(() => {
-        return [
-            ...(PUBLIC_LINKS.length ? [...PUBLIC_LINKS, { text: 'separator' }] : []),
-            ...APPLICATION_LINKS,
-            ...(user?.isClientAdmin ? [{ text: 'separator' }, ...CLIENT_MANAGEMENT_LINKS] : []),
-            ...(user?.permissions?.isAdmin ? [{ text: 'separator' }, ...ADMIN_LINKS] : []),
-        ]
-    }, [user])
-
-    useEffect(() => {
-        if (user) {
-            if (user?.permissions?.isAdmin) {
-                return
-            }
-            if (user?.client?.accessEndAt && isBefore(user?.client?.accessEndAt, new Date())) {
-                navigate('/access-expired')
-            }
-        }
-    }, [user])
+    const location = useLocation()
 
     return (
         <>
             {/* Absolute positioned elements */}
             <MobileSidebar
                 logo={logo}
-                primaryLinks={primaryLinks}
+                primaryLinks={ADMIN_LINKS}
                 isSidebarOpen={sidebarOpen}
                 setSidebarOpen={setSidebarOpen}
             />
             <>
                 {/* Inline elements */}
                 <aside className='hidden md:z-30 md:fixed md:inset-y-0 md:flex md:flex-col md:w-72 md:flex-1'>
-                    <DesktopSidebar logo={logo} primaryLinks={primaryLinks} />
+                    <DesktopSidebar logo={logo} primaryLinks={ADMIN_LINKS} />
                 </aside>
                 <div className='flex relative flex-col flex-1 w-full md:pl-72'>
-                    <Header secondaryLinks={user ? ACCOUNT_LINKS : []} setSidebarOpen={setSidebarOpen} />
+                    <Header setSidebarOpen={setSidebarOpen} />
                     <main
                         className={cn(
                             'flex relative flex-col flex-1 px-5 w-full',
@@ -219,11 +181,11 @@ function DesktopSidebar(props: {
             )}
         >
             <header className='flex flex-row items-center px-4 py-3 w-full'>
-                <a href='/' className='flex flex-row gap-1 justify-center items-center w-full'>
-                    <img src={props?.logo} className='flex-shrink-0 my-auto w-full h-auto' />
-                    {/* <span className='text-3xl font-normal text-gray-100'>{import.meta.env.VITE_PROJECT_NAME}</span> */}
+                <a href='/' className='flex flex-row gap-2 items-center'>
+                    <img src={props?.logo} className='flex-shrink-0 my-auto h-auto w-will' />
                 </a>
             </header>
+            <span className='px-4 text-2xl font-bold text-brand'>Global Admin</span>
             <nav className='flex flex-col flex-1 gap-y-8 px-2'>
                 <ul className='flex flex-col gap-y-2'>
                     {props.primaryLinks.map((link, index) => (
@@ -257,11 +219,17 @@ function DesktopSidebar(props: {
     )
 }
 
-function isLinkActive(href: string, pathname: string) {
-    if (pathname === '/analyses/run') {
-        return href === '/analyses/run' || href === '/analyses'
+const isLinkActive = (href: string, pathname: string) => {
+    if (href === '/admin') {
+        if (pathname.startsWith('/admin/users')) {
+            return true
+        }
+        return pathname === href
+    } else if (href === '/admin/analyses/run') {
+        return pathname === href || pathname.startsWith('/admin/analyses')
+    } else {
+        return pathname.endsWith(href)
     }
-    return pathname.endsWith(href)
 }
 
 function DesktopSidebarLink(props: INavLink) {
