@@ -16,6 +16,7 @@ export interface IUser {
     updatedAt: Date
     organisation?: String
     isArchived?: boolean
+    dockerService?: { containerId: string }
 }
 
 const userSchema = new Schema<IUser>(
@@ -30,6 +31,7 @@ const userSchema = new Schema<IUser>(
         lastLoginAt: { type: Date },
         organisation: {type: String},
         isArchived: { type: Boolean, default: false },
+        dockerService: { type: Object, required:false },
     },
     {
         timestamps: true,

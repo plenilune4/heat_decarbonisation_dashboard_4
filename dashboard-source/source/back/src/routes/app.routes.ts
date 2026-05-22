@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import bcrypt from 'bcrypt'
 import { Request, Response, Router } from 'express'
+import { createUserContainer, DockerServiceImplementation } from '../services/docker.service'
 
 import Token from '../models/token.model'
 
@@ -34,6 +35,65 @@ BaseRoutes(router, {
     populate: ['client'],
     excludedUpdateProperties: ['client', 'permissions', 'passwordHash', 'isClientAdmin'],
 })
+
+// Client Docker Routes
+
+router.get(ROUTES.dockerStatus, async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+    if (!sessionUser.dockerService?.containerId) {
+        return res.status(400).json({ error: 'User does not have a docker container' })
+    }
+
+    try {
+        const dockerService = new DockerServiceImplementation()
+        const container = await dockerService.inspectContainer(sessionUser.dockerService.containerId)
+        return res.status(200).json({ isRunning: container.State.Running })
+    } catch (error) {
+        return res.status(500).json({ error: 'Something went wrong while checking your docker container status' })
+    }
+})
+
+router.get(ROUTES.dockerStart, async (req: Request, res: Response) => {
+    const { sessionUser } = res.locals
+
+    try {
+        const dockerService = new DockerServiceImplementation()
+
+        if (!sessionUser.dockerService?.containerId) {
+            try {
+                const containerId = await createUserContainer(sessionUser)
+                sessionUser.dockerService = { containerId }
+                await sessionUser.save()
+            } catch (dockerError) {
+                LoggingService.log({
+                    level: 'error',
+                    service: 'docker-start',
+                    message: 'Failed to create Docker container',
+                    error: dockerError.message,
+                    data: {
+                        sessionUser: {
+                            _id: sessionUser._id,
+                            email: sessionUser.email,
+                            client: sessionUser.client._id,
+                            dockerService: {
+                                containerId: sessionUser.dockerService?.containerId,
+                            },
+                        },
+                        error: dockerError.message,
+                    },
+                })
+                return res.status(500).json({ error: 'Failed to create Docker container' })
+            }
+        }
+
+        await dockerService.startContainer(sessionUser.dockerService.containerId)
+
+        return res.status(200).json({ message: 'Docker container started' })
+    } catch (error) {
+        return res.status(500).json({ error: 'Something went wrong while starting your docker container' })
+    }
+})
+
 
 // // Client User routes with access control
 // // All users can get all users in their client
