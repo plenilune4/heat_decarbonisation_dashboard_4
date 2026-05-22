@@ -1,5 +1,5 @@
 {
-    "name": "nebula-front",
+    "name": "sysc-dashboard-front",
     "private": true,
     "version": "1.0.0",
     "author": "Verticode",
@@ -22,7 +22,9 @@
         "export-to-csv": "^1.4.0",
         "html-to-image": "^1.11.13",
         "jszip": "^3.10.1",
-        "react": "^18.2.0",
+        "leaflet": "^1.9.4",
+        "react-leaflet": "^5.0.0",
+        "react": "^18.3.0",
         "react-dom": "^18.2.0",
         "react-helmet": "^6.1.0",
         "react-router": "^6.16.0",

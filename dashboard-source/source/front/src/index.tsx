@@ -46,10 +46,10 @@ import LoadPreviousAnalysis from '@/app/LoadPreviousAnalysis'
 import ManageExternalAnalysis from '@/app/ManageExternalAnalysis'
 import Onboarding from '@/app/Onboarding'
 import Profile from '@/app/Profile'
-import RunAnalysis from '@/app/RunAnalysis'
 import SingleFunctionView from '@/app/SingleFunctionView'
 
 import AccessExpiredPage from './app/AccessExpiredPage'
+import App from '@/app/App'
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
@@ -73,7 +73,7 @@ root.render(
                     <Route element={<AuthenticatedWrapper />}>
                         <Route element={<OnboardingWrapper />}>
                             <Route path='/' element={<AppLayout />}>
-                                <Route index element={<Dashboard />} />
+                                <Route index element={<App />} />
                                 <Route path='evaluations' element={<Evaluations />} />
                                 <Route path='evaluations/:id' element={<SingleFunctionView />} />
                                 {/*  */}
@@ -83,7 +83,6 @@ root.render(
                                     <Route path='create-from-external' element={<CreateExternalAnalysisForm />} />
                                     <Route path='create-from-external/:id' element={<CreateExternalAnalysisForm />} />
                                     <Route path='create-from-function' element={<CreateAnalysisForm />} />
-                                    <Route path='run/:id' element={<RunAnalysis />} />
                                     <Route path='external/:id' element={<ManageExternalAnalysis />} />
                                 </Route>
                                 {/*  */}
@@ -110,7 +109,6 @@ root.render(
                                     <Route path='create-from-external' element={<CreateExternalAnalysisForm />} />
                                     <Route path='create-from-external/:id' element={<CreateExternalAnalysisForm />} />
                                     <Route path='create-from-function' element={<CreateAnalysisForm />} />
-                                    <Route path='run/:id' element={<RunAnalysis />} />
                                     <Route path='external/:id' element={<ManageExternalAnalysis />} />
                                 </Route>
                                 {/*  */}
