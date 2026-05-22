@@ -169,7 +169,7 @@ router.get(AUTH_ROUTES.whoami, async (req: Request, res: Response) => {
         else return res.sendStatus(401)
     if (!payload) return res.status(401).json({ error: 'Invalid token' })
 
-    const user = await User.findById(payload.uuid).populate('client')
+    const user = await User.findById(payload.uuid)
     if (user) {
         user.lastLoginAt = new Date()
         await user.save()
