@@ -32,7 +32,7 @@ export class DockerServiceImplementation implements IDockerService {
     private docker: Docker
     private defaultImage: string
 
-    constructor(defaultImage: string = 'python:3.11-slim') {
+    constructor(defaultImage: string = 'python:3.12-slim') {
         this.defaultImage = defaultImage
         this.docker = new Docker({socketPath: '/var/run/docker.sock'})
     }
