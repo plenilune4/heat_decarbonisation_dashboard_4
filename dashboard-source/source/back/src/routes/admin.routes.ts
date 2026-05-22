@@ -18,7 +18,7 @@ BaseRoutes(router, {
     model: User,
     route: ROUTES.user,
     excludedRoutes: ['post', 'delete'],
-    populate: ['client'],
+    populate: [],
     filter: { isArchived: { $ne: true } },
 })
 
@@ -82,7 +82,7 @@ router.post(ROUTES.user, async (req, res) => {
 })
 
 router.post(ROUTES.user + '/:id/resend-invite', async (req, res) => {
-    const user = await User.findById(req.params.id).populate('client')
+    const user = await User.findById(req.params.id)
     if (!user) {
         return res.status(404).json({ error: 'User not found' })
     }
