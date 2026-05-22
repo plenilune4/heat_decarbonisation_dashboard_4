@@ -1,6 +1,8 @@
 const endpoints = {
     app: {
         user: '/user',
+        dockerStatus: '/docker/status',
+        dockerStart: '/docker/start',
     },
     admin: {
         user: '/user',

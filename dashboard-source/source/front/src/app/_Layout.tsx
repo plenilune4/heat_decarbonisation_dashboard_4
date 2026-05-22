@@ -82,7 +82,6 @@ export default function AppLayout() {
         return [
             ...(PUBLIC_LINKS.length ? [...PUBLIC_LINKS, { text: 'separator' }] : []),
             ...APPLICATION_LINKS,
-            ...(user?.isClientAdmin ? [{ text: 'separator' }, ...CLIENT_MANAGEMENT_LINKS] : []),
             ...(user?.permissions?.isAdmin ? [{ text: 'separator' }, ...ADMIN_LINKS] : []),
         ]
     }, [user])
@@ -91,9 +90,6 @@ export default function AppLayout() {
         if (user) {
             if (user?.permissions?.isAdmin) {
                 return
-            }
-            if (user?.client?.accessEndAt && isBefore(user?.client?.accessEndAt, new Date())) {
-                navigate('/access-expired')
             }
         }
     }, [user])
