@@ -3,6 +3,8 @@ const endpoints = {
         user: '/user',
         dockerStatus: '/docker/status',
         dockerStart: '/docker/start',
+        getVBuildingData1: '/getVBuildingData1',
+        getVBuildingData2: '/getVBuildingData2',
     },
     admin: {
         user: '/user',

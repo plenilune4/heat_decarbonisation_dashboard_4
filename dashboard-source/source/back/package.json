@@ -1,7 +1,7 @@
 {
     "name": "nebula-back",
     "version": "1.0.0",
-    "author": "Verticode",
+    "author": "Tim Hutty",
     "scripts": {
         "build": "node build.js",
         "dev": "nodemon --env=development"
