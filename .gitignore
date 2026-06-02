@@ -17,3 +17,4 @@ node_modules/
 !.env.vault
 /fancy_csv_input - Copy.csv
 !/dashboard-source/source/back/data/verisk_sy_buildings.geojson
+!/dashboard-source/source/back/data/
