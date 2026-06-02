@@ -1,6 +1,6 @@
 # OVERVIEW
 
-This is a MERN stack web application developed by Verticode. This project is structured as a monorepo with separate folders for the the frontend and the backend.
+This is a MERN stack web application developed by Tim Hutty at the University of Sheffield. This project is structured as a monorepo with separate folders for the frontend and the backend.
 
 ## Table of Contents
 
