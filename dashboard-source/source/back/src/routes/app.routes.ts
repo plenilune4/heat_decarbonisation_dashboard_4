@@ -8,9 +8,22 @@ import Token from '../models/token.model'
 import User from '../models/user.model'
 import { ENDPOINTS } from './_endpoints'
 import BaseRoutes from './helper'
+import path from "path";
+import fs from "fs";
 
 const router = Router()
 const ROUTES = ENDPOINTS.app
+
+router.get(ROUTES.getVBuildingData1, async (req: Request, res: Response) => {
+    console.log("...trying to retrieve building data geodatabase...")
+    const filePath = path.join(__dirname, "..", "data", "verisk_sy_buildings.geojson");
+    fs.readFile(filePath, "utf8", (err, data) => {
+    if (err) {
+      return res.status(500).json({ error: "Failed to read file" });
+    }
+    res.json({ content: data });
+  });
+})
 
 
 function isClientAccessActive(client: { accessStartAt?: Date; accessEndAt?: Date } | null | undefined) {
