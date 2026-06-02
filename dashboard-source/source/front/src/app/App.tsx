@@ -7,7 +7,7 @@ import Greeting from "@/experimenting/test_bits";
 function App() {
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
-        <Greeting name={"Theophilus"}></Greeting>
+        {/*<Greeting name={"Theophilus"}></Greeting>*/}
       <h1> South Yorkshire Residential Decarbonisation Dashboard</h1>
       <MapDashboard />
     </div>);

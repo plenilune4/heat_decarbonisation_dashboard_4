@@ -10,6 +10,8 @@ import {MapContainer} from "react-leaflet";
 import {TileLayer, GeoJSON } from "react-leaflet";
 import { FeatureCollection, Feature } from "geojson";
 import "leaflet/dist/leaflet.css";
+import { api } from '@/services/api.service'
+import ROUTES from '@/ROUTES'
 
 import {
   Box,
@@ -33,6 +35,9 @@ const DATASETS:{[key:string]:string} = {
 };
 
 const MapDashboard: React.FC = () => {
+
+  const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
+
   const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
   const [selectedArea, setSelectedArea] = useState<FeatureProperties | null>(null);
   const [valueRange, setValueRange] = useState<[number, number]>([0, 100]);
@@ -51,6 +56,25 @@ const MapDashboard: React.FC = () => {
   //     .then((data) => setGeoData(data))
   //     .catch((err) => console.error(err));
   // }, []);
+
+  // ***** Get the building footprint data...*****
+  // though this should probably be delayed until we know we need it, or are at the right zoom level.
+  // Might also want to add the user permissions checks here.
+  async function getVBuildingData(){
+    await api(ROUTES.app.getVBuildingData1)
+        //@ts-ignore
+        .then(res => res.json())
+        .then((data:FeatureCollection) => {
+          setVBuildingData(data);
+        })
+        .catch(err => console.error(err));
+    console.log("Retrieved results for combined data.")
+  }
+  useEffect(() => {
+      getVBuildingData()
+  }, []) // Empty dependencies means this should only run once.
+
+
 
   // Fetch GeoJSON whenever dataset changes
   useEffect(() => {

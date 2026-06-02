@@ -2,7 +2,7 @@
     "name": "sysc-dashboard-front",
     "private": true,
     "version": "1.0.0",
-    "author": "Verticode",
+    "author": "Tim Hutty",
     "scripts": {
         "dev": "vite --host",
         "ula": "vite -m production",
