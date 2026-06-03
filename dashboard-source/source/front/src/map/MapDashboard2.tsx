@@ -2,6 +2,7 @@
 //this is a dummy change
 
 import React, { useEffect, useState, useRef } from "react";
+import {useMapEvents} from "react-leaflet";
 import RangeSlider from 'react-range-slider-input';
 
 import L from "leaflet";
@@ -28,11 +29,45 @@ interface FeatureProperties {
   value: number;
 }
 
+interface ZoomListenerProps {
+  onZoomChange: (zoom:number) => void;
+}
+
+function ZoomListener({onZoomChange}:ZoomListenerProps){
+    useMapEvents({
+        zoomend: (event) => {
+            onZoomChange(event.target.getZoom());
+        }
+    });
+    return null;
+}
+
+function MapViewListener({
+    onViewChange
+}: {
+    onViewChange: (zoom: number, bounds: L.LatLngBounds) => void;
+}) {
+    useMapEvents({
+        moveend: (e) => {
+            const map = e.target;
+
+            onViewChange(
+                map.getZoom(),
+                map.getBounds()
+            );
+        }
+    });
+
+    return null;
+}
+
 const DATASETS:{[key:string]:string} = {
   "LSOA": "/data/LSOAs_for_dashboard.geojson",
   "OA": "/data/OAs_for_dashboard.geojson",
   "Secondary substation": "/data/secondaries_for_dashboard.geojson",
 };
+
+const BUILDING_ZOOM_THRESHOLD = 15
 
 const MapDashboard: React.FC = () => {
 
@@ -43,6 +78,10 @@ const MapDashboard: React.FC = () => {
   const [valueRange, setValueRange] = useState<[number, number]>([0, 100]);
   const [selectedDataset, setSelectedDataset] = useState<string>("LSOA");
   const mapRef = useRef<L.Map | null>(null);
+  const [mapState, setMapState] = useState({
+    zoom: 10,
+    bounds: null as L.LatLngBounds | null
+  });
 
   // const [filterValue, setFilterValue] = useState<number>(0);
 
@@ -62,14 +101,13 @@ const MapDashboard: React.FC = () => {
   // Might also want to add the user permissions checks here.
   async function getVBuildingData(){
     await api(ROUTES.app.getVBuildingData1)
-        //@ts-ignore
-        .then(res => res.json())
-        .then((data:FeatureCollection) => {
-          setVBuildingData(data);
+        .then((res) => {
+          setVBuildingData(res.data);
         })
         .catch(err => console.error(err));
     console.log("Retrieved results for combined data.")
   }
+
   useEffect(() => {
       getVBuildingData()
   }, []) // Empty dependencies means this should only run once.
@@ -98,6 +136,12 @@ const MapDashboard: React.FC = () => {
       })
       .catch((err) => console.error("Failed to fetch GeoJSON:", err));
   }, [selectedDataset]);
+
+  console.log("vbuilding data")
+  console.log(vBuildingData)
+
+  console.log("geodata")
+  console.log(geoData)
 
   // Highlight by range
   const styleFeature = (feature: any) => {
@@ -145,20 +189,25 @@ const MapDashboard: React.FC = () => {
   //   }
   // };
 
-  const map_centre = [54.95, -1.5]
-
   return (
     <div style={{ display: "flex" }}>
       {/* Map section */}
       <div style={{ flex: 3, height: "100vh" }}>
         <MapContainer
-          center={[54.95, -1.5]}
-          zoom={10}
+          center={[53.46, -1.29]}
+          zoom={11}
           style={{ height: "100%", width: "100%" }}
-          // whenCreated={(mapInstance) => {
-          //   mapRef.current = mapInstance;
-          // }}
+          whenCreated={(mapInstance) => {
+            mapRef.current = mapInstance;
+          }}
         >
+          <MapViewListener
+            onViewChange={(zoom, bounds) => {
+                setMapState({zoom, bounds});
+                console.log(`New zoom : ${zoom}; new bounds: ${bounds}`);
+            }
+            }
+          />
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution="&copy; OpenStreetMap contributors"
@@ -168,6 +217,19 @@ const MapDashboard: React.FC = () => {
               key={`${selectedDataset}-${JSON.stringify(valueRange)}`}
               data={geoData as any}
               style={styleFeature}
+              onEachFeature={onEachFeature}
+            />
+          )}
+          {(vBuildingData?.features && mapState.zoom >= BUILDING_ZOOM_THRESHOLD) && (
+            <GeoJSON
+              key={`vbuildingdata`}
+              data={vBuildingData as any}
+              style={{
+                fillColor: "#0000FF",
+                weight: 1,
+                color: "blue",
+                fillOpacity: 0.7,
+              }}
               onEachFeature={onEachFeature}
             />
           )}

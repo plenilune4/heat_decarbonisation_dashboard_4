@@ -25,7 +25,7 @@ export default function LoginPage() {
 
     return (
         <AuthLayout info={<></>}>
-            <h1 className='mb-3 text-3xl font-medium text-center'>Sign In</h1>
+            {/*<h1 className='mb-3 text-3xl font-medium text-center'>Sign In</h1>*/}
             {/* <h2 className='mb-5 text-center text-gray-400'>*/}
             {/*    Don't have an account?{' '}*/}
             {/*    <a className='text-brand-400 font-bold hover:text-brand-600' href='/register'>*/}
