@@ -14,17 +14,15 @@ import fs from "fs";
 const router = Router()
 const ROUTES = ENDPOINTS.app
 
-router.get(ROUTES.getVBuildingData1, async (req: Request, res: Response) => {
-    console.log("...trying to retrieve building data geodatabase...")
-    const filePath = path.join(__dirname, "..", "data", "verisk_sy_buildings.geojson");
-    fs.readFile(filePath, "utf8", (err, data) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to read file" });
-    }
-    res.json({ content: data });
-  });
-})
-
+router.get(ROUTES.getVBuildingData1, (req, res) => {
+    const filePath = path.join(
+        __dirname,
+        "..",
+        "data",
+        "verisk_sy_buildings.geojson"
+    );
+    res.sendFile(filePath);
+});
 
 function isClientAccessActive(client: { accessStartAt?: Date; accessEndAt?: Date } | null | undefined) {
     if (!client) return false

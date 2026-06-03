@@ -150,8 +150,6 @@ export async function api<ResponseBodyType>(
     const token: AuthToken = getTokens()
     const method = body ? 'POST' : 'GET'
     const requestBody = body ? JSON.stringify(body) : null
-    console.log("VITE_API_URL")
-    console.log(import.meta.env.VITE_API_URL)
     return await wrappedFetch(`${import.meta.env.VITE_API_URL}/${endpoint}`, {
         method: method,
         headers: {
