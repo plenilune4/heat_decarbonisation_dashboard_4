@@ -19,8 +19,10 @@
     "dependencies": {
         "@aws-sdk/client-s3": "^3.744.0",
         "@aws-sdk/s3-request-presigner": "^3.744.0",
+        "@turf/turf": "^7.3.5",
         "bcrypt": "^5.1.1",
         "boilerplate": "file:..",
+        "bullmq": "^5.78.0",
         "chalk": "^4.1.2",
         "command-line-args": "^5.2.1",
         "cors": "^2.8.5",

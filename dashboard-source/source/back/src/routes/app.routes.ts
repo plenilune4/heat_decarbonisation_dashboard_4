@@ -8,21 +8,198 @@ import Token from '../models/token.model'
 import User from '../models/user.model'
 import { ENDPOINTS } from './_endpoints'
 import BaseRoutes from './helper'
+// import { buildingService }
+//     from "../services/buildingService"; // redundant version that compared individual buildings to the supplied bounding box.
 import path from "path";
 import fs from "fs";
+import RefreshToken from '../models/refreshToken.model'
+import Token from '../models/token.model'
+import User from '../models/user.model'
+//import UserIEAGHG from '../models/user.ieaghg.model'
+import {
+    ACCESS_TOKEN_LIFETIME,
+    createTokenForUser,
+    encodeAccessToken,
+    SALT_ROUNDS,
+    verifyAccessTokenClaims,
+} from '../services/authentication.service'
 
 const router = Router()
 const ROUTES = ENDPOINTS.app
 
-router.get(ROUTES.getVBuildingData1, (req, res) => {
-    const filePath = path.join(
-        __dirname,
-        "..",
-        "data",
-        "verisk_sy_buildings.geojson"
-    );
-    res.sendFile(filePath);
-});
+// Bits for the backend optimisations:
+// const Job = require("../models/Job");
+// const optimisationQueue =
+//   require("../queues/optimisationQueue");
+
+/**
+ * Route for running a DHN optimisation in the backend.
+ */
+// router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
+//   try {
+//
+//     const { sessionUser } = res.locals
+//
+//     const {
+//       param1,
+//       param2,
+//       param3,
+//       param4
+//     } = req.body;
+//
+//
+//     if (
+//       param1 === undefined ||
+//       param2 === undefined
+//     ) {
+//       return res.status(400).json({
+//         error: "Missing parameters"
+//       });
+//     }
+//
+//     const job = await Job.create({
+//       userId: sessionUser._id,
+//       params: {
+//         param1,
+//         param2,
+//         param3,
+//         param4
+//       }
+//     });
+//
+//     await optimisationQueue.add(
+//       "runOptimisation",
+//       {
+//         jobId: job._id.toString(),
+//         param1,
+//         param2,
+//         param3,
+//         param4
+//       },
+//       {
+//         attempts: 3,
+//         removeOnComplete: 100,
+//         removeOnFail: 100
+//       }
+//     );
+//
+//     return res.status(202).json({
+//       jobId: job._id,
+//       status: "queued"
+//     });
+//
+//   } catch (err) {
+//
+//     console.error(err);
+//
+//     return res.status(500).json({
+//       error: "Failed to create job"
+//     });
+//
+//   }
+// });
+
+/**
+ * Route for checking current status of optimisation job.
+ * Note that Job will need switching for DHNoptimisationJob.
+ */
+// router.get(ROUTES.checkOptimisationStatus + "/:jobId", async (req, res) => {
+//
+//   const job = await Job.findById(
+//     req.params.jobId
+//   );
+//
+//   if (!job) {
+//     return res.status(404).json({
+//       error: "Job not found"
+//     });
+//   }
+//
+//   res.json({
+//     status: job.status,
+//     results: job.results,
+//     error: job.error
+//   });
+//
+// });
+
+/**
+ * Gets the buildings geojson for those which fall within a requested bounding box.
+ */
+// router.get(ROUTES.getVBuildingData1, (req, res) => {
+//
+//     const bboxString = req.query.bbox as string;
+//
+//     if (!bboxString) {
+//         return res.status(400).json({
+//             error: "bbox required"
+//         });
+//     }
+//
+//     const bbox =
+//         bboxString.split(",").map(Number);
+//
+//     const features =
+//         buildingService.getBuildingsInBBox(bbox);
+//
+//     res.json({
+//         type: "FeatureCollection",
+//         features
+//     });
+//
+// });
+
+router.get(`${ROUTES.getVBuildingData1}/:z/:x/:y`,
+    (req, res) => {
+        const { z, x, y } = req.params;
+
+        const filePath = path.join(
+            __dirname,
+            "..",
+            "data",
+            "verisk_sy_buildings",
+            z,
+            x,
+            `${y}.geojson`
+        );
+
+        fs.access(filePath, fs.constants.F_OK, (err) => {
+            if (err) {
+                return res.json({
+                    type: "FeatureCollection",
+                    crs: { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+                    features: []
+                });
+            }
+            res.sendFile(filePath);
+        });
+    }
+);
+
+// Second version using the req body,
+// as I can't get the version with url params to work (getting 404 not found).
+// router.get(ROUTES.getVBuildingData2,
+//     (req, res) => {
+//
+//         if (!req.body || !req.body.x || !req.body.y || !req.body.z) {
+//             return res.status(400).json({ error: 'Missing required data' })
+//         }
+//
+//         const { z, x, y } = req.body;
+//
+//         const filePath = path.join(
+//             __dirname,
+//             "..",
+//             "tiles",
+//             z,
+//             x,
+//             `${y}.geojson`
+//         );
+//
+//         res.sendFile(filePath);
+//     }
+// );
+
 
 function isClientAccessActive(client: { accessStartAt?: Date; accessEndAt?: Date } | null | undefined) {
     if (!client) return false
