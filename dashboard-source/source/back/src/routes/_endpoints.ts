@@ -5,6 +5,8 @@ const endpoints = {
         dockerStart: '/docker/start',
         getVBuildingData1: '/getVBuildingData1',
         getVBuildingData2: '/getVBuildingData2',
+        optimiseDHNlayout: '/optimiseDHNlayout',
+        checkOptimisationStatus: '/checkOptimisationStatus',
     },
     admin: {
         user: '/user',

@@ -139,9 +139,13 @@ export function getTokens(): AuthToken {
     return parsed
 }
 
-/* Request Functions
- */
 
+/**
+ * Note that 'POST' is always used for requests with a body; otherwise 'GET' is used.
+ * @param endpoint
+ * @param body
+ * @param logging
+ */
 export async function api<ResponseBodyType>(
     endpoint: string,
     body?: any,
