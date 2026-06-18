@@ -1,15 +1,14 @@
 import crypto from 'crypto'
 import bcrypt from 'bcrypt'
-import { Request, Response, Router } from 'express'
-import { createUserContainer, DockerServiceImplementation } from '../services/docker.service'
+import {Request, Response, Router} from 'express'
+import {createUserContainer, DockerServiceImplementation} from '../services/docker.service'
 
 import Token from '../models/token.model'
 
 import User from '../models/user.model'
-import { ENDPOINTS } from './_endpoints'
+import {ENDPOINTS} from './_endpoints'
 import BaseRoutes from './helper'
-// import { buildingService }
-//     from "../services/buildingService"; // redundant version that compared individual buildings to the supplied bounding box.
+import {buildingService} from "../services/buildingService";
 import path from "path";
 import fs from "fs";
 import RefreshToken from '../models/refreshToken.model'
@@ -26,6 +25,7 @@ import {
 
 const router = Router()
 const ROUTES = ENDPOINTS.app
+
 
 // Bits for the backend optimisations:
 // const Job = require("../models/Job");
@@ -149,9 +149,58 @@ const ROUTES = ENDPOINTS.app
 //
 // });
 
+
+/**
+ * Gets the buildings geojson for those which fall within a requested bounding box.
+ */
+router.get(ROUTES.getVBuildingDataInBounds, (req, res) => {
+
+    const bboxString = req.query.bbox as string;
+
+    if (!bboxString) {
+        return res.status(400).json({
+            error: "bbox required"
+        });
+    }
+
+    const bbox =
+        bboxString.split(",").map(Number);
+
+    const features =
+        buildingService.findBuildingsInBounds(bbox);
+
+    res.json({
+        type: "FeatureCollection",
+        features
+    });
+});
+
+router.post(ROUTES.getVBuildingDataInPolygon,
+    (req, res) => {
+
+        const polygon = req.body;
+
+        const buildings =
+            buildingService
+                .findBuildingsInPolygon(
+                    polygon
+                );
+
+        res.json({
+            count: buildings.length,
+            features: buildings
+        });
+    }
+);
+
+
+/**
+ * Route that gets building data for a specific tile, with zoom, x and y specified in the url params.
+ * (Only use zoom 15.)
+ */
 router.get(`${ROUTES.getVBuildingData1}/:z/:x/:y`,
     (req, res) => {
-        const { z, x, y } = req.params;
+        const {z, x, y} = req.params;
 
         const filePath = path.join(
             __dirname,
@@ -167,7 +216,7 @@ router.get(`${ROUTES.getVBuildingData1}/:z/:x/:y`,
             if (err) {
                 return res.json({
                     type: "FeatureCollection",
-                    crs: { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+                    crs: {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
                     features: []
                 });
             }
@@ -227,22 +276,22 @@ BaseRoutes(router, {
 // Client Docker Routes
 
 router.get(ROUTES.dockerStatus, async (req: Request, res: Response) => {
-    const { sessionUser } = res.locals
+    const {sessionUser} = res.locals
     if (!sessionUser.dockerService?.containerId) {
-        return res.status(400).json({ error: 'User does not have a docker container' })
+        return res.status(400).json({error: 'User does not have a docker container'})
     }
 
     try {
         const dockerService = new DockerServiceImplementation()
         const container = await dockerService.inspectContainer(sessionUser.dockerService.containerId)
-        return res.status(200).json({ isRunning: container.State.Running })
+        return res.status(200).json({isRunning: container.State.Running})
     } catch (error) {
-        return res.status(500).json({ error: 'Something went wrong while checking your docker container status' })
+        return res.status(500).json({error: 'Something went wrong while checking your docker container status'})
     }
 })
 
 router.get(ROUTES.dockerStart, async (req: Request, res: Response) => {
-    const { sessionUser } = res.locals
+    const {sessionUser} = res.locals
 
     try {
         const dockerService = new DockerServiceImplementation()
@@ -250,7 +299,7 @@ router.get(ROUTES.dockerStart, async (req: Request, res: Response) => {
         if (!sessionUser.dockerService?.containerId) {
             try {
                 const containerId = await createUserContainer(sessionUser)
-                sessionUser.dockerService = { containerId }
+                sessionUser.dockerService = {containerId}
                 await sessionUser.save()
             } catch (dockerError) {
                 LoggingService.log({
@@ -270,15 +319,15 @@ router.get(ROUTES.dockerStart, async (req: Request, res: Response) => {
                         error: dockerError.message,
                     },
                 })
-                return res.status(500).json({ error: 'Failed to create Docker container' })
+                return res.status(500).json({error: 'Failed to create Docker container'})
             }
         }
 
         await dockerService.startContainer(sessionUser.dockerService.containerId)
 
-        return res.status(200).json({ message: 'Docker container started' })
+        return res.status(200).json({message: 'Docker container started'})
     } catch (error) {
-        return res.status(500).json({ error: 'Something went wrong while starting your docker container' })
+        return res.status(500).json({error: 'Something went wrong while starting your docker container'})
     }
 })
 

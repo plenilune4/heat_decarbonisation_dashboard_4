@@ -7,6 +7,8 @@ const endpoints = {
         getVBuildingData2: '/getVBuildingData2',
         optimiseDHNlayout: '/optimiseDHNlayout',
         checkOptimisationStatus: '/checkOptimisationStatus',
+        getVBuildingDataInBounds: 'getVBuildingDataInBounds',
+        getVBuildingDataInPolygon: 'getVBuildingDataInPolygon',
     },
     admin: {
         user: '/user',
