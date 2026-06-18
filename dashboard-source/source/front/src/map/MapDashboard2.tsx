@@ -372,13 +372,13 @@ const MapDashboard: React.FC = () => {
 
     type selectionState = {
         latestSelection: string | null;
-        multiSelection: string[] | []
+        multiSelection: Set<string>;
     }
 
     // To enable selection of multiple buildings.
     const [buildingSelection, setBuildingSelection] = useState<selectionState | null>({
         latestSelection: null,
-        multiSelection: []
+        multiSelection: new Set(),
     })
     const [mouseOverBuilding, setMouseOverBuilding] = useState<string[] | []>([])
 
@@ -394,24 +394,24 @@ const MapDashboard: React.FC = () => {
                 // but you can access it like this in the 'set' call:
                 setBuildingSelection((current) => {
                     if (e.originalEvent.ctrlKey) {
-                        if (current.multiSelection.includes(id)) {
+                        if (current.multiSelection.has(id) {
                             // Then the mouseclick *removes* the current building from the selection.
                             return {
                                 latestSelection: null,
-                                multiSelection: current.multiSelection.filter((item) => item !== id)
+                                multiSelection: current.multiSelection.delete(id)
                             }
                         } else {
                             // Add the current building to the multiselection.
                             return {
                                 latestSelection: id,
-                                multiSelection: [...current.multiSelection, id]
+                                multiSelection: current.multiSelection.add(id)
                             }
                         }
                     } else {
                         // No multiselect.
                         return {
                             latestSelection: id,
-                            multiSelection: [id]
+                            multiSelection: new Set([id])
                         }
                     }
                 })
@@ -438,13 +438,12 @@ const MapDashboard: React.FC = () => {
         // hoveredId: string | null,
         // selectedId: string | null
     ) => {
-
         const id = feature.properties.id;
 
         if (buildingSelection.multiSelection.includes(id)) {
             return {
                 fillColor: "#ff4444",
-                weight: 4,
+                weight: 0,
                 color: "#000",
                 fillOpacity: 1
             };
@@ -488,25 +487,18 @@ const MapDashboard: React.FC = () => {
     //   }
     // };
 
-    // useEffect(() => {
-    //     console.log("Mouseover building has changed!")
-    // }, [mouseOverBuilding])
+    useEffect( () => {
+            console.log("building selection areas")
+            console.log(buildingSelectionAreas)
 
-    useEffect(() => {
-
-        if (!buildingsRef.current) return;
-        buildingsRef.current.eachLayer((layer: any) => {
-            if (layer.feature) {
-                layer.setStyle(styleBuilding(layer.feature));
-            }
-        });
-    }, [buildingSelection, mouseOverBuilding]);
-
-    useEffect(() => {
-        console.log("building selection areas")
-        console.log(buildingSelectionAreas)
+            // await api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//Sort out the asynchronous aspect at some point.
+            api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//I suspect this will currently fail wil multiple polygons.
+                .then((res) => {})
+                .catch(err => console.error(err));
         }
-    ,[buildingSelectionAreas])
+        , [buildingSelectionAreas])
+
+    const drawingOngoing = useRef<boolean>(false)
 
 
     return (
@@ -552,6 +544,7 @@ const MapDashboard: React.FC = () => {
                             key={`buildings-${mapState.zoom}-${mergedCollection.features.length}`}
                             data={mergedCollection as any}
                             style={styleBuilding}
+                            pointerEvents={drawingOngoing.current ? true : "none"} // If polygon drawing is ongoing then individual building mouseover needs to be disabled.
                             onEachFeature={onEachBuilding}
                         />
                     )}
@@ -567,18 +560,29 @@ const MapDashboard: React.FC = () => {
                                 marker: false,
                                 rectangle: false
                             }}
+
                             edit={{
                                 edit: false,
                                 remove: true
                             }}
-                            // onEditStart={(e)=>{console.log("you're drawing!")}}
-                            // onEditStop={(e)=>{console.log("you've stopped drawing!")}}
+
+                            onDrawStart={(e) => {
+                                console.log("you're drawing!");
+                                drawingOngoing.current = true;
+                            }}
+                            onDrawStop={(e) => {
+                                console.log("you've stopped drawing!");
+                                drawingOngoing.current = false;
+                            }}
+
                             onCreated={(e) => {
                                 if (e.layerType === "polygon") {
 
                                     const layer = e.layer;
                                     const geojson = e.layer.toGeoJSON();
-                                    setBuildingSelectionAreas((current) => [...current,geojson]);
+                                    setBuildingSelectionAreas((current) => [...current, geojson]);
+                                    // Note that we should consider bringing back the data *without* geometry where possible.
+                                    // Especially if allowing large selections.
                                 }
                             }}
                         />
