@@ -192,6 +192,7 @@ class BuildingService {
                 maxY: north
             });
 
+        // Consider NOT sending back the actual geometry from here.
         return candidates.map(
             item => item.feature
         );
