@@ -8,7 +8,8 @@ import Token from '../models/token.model'
 import User from '../models/user.model'
 import {ENDPOINTS} from './_endpoints'
 import BaseRoutes from './helper'
-import {buildingService} from "../services/buildingService";
+import { buildingService }
+    from "../services";
 import path from "path";
 import fs from "fs";
 import RefreshToken from '../models/refreshToken.model'
@@ -179,6 +180,8 @@ router.post(ROUTES.getVBuildingDataInPolygon,
     (req, res) => {
 
         const polygon = req.body;
+        console.log("Supplied polygon")
+        console.log(polygon)
 
         const buildings =
             buildingService

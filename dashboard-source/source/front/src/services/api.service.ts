@@ -152,7 +152,9 @@ export async function api<ResponseBodyType>(
     logging?: boolean
 ): Promise<ApiResponse<ResponseBodyType | null>> {
     const token: AuthToken = getTokens()
+    // console.log("body", body ?? "")
     const method = body ? 'POST' : 'GET'
+    // console.log("method", method)
     const requestBody = body ? JSON.stringify(body) : null
     return await wrappedFetch(`${import.meta.env.VITE_API_URL}/${endpoint}`, {
         method: method,

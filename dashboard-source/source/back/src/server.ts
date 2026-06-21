@@ -4,7 +4,21 @@ import helmet from 'helmet'
 
 import { logRouter, morganMiddleware } from './logger'
 import BaseRouter from './routes/api'
-// import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
+import {buildingService} from "./services";
+
+import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
+
+async function start() {
+    await buildingService.ready();
+
+    console.log(
+        `Loaded ${
+            buildingService.getBuildingCount()
+        } buildings`
+    );
+}
+
+start();
 
 const app = express()
 

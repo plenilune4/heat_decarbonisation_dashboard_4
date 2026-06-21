@@ -18,7 +18,9 @@ interface IndexedFeature {
     feature: Feature<Polygon | MultiPolygon>;
 }
 
-class BuildingService {
+let instanceCount = 0;
+
+export class BuildingService {
 
     private tree = new RBush<IndexedFeature>();
 
@@ -27,6 +29,8 @@ class BuildingService {
     private readyPromise: Promise<void>;
 
     constructor() {
+        instanceCount += 1;
+        console.log("Instance count", instanceCount)
         this.readyPromise = this.loadAllBuildings();
     }
 
@@ -58,6 +62,9 @@ class BuildingService {
         return JSON.parse(text);
     }
 
+    private x_for_dev = ['16265', '16266', '16267', '16268', '15'] // the 15 is actually for the directory above.
+    private y_for_dev = ['10603', '10604', '10605', '10606']
+
     /**
      * Recursively find all GeoJSON files.
      */
@@ -77,14 +84,25 @@ class BuildingService {
                     path.join(dir, entry.name);
 
                 if (entry.isDirectory()) {
-                    return this.getGeojsonFiles(
-                        fullPath
-                    );
+                    // For dev, we just keep a few tiles fr the middle of the map:
+                    if (this.x_for_dev.some((s) => s === entry.name)) {
+                    // if (true) {
+                        return this.getGeojsonFiles(
+                            fullPath
+                        );
+                    }
+                    return [];
                 }
 
-                return fullPath.endsWith(".geojson")
+                // ['16265/10603.geojson', '16265/10604.geojson', '16265_10605', '16265_10606', '16266_10603', '16266_10604', '16266_10605', '16266_10606', '16267_10603', '16267_10604', '16267_10605', '16267_10606', '16268_10603', '16268_10604', '16268_10605', '16268_10606']
+
+                // For dev, we just keep a few tiles from the middle of the map:
+
+                return this.y_for_dev.some((s) => fullPath.endsWith(s + ".geojson"))
+                // return fullPath.endsWith(".geojson")
                     ? [fullPath]
                     : [];
+
             })
         );
 
@@ -105,6 +123,8 @@ class BuildingService {
 
         const geojsonFiles =
             await this.getGeojsonFiles(baseDir);
+
+        console.log(geojsonFiles.slice(0,10))
 
         console.log(
             `Found ${geojsonFiles.length} GeoJSON tiles.`
@@ -198,5 +218,3 @@ class BuildingService {
         );
     }
 }
-
-export const buildingService = new BuildingService();

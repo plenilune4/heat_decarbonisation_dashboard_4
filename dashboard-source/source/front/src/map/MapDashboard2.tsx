@@ -223,6 +223,7 @@ const MapDashboard: React.FC = () => {
                 tiles.push(`${x}_${y}`);
             }
         }
+        console.log(tiles)
         return tiles;
     }
 
@@ -394,18 +395,26 @@ const MapDashboard: React.FC = () => {
                 // but you can access it like this in the 'set' call:
                 setBuildingSelection((current) => {
                     if (e.originalEvent.ctrlKey) {
-                        if (current.multiSelection.has(id) {
-                            // Then the mouseclick *removes* the current building from the selection.
-                            return {
-                                latestSelection: null,
-                                multiSelection: current.multiSelection.delete(id)
+                        try {
+                            if (current.multiSelection.has(id)) {
+                                // Then the mouseclick *removes* the current building from the selection.
+                                let newMultiselection:Set<string> = new Set([...current.multiSelection].filter((item) => item !== id))
+                                return {
+                                    latestSelection: null,
+                                    multiSelection: newMultiselection
+                                }
+                            } else {
+                                // Add the current building to the multiselection.
+                                return {
+                                    latestSelection: id,
+                                    multiSelection: current.multiSelection.add(id)
+                                }
                             }
-                        } else {
-                            // Add the current building to the multiselection.
-                            return {
-                                latestSelection: id,
-                                multiSelection: current.multiSelection.add(id)
-                            }
+                        } catch (E) {
+                            console.log(E)
+                            console.log(current)
+                            console.log(current.multiSelection)
+                            return current;
                         }
                     } else {
                         // No multiselect.
@@ -439,14 +448,24 @@ const MapDashboard: React.FC = () => {
         // selectedId: string | null
     ) => {
         const id = feature.properties.id;
-
-        if (buildingSelection.multiSelection.includes(id)) {
+        try {
+            if (buildingSelection.multiSelection.has(id)) {
+                return {
+                    fillColor: "#ff4444",
+                    weight: 0,
+                    color: "#000",
+                    fillOpacity: 1
+                };
+            }
+        } catch(E){
+            console.log(E)
+            console.log(buildingSelection.multiSelection)
             return {
-                fillColor: "#ff4444",
-                weight: 0,
-                color: "#000",
-                fillOpacity: 1
-            };
+                    fillColor: "#ff4444",
+                    weight: 0,
+                    color: "#000",
+                    fillOpacity: 1
+                };
         }
 
         if (mouseOverBuilding.includes(id)) {
@@ -487,182 +506,192 @@ const MapDashboard: React.FC = () => {
     //   }
     // };
 
-    useEffect( () => {
-            console.log("building selection areas")
-            console.log(buildingSelectionAreas)
+    useEffect(() => {
+        console.log("building selection areas")
+        console.log(buildingSelectionAreas)
 
-            // await api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//Sort out the asynchronous aspect at some point.
-            api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//I suspect this will currently fail wil multiple polygons.
-                .then((res) => {})
-                .catch(err => console.error(err));
-        }
-        , [buildingSelectionAreas])
+        if (buildingSelectionAreas.length === 0){return}
 
-    const drawingOngoing = useRef<boolean>(false)
+        buildingSelectionAreas.forEach((area) =>
+        // await api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//Sort out the asynchronous aspect at some point.
+        api(ROUTES.app.getVBuildingDataInPolygon, area.geometry)//I suspect this will currently fail wil multiple polygons.
+            .then((res) => {
+                    console.log(res);
+                    let all_ids = res.data.features.map((feature) => feature.properties.id);
+                    setBuildingSelection((current) => {
+                        return {
+                                latestSelection: current.latestSelection,
+                                multiSelection: current.multiSelection.union(new Set(all_ids))
+                            }
+                    })
+                }))}
+                , [buildingSelectionAreas])
+
+        const drawingOngoing = useRef<boolean>(false)
 
 
-    return (
-        <div style={{display: "flex"}}>
-            {/* Map section */}
-            <div style={{flex: 3, height: "100vh"}}>
-                <MapContainer
-                    crs={CRS.EPSG3857}
-                    center={[53.46, -1.29]}
-                    zoom={11}
-                    style={{height: "100%", width: "100%"}}
-                    whenCreated={(mapInstance) => {
-                        mapRef.current = mapInstance;
-                    }}
-                >
-                    <MapViewListener
-                        onViewChange={(zoom, bounds) => {
-                            setMapState({zoom, bounds});
-                            console.log(`New zoom : ${zoom}`);
-                            console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
-                            setVisibleTiles(getVisibleTiles(bounds, zoom));
-                        }
-                        }
-                    />
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution="&copy; OpenStreetMap contributors"
-                    />
-
-                    {/*{geoData && (*/}
-                    {/*  <GeoJSON*/}
-                    {/*    key={`${selectedDataset}-${JSON.stringify(valueRange)}`}*/}
-                    {/*    data={geoData as any}*/}
-                    {/*    style={styleFeature}*/}
-                    {/*    onEachFeature={onEachFeature}*/}
-                    {/*  />*/}
-                    {/*)}*/}
-
-                    {(mergedCollection.features && mapState.zoom >= BUILDING_ZOOM_THRESHOLD) && (
-                        // {true && (
-                        <GeoJSON
-                            ref={buildingsRef}
-                            key={`buildings-${mapState.zoom}-${mergedCollection.features.length}`}
-                            data={mergedCollection as any}
-                            style={styleBuilding}
-                            pointerEvents={drawingOngoing.current ? true : "none"} // If polygon drawing is ongoing then individual building mouseover needs to be disabled.
-                            onEachFeature={onEachBuilding}
-                        />
-                    )}
-
-                    <FeatureGroup>
-                        <EditControl
-                            position="topleft"
-                            draw={{
-                                polygon: true,
-                                polyline: false,
-                                circle: false,
-                                circlemarker: false,
-                                marker: false,
-                                rectangle: false
-                            }}
-
-                            edit={{
-                                edit: false,
-                                remove: true
-                            }}
-
-                            onDrawStart={(e) => {
-                                console.log("you're drawing!");
-                                drawingOngoing.current = true;
-                            }}
-                            onDrawStop={(e) => {
-                                console.log("you've stopped drawing!");
-                                drawingOngoing.current = false;
-                            }}
-
-                            onCreated={(e) => {
-                                if (e.layerType === "polygon") {
-
-                                    const layer = e.layer;
-                                    const geojson = e.layer.toGeoJSON();
-                                    setBuildingSelectionAreas((current) => [...current, geojson]);
-                                    // Note that we should consider bringing back the data *without* geometry where possible.
-                                    // Especially if allowing large selections.
-                                }
-                            }}
-                        />
-                    </FeatureGroup>
-                </MapContainer>
-            </div>
-
-            {/* Controls panel */}
-            <div style={{flex: 1, padding: "1rem", borderLeft: "1px solid #ccc"}}>
-                <Typography variant="h6">Map Controls</Typography>
-
-                {/* Dataset selector */}
-                <FormControl fullWidth sx={{mt: 2}}>
-                    <InputLabel>Dataset</InputLabel>
-                    <Select
-                        value={selectedDataset}
-                        label="Dataset"
-                        onChange={(e) => setSelectedDataset(e.target.value)}
+        return (
+            <div style={{display: "flex"}}>
+                {/* Map section */}
+                <div style={{flex: 3, height: "100vh"}}>
+                    <MapContainer
+                        crs={CRS.EPSG3857}
+                        center={[53.46, -1.29]}
+                        zoom={11}
+                        style={{height: "100%", width: "100%"}}
+                        whenCreated={(mapInstance) => {
+                            mapRef.current = mapInstance;
+                        }}
                     >
-                        {Object.keys(DATASETS).map((name) => (
-                            <MenuItem key={name} value={name}>
-                                {name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
+                        <MapViewListener
+                            onViewChange={(zoom, bounds) => {
+                                setMapState({zoom, bounds});
+                                console.log(`New zoom : ${zoom}`);
+                                console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
+                                setVisibleTiles(getVisibleTiles(bounds, zoom));
+                            }
+                            }
+                        />
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution="&copy; OpenStreetMap contributors"
+                        />
 
-                {/* Value range slider */}
-                <Box sx={{mt: 4}}>
-                    <Typography gutterBottom>Filter by value</Typography>
-                    <Slider
-                        value={valueRange}
-                        onChange={(_, val) =>
-                            Array.isArray(val) && setValueRange([val[0], val[1]])
-                        }
-                        valueLabelDisplay="auto"
-                        min={
-                            geoData ? Math.min(...geoData.features.map((f: any) => f.properties.value)) : 0
-                        }
-                        max={
-                            geoData ? Math.max(...geoData.features.map((f: any) => f.properties.value)) : 100
-                        }
-                    />
-                    <Typography variant="body2">
-                        Showing values between <b>{valueRange[0]}</b> and <b>{valueRange[1]}</b>
-                    </Typography>
-                </Box>
+                        {/*{geoData && (*/}
+                        {/*  <GeoJSON*/}
+                        {/*    key={`${selectedDataset}-${JSON.stringify(valueRange)}`}*/}
+                        {/*    data={geoData as any}*/}
+                        {/*    style={styleFeature}*/}
+                        {/*    onEachFeature={onEachFeature}*/}
+                        {/*  />*/}
+                        {/*)}*/}
 
-                {/* Selected area info */}
-                <Box sx={{mt: 3}}>
-                    {selectedArea ? (
-                        <>
-                            <Typography variant="subtitle1">{selectedArea.name}</Typography>
-                            <Typography>Value: {selectedArea.value}</Typography>
-                        </>
-                    ) : (
-                        <Typography variant="body2">Click an area for details</Typography>
-                    )}
-                </Box>
+                        {(mergedCollection.features && mapState.zoom >= BUILDING_ZOOM_THRESHOLD) && (
+                            // {true && (
+                            <GeoJSON
+                                ref={buildingsRef}
+                                key={`buildings-${mapState.zoom}-${mergedCollection.features.length}`}
+                                data={mergedCollection as any}
+                                style={styleBuilding}
+                                pointerEvents={drawingOngoing.current ? true : "none"} // If polygon drawing is ongoing then individual building mouseover needs to be disabled.
+                                onEachFeature={onEachBuilding}
+                            />
+                        )}
+
+                        <FeatureGroup>
+                            <EditControl
+                                position="topleft"
+                                draw={{
+                                    polygon: true,
+                                    polyline: false,
+                                    circle: false,
+                                    circlemarker: false,
+                                    marker: false,
+                                    rectangle: false
+                                }}
+
+                                edit={{
+                                    edit: false,
+                                    remove: true
+                                }}
+
+                                onDrawStart={(e) => {
+                                    console.log("you're drawing!");
+                                    drawingOngoing.current = true;
+                                }}
+                                onDrawStop={(e) => {
+                                    console.log("you've stopped drawing!");
+                                    drawingOngoing.current = false;
+                                }}
+
+                                onCreated={(e) => {
+                                    if (e.layerType === "polygon") {
+
+                                        const layer = e.layer;
+                                        const geojson = e.layer.toGeoJSON();
+                                        setBuildingSelectionAreas((current) => [...current, geojson]);
+                                        // Note that we should consider bringing back the data *without* geometry where possible.
+                                        // Especially if allowing large selections.
+                                    }
+                                }}
+                            />
+                        </FeatureGroup>
+                    </MapContainer>
+                </div>
+
+                {/* Controls panel */}
+                <div style={{flex: 1, padding: "1rem", borderLeft: "1px solid #ccc"}}>
+                    <Typography variant="h6">Map Controls</Typography>
+
+                    {/* Dataset selector */}
+                    <FormControl fullWidth sx={{mt: 2}}>
+                        <InputLabel>Dataset</InputLabel>
+                        <Select
+                            value={selectedDataset}
+                            label="Dataset"
+                            onChange={(e) => setSelectedDataset(e.target.value)}
+                        >
+                            {Object.keys(DATASETS).map((name) => (
+                                <MenuItem key={name} value={name}>
+                                    {name}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    {/* Value range slider */}
+                    <Box sx={{mt: 4}}>
+                        <Typography gutterBottom>Filter by value</Typography>
+                        <Slider
+                            value={valueRange}
+                            onChange={(_, val) =>
+                                Array.isArray(val) && setValueRange([val[0], val[1]])
+                            }
+                            valueLabelDisplay="auto"
+                            min={
+                                geoData ? Math.min(...geoData.features.map((f: any) => f.properties.value)) : 0
+                            }
+                            max={
+                                geoData ? Math.max(...geoData.features.map((f: any) => f.properties.value)) : 100
+                            }
+                        />
+                        <Typography variant="body2">
+                            Showing values between <b>{valueRange[0]}</b> and <b>{valueRange[1]}</b>
+                        </Typography>
+                    </Box>
+
+                    {/* Selected area info */}
+                    <Box sx={{mt: 3}}>
+                        {selectedArea ? (
+                            <>
+                                <Typography variant="subtitle1">{selectedArea.name}</Typography>
+                                <Typography>Value: {selectedArea.value}</Typography>
+                            </>
+                        ) : (
+                            <Typography variant="body2">Click an area for details</Typography>
+                        )}
+                    </Box>
 
 
-                <Button onClick={() => {
-                    api(ROUTES.app.optimiseDHNlayout, {
-                        param1: 5,
-                        param2: 8,
-                        param3: 4,
-                        param4: 0,
-                    });
-                }}
-                >
-                    Optimise
-                </Button>
+                    <Button onClick={() => {
+                        api(ROUTES.app.optimiseDHNlayout, {
+                            param1: 5,
+                            param2: 8,
+                            param3: 4,
+                            param4: 0,
+                        });
+                    }}
+                    >
+                        Optimise
+                    </Button>
 
 
+                </div>
             </div>
-        </div>
-    );
-};
+        );
+    };
 
-export default MapDashboard;
+    export default MapDashboard;
 
 //   return (
 //     <div style={{ display: "flex" }}>
