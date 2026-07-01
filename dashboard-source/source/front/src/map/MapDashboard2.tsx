@@ -1,7 +1,13 @@
 // noinspection TypeScriptValidateTypes
 //this is a dummy change
 
-import React, {useEffect, useState, useRef} from "react";
+import React, {useEffect, useState, useRef, useMemo} from "react";
+import {useResource} from '@/services/resource.service';
+import {useAuth} from '@/services/authentication.service'
+import {IBuildingSelection} from "@/MODELS/buildingSelection.model";
+import BuildingSelectionCard from '@/components/BuildingSelectionCard';
+import Modal from '@/components/Modal'
+import {TextField} from '@/form-control/fields'
 import {useMapEvents} from "react-leaflet";
 import {MapContainer} from "react-leaflet";
 import {TileLayer, GeoJSON, FeatureGroup} from "react-leaflet";
@@ -32,6 +38,7 @@ import {
     InputLabel,
 } from "@mui/material";
 import Button from "@/components/Button.tsx";
+import {toast} from "react-toastify";
 
 interface FeatureProperties {
     name: string;
@@ -109,6 +116,12 @@ const BUILDING_TILE_ZOOM = 15
 
 const MapDashboard: React.FC = () => {
 
+    const {user} = useAuth()
+
+    const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections)
+    const [showSaveAsConfirm, setShowSaveAsConfirm] = useState(false)
+    const [saveAsLabel, setSaveAsLabel] = useState('')
+
     const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
     const [visibleTiles, setVisibleTiles] = useState<string[]>([]);
 
@@ -125,15 +138,57 @@ const MapDashboard: React.FC = () => {
 
     const buildingsRef = useRef<L.Map | null>(null);//Do we need this?
 
-    // Box drawn by user to select multiple buildings.
-    // Although, there may be more versatility from building it ourselves.
-    const [buildingSelectionAreas, setBuildingSelectionAreas] = useState<Feature[] | []>([]);
+    // Polygons drawn by user to select multiple buildings.
+    // const [buildingSelectionAreas, setBuildingSelectionAreas] = useState<Feature[] | []>([]);
+
+    /**
+     * The one loaded from database.
+     */
+    const [buildingSelection, setBuildingSelection] = useState<IBuildingSelection>({
+        owner: user,
+        polygons: [],
+        excludedPolygons: [],
+        additionalBuildingIDs: [],
+        excludedBuildingIDs: [],
+    })
+
+    /**
+     * The current state of the one being edited.
+     */
+    const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>({
+        owner: user,
+        polygons: [],
+        excludedPolygons: [],
+        additionalBuildingIDs: [],
+        excludedBuildingIDs: [],
+    })
+
 
     const bounds = mapState.bounds
     const tileCacheRef = useRef(
         new LRUCache<string, FeatureCollection>({max: 100}) // LRU = 'least recently used'.
     );// We are using useRef to avoid changes to the cache triggering re-renders.
     // LRUCache will limit the size of the cache by removing items not recently used.
+
+
+    async function handleSaveAs(buildingSelection: IBuildingSelection,
+                                saveAsLabel: string) {
+        const update = {
+            ...buildingSelection,
+            _id: 'new',
+            name: saveAsLabel,
+        }
+        const response = await api<{ created?: IBuildingSelection }>(
+            ROUTES.app.user + '/' + user?._id + '/buildingSelections',
+            update
+        )
+        if (response.data.created) {
+            toast.success('New analysis created')
+        } else {
+            toast.error('Error saving new analysis')
+        }
+    }
+
 
     async function getBuildingsForTile(
         x: number,
@@ -372,19 +427,62 @@ const MapDashboard: React.FC = () => {
         });
     };
 
-    type selectionState = {
+    type IncludedBuildingsStatus = {
         latestSelection: string | null;
         multiSelection: Set<string>;
     }
 
     // To enable selection of multiple buildings.
-    const [buildingSelection, setBuildingSelection] = useState<selectionState | null>({
+    const [includedBuildingsStatus, setIncludedBuildingsStatus] = useState<IncludedBuildingsStatus | null>({
         latestSelection: null,
         multiSelection: new Set(),
     })
     const [mouseOverBuilding, setMouseOverBuilding] = useState<string[] | []>([])
 
     // console.log("building selection on this render:", buildingSelection);
+
+    // We use the buildingSelectionState (which has polygons AND individual building selections)
+    // to update the list of included building indices.
+    const polygons = buildingSelectionState.polygons
+
+    const buildingIDsInPolygons = useMemo(() => {
+            //To do: we also need to check that the polygons have changed, not just the individual buildings.
+            if (polygons.length === 0) {
+                return
+            }
+
+            const building_ids: Set<string> = new Set([])
+
+            // To do: it would be better if we were only getting info for the most recent polygon, not all of them.
+            // Also, where relevant polygons should be combined *before* sending the api request, rather than sending multiple requests.
+            polygons.forEach((area) =>
+                // await api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//Sort out the asynchronous aspect at some point.
+                api(ROUTES.app.getVBuildingDataInPolygon, area.geometry)//I suspect this will currently fail wil multiple polygons.
+                    .then((res) => {
+                        console.log(res);
+                        let all_ids = res.data.features.map((feature) => feature.properties["dashboard_index"]);
+                        building_ids = building_ids.union(new Set(all_ids))
+
+                        // setBuildingSelection((current) => {
+                        // setIncludedBuildingsStatus((current) => {
+                        //     return {
+                        //         latestSelection: current.latestSelection,
+                        //         multiSelection: current.multiSelection.union(new Set(all_ids))
+                        //     }
+                        // })
+                    }))
+            return building_ids
+        }
+        , [polygons])
+
+    const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
+    const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
+
+    const allSelectedBuildingIDs = useMemo<Set<string>>(() => {
+        let all_ids_set = buildingIDsInPolygons.union(new Set(manuallySelectedBuildingIDs))
+            .difference(new Set(manuallyRemovedBuildingIDs))
+    }, [buildingIDsInPolygons, manuallySelectedBuildingIDs, manuallyRemovedBuildingIDs])
+
 
     const onEachBuilding = (feature: any, layer: any) => {
         // To do: select none.
@@ -443,6 +541,7 @@ const MapDashboard: React.FC = () => {
         });
     };
 
+    //Can we compare to sets that are calculated above, or do we have to use sets that are in State???
     const styleBuilding = (
         feature: any,
         // hoveredId: string | null,
@@ -450,7 +549,8 @@ const MapDashboard: React.FC = () => {
     ) => {
         const id = feature.properties.id;
         try {
-            if (buildingSelection.multiSelection.has(id)) {
+            // if (buildingSelection.multiSelection.has(id)) { // original version
+            if (allSelectedBuildingIDs.has(id)) {
                 return {
                     fillColor: "#ff4444",
                     weight: 0,
@@ -460,7 +560,6 @@ const MapDashboard: React.FC = () => {
             }
         } catch (E) {
             console.log(E)
-            console.log(buildingSelection.multiSelection)
             return {
                 fillColor: "#ff4444",
                 weight: 0,
@@ -507,29 +606,6 @@ const MapDashboard: React.FC = () => {
     //   }
     // };
 
-    useEffect(() => {
-            console.log("building selection areas")
-            console.log(buildingSelectionAreas)
-
-            if (buildingSelectionAreas.length === 0) {
-                return
-            }
-
-            buildingSelectionAreas.forEach((area) =>
-                // await api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//Sort out the asynchronous aspect at some point.
-                api(ROUTES.app.getVBuildingDataInPolygon, area.geometry)//I suspect this will currently fail wil multiple polygons.
-                    .then((res) => {
-                        console.log(res);
-                        let all_ids = res.data.features.map((feature) => feature.properties.id);
-                        setBuildingSelection((current) => {
-                            return {
-                                latestSelection: current.latestSelection,
-                                multiSelection: current.multiSelection.union(new Set(all_ids))
-                            }
-                        })
-                    }))
-        }
-        , [buildingSelectionAreas])
 
     const drawingOngoing = useRef<boolean>(false)
 
@@ -539,7 +615,49 @@ const MapDashboard: React.FC = () => {
 
             {/* Controls panel */}
             <div style={{flex: 1, padding: "1rem", borderLeft: "1px solid #ccc"}}>
-                <Typography variant="h6">Map Controls</Typography>
+                {/*<Typography variant="h6">Map Controls</Typography>*/}
+
+                <div className='flex flex-col items-center m-6'>
+                    <Button className='w-full text-brand-300' onClick={() => {
+                        setShowSaveAsConfirm(true)
+                    }}>
+                        Save this building collection
+                    </Button>
+                </div>
+
+                <Modal open={showSaveAsConfirm} onClose={() => setShowSaveAsConfirm(false)}>
+                    <div className='flex flex-col gap-4'>
+                        <h3 className='text-lg font-semibold'>Save building collection</h3>
+                        <TextField
+                            value={""}
+                            onChange={(text) => setSaveAsLabel(text)}
+                            placeholder='Name for this locality or collection of buildings'
+                            autoFocus
+                            label=''
+                        />
+                        <div className='flex flex-row gap-2 justify-end'>
+                            <Button onClick={() => setShowSaveAsConfirm(false)}>Cancel</Button>
+                            <Button.Success
+                                onClickAsync={async () => {
+                                    await handleSaveAs(buildingSelectionState, saveAsLabel)
+                                    setShowSaveAsConfirm(false)
+                                }}
+                                disabled={!saveAsLabel.trim()}
+                            >
+                                Save
+                            </Button.Success>
+                        </div>
+                    </div>
+                </Modal>
+
+
+                <Typography variant="h6">Available case study areas</Typography>
+
+                {buildingSelections && buildingSelections.map((bs) => (
+                    <BuildingSelectionCard>
+                        buildingSelection = bs
+                    </BuildingSelectionCard>))}
+
 
                 {/* Dataset selector */}
                 <FormControl fullWidth sx={{mt: 2}}>
@@ -606,8 +724,8 @@ const MapDashboard: React.FC = () => {
 
             </div>
 
-            {/* Map section */}
-            <div style={{flex: 3, height: "100vh", paddingRight:50, paddingTop:30, paddingLeft:25}}>
+            {/* ########## Map section ########## */}
+            <div style={{flex: 3, height: "100vh", paddingRight: 50, paddingTop: 30, paddingLeft: 25}}>
                 <MapContainer
                     crs={CRS.EPSG3857}
                     center={[53.46, -1.29]}
@@ -680,12 +798,17 @@ const MapDashboard: React.FC = () => {
 
                             onCreated={(e) => {
                                 if (e.layerType === "polygon") {
-
                                     const layer = e.layer;
                                     const geojson = e.layer.toGeoJSON();
-                                    setBuildingSelectionAreas((current) => [...current, geojson]);
-                                    // Note that we should consider bringing back the data *without* geometry where possible.
-                                    // Especially if allowing large selections.
+                                    // setBuildingSelectionState((current) => [...current, geojson]);
+
+                                    // The new polygon is added to the selected areas in the state.
+                                    const newSelectionState = {
+                                        ...buildingSelectionState,
+                                        selectedArea: [buildingSelectionState.polygons, geojson]
+                                    }
+                                    setBuildingSelectionState(newSelectionState);
+                                    // We still need to think about how we *remove* polygons...
                                 }
                             }}
                         />
