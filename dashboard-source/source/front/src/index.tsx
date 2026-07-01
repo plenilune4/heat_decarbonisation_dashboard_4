@@ -28,7 +28,8 @@ import Onboarding from '@/app/Onboarding'
 import Profile from '@/app/Profile'
 
 import AccessExpiredPage from './app/AccessExpiredPage'
-import App from '@/app/App'
+import App from '@/app/App' // I don't think this is needed as an intermediate component.
+import MapDashboard from '@/map/MapDashboard2'
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 
@@ -53,6 +54,7 @@ root.render(
                         <Route element={<OnboardingWrapper />}>
                             <Route path='/' element={<AppLayout />}>
                                 <Route index element={<App />} />
+                                {/*<Route index element={<MapDashboard />} />*/}
                                 {/*  */}
                                 <Route path='profile' element={<Profile />} />
                             </Route>
