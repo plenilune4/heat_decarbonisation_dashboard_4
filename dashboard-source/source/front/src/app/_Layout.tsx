@@ -1,4 +1,4 @@
-import { Menu, Transition } from '@headlessui/react'
+import {Menu, Transition} from '@headlessui/react'
 import {
     ForwardIcon as ForwardIconOutline,
     HomeIcon as HomeIconOutline,
@@ -16,52 +16,42 @@ import {
     UserGroupIcon,
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/solid'
-import { ReactNode, useEffect, useMemo, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { isBefore } from 'date-fns'
+import {ReactNode, useEffect, useMemo, useState} from 'react'
+import {Link, NavLink, Outlet, useLocation, useNavigate} from 'react-router-dom'
+import {isBefore} from 'date-fns'
 
-import { useAuth } from '@/services/authentication.service'
-import { cn } from '@/utils/cn'
+import {useAuth} from '@/services/authentication.service'
+import {cn} from '@/utils/cn'
 
 import Avatar from '@/components/Avatar'
 import Button from '@/components/Button'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import TransitionPanel from '@/components/TransitionPanel'
 
-import logo from '../../SYSC-logo-reversed.svg'
+import SYSClogo from '../../SYSC-logo-reversed.svg'
+import dashboardLogo from '../../dashboard_text.png'
 
 const PUBLIC_LINKS: INavLink[] = []
 const APPLICATION_LINKS: INavLink[] = [
-    { text: 'Home', href: '/', icon: (isActive: boolean) => (isActive ? <HomeIcon /> : <HomeIconOutline />) },
+    {text: 'Home', href: '/', icon: (isActive: boolean) => (isActive ? <HomeIcon/> : <HomeIconOutline/>)},
     {
         text: 'Load Previous Analysis',
         href: '/analyses',
-        icon: (isActive: boolean) => (isActive ? <ForwardIcon /> : <ForwardIconOutline />),
+        icon: (isActive: boolean) => (isActive ? <ForwardIcon/> : <ForwardIconOutline/>),
     },
     {
         text: 'Start New Analysis',
         href: '/analyses/create',
-        icon: (isActive: boolean) => (isActive ? <PlusIcon /> : <PlusIconOutline />),
+        icon: (isActive: boolean) => (isActive ? <PlusIcon/> : <PlusIconOutline/>),
     },
 ]
-const CLIENT_MANAGEMENT_LINKS: INavLink[] = [
-    {
-        text: 'Client Management',
-        href: '/client-management',
-        icon: (isActive: boolean) => (isActive ? <UserGroupIcon /> : <UserGroupIconOutline />),
-    },
-]
-const ACCOUNT_LINKS: INavLink[] = [{ text: 'My Account', href: '/profile' }]
-const ADMIN_LINKS: INavLink[] = [
-    {
-        text: 'Global Admin',
-        href: '/admin',
-        icon: (isActive: boolean) => (isActive ? <WrenchScrewdriverIcon /> : <WrenchScrewdriverIconOutline />),
-    },
-]
+
+const ACCOUNT_LINKS: INavLink[] = [{text: 'My Account', href: '/profile'}, {text: 'Logout', href: '/logout'},]
+
+
 const FOOTER_LINKS = [
-    { text: 'Home', href: '/' },
-    { text: 'Logout', href: '/logout' },
+    {text: 'Home', href: '/'},
+    {text: 'Logout', href: '/logout'},
 ]
 
 const FULL_BLEED_PAGES = ['/analyses/run']
@@ -73,16 +63,16 @@ interface INavLink {
 }
 
 export default function AppLayout() {
-    const { user } = useAuth()
+    const {user} = useAuth()
     const location = useLocation()
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const navigate = useNavigate()
 
     const primaryLinks = useMemo(() => {
         return [
-            ...(PUBLIC_LINKS.length ? [...PUBLIC_LINKS, { text: 'separator' }] : []),
+            ...(PUBLIC_LINKS.length ? [...PUBLIC_LINKS, {text: 'separator'}] : []),
             ...APPLICATION_LINKS,
-            ...(user?.permissions?.isAdmin ? [{ text: 'separator' }, ...ADMIN_LINKS] : []),
+            ...(user?.permissions?.isAdmin ? [{text: 'separator'}, ...ADMIN_LINKS] : []),
         ]
     }, [user])
 
@@ -97,30 +87,42 @@ export default function AppLayout() {
     return (
         <>
             {/* Absolute positioned elements */}
-            <MobileSidebar
-                logo={logo}
-                primaryLinks={primaryLinks}
-                isSidebarOpen={sidebarOpen}
-                setSidebarOpen={setSidebarOpen}
-            />
+            {/*<MobileSidebar*/}
+            {/*    logo={logo}*/}
+            {/*    primaryLinks={primaryLinks}*/}
+            {/*    isSidebarOpen={sidebarOpen}*/}
+            {/*    setSidebarOpen={setSidebarOpen}*/}
+            {/*/>*/}
             <>
                 {/* Inline elements */}
-                <aside className='hidden md:z-30 md:fixed md:inset-y-0 md:flex md:flex-col md:w-72 md:flex-1'>
-                    <DesktopSidebar logo={logo} primaryLinks={primaryLinks} />
-                </aside>
-                <div className='flex relative flex-col flex-1 w-full md:pl-72'>
-                    <Header secondaryLinks={user ? ACCOUNT_LINKS : []} setSidebarOpen={setSidebarOpen} />
-                    <main
-                        className={cn(
-                            'flex relative flex-col flex-1 px-5 w-full',
-                            FULL_BLEED_PAGES.includes(location.pathname) ? 'max-w-none mx-0' : 'max-w-7xl mx-auto'
-                        )}
+                {/*<aside className='hidden md:z-30 md:fixed md:inset-y-0 md:flex md:flex-col md:w-72 md:flex-1'>*/}
+                {/*    <DesktopSidebar logo={logo} primaryLinks={primaryLinks} />*/}
+                {/*</aside>*/}
+                <div className="flex flex-col flex-1 min-w-0">
+                {/*<div className="flex flex-col flex-1 min-w-0 md:pl-5">*/}
+                    {/*<div className='flex relative flex-col flex-1 w-full md:pl-5'>*/}
+                    {/*<div className='flex relative flex-col flex-1 w-full'>*/}
+                    <Header secondaryLinks={user ? ACCOUNT_LINKS : []} setSidebarOpen={setSidebarOpen}/>
+                    {/*Original*/}
+                    {/*<main className={cn(*/}
+                    {/*        'flex relative flex-col flex-1 px-5 w-full',*/}
+                    {/*        FULL_BLEED_PAGES.includes(location.pathname) ? 'max-w-none mx-0' : 'max-w-7xl mx-auto'*/}
+                    {/*    )}*/}
+                    {/*>*/}
+                    {/*Suggested by ChatGPT*/}
+                    <main className={cn(
+                        "flex flex-col flex-1 min-w-0",
+                        FULL_BLEED_PAGES.includes(location.pathname)
+                            ? "max-w-none"
+                            : "max-w-7xl mx-auto"
+                    )}
                     >
+                        {/*Main content of the app goes here ('outlet'*/}
                         <ErrorBoundary componentName='Admin Layout - Main'>
-                            <Outlet />
+                            <Outlet/>
                         </ErrorBoundary>
                     </main>
-                    <Footer primaryLinks={FOOTER_LINKS} />
+                    <Footer primaryLinks={FOOTER_LINKS}/>
                 </div>
             </>
         </>
@@ -137,12 +139,12 @@ function MobileSidebar(props: {
     logo?: string
 }) {
     const navigate = useNavigate()
-    const { user } = useAuth()
+    const {user} = useAuth()
     return (
         <TransitionPanel from='right' open={props.isSidebarOpen} setOpen={props.setSidebarOpen}>
             <header className='flex flex-row justify-between items-center px-6 my-3 space-x-6 w-full'>
                 <a href='/' className='flex flex-row items-center'>
-                    <img src={props?.logo} className='flex-shrink-0 my-auto w-16 h-auto' />
+                    <img src={props?.logo} className='flex-shrink-0 my-auto w-16 h-auto'/>
                 </a>
             </header>
             <nav className='flex flex-col flex-1 px-6 mt-6 space-y-8'>
@@ -173,7 +175,7 @@ function MobileSidebar(props: {
                         </Button.Outline> */}
                     </>
                 ) : (
-                    <a className='text-lg heading' onClick={() => navigate('/logout', { replace: true })}>
+                    <a className='text-lg heading' onClick={() => navigate('/logout', {replace: true})}>
                         Sign Out
                     </a>
                 )}
@@ -184,17 +186,17 @@ function MobileSidebar(props: {
 
 function MobileSidebarLink(props: INavLink) {
     if (!props?.href) {
-        return <hr className='mobile-nav-separator' />
+        return <hr className='mobile-nav-separator'/>
     }
     return (
         <NavLink
             key={props.href}
             to={props.href}
-            className={({ isActive }) =>
+            className={({isActive}) =>
                 cn('flex flex-row items-center gap-2 transition-transform hover:translate-x-1 mobile-nav-item')
             }
         >
-            {({ isActive }) => <span className={cn('mobile-nav-item', isActive && 'active')}>{props.text}</span>}
+            {({isActive}) => <span className={cn('mobile-nav-item', isActive && 'active')}>{props.text}</span>}
         </NavLink>
     )
 }
@@ -206,7 +208,7 @@ function DesktopSidebar(props: {
     logo?: string
 }) {
     const navigate = useNavigate()
-    const { user } = useAuth()
+    const {user} = useAuth()
     return (
         <aside
             className={cn(
@@ -216,7 +218,7 @@ function DesktopSidebar(props: {
         >
             <header className='flex flex-row items-center px-4 py-3 w-full'>
                 <a href='/' className='flex flex-row gap-1 justify-center items-center w-full'>
-                    <img src={props?.logo} className='flex-shrink-0 my-auto w-full h-auto' />
+                    <img src={props?.logo} className='flex-shrink-0 my-auto w-full h-auto'/>
                     {/* <span className='text-3xl font-normal text-gray-100'>{import.meta.env.VITE_PROJECT_NAME}</span> */}
                 </a>
             </header>
@@ -246,7 +248,7 @@ function DesktopSidebar(props: {
                         </Button.Outline>
                     </>
                 ) : (
-                    <DesktopSidebarLink href='/logout' text='Sign out' icon={<ArrowRightOnRectangleIcon />} />
+                    <DesktopSidebarLink href='/logout' text='Sign out' icon={<ArrowRightOnRectangleIcon/>}/>
                 )}
             </footer>
         </aside>
@@ -263,7 +265,7 @@ function isLinkActive(href: string, pathname: string) {
 function DesktopSidebarLink(props: INavLink) {
     const location = useLocation()
     if (!props.href) {
-        return <hr className='sidebar-nav-separator' />
+        return <hr className='sidebar-nav-separator'/>
     }
 
     const isActive = isLinkActive(props.href, location.pathname)
@@ -283,23 +285,42 @@ function Header(props: {
     //
     setSidebarOpen?: (isOpen: boolean) => void
     //
-    logo?: string
 }) {
     const navigate = useNavigate()
-    const { user } = useAuth()
+    const {user} = useAuth()
 
     return (
-        <header className='flex flex-col justify-center items-center w-full h-14 transition-all select-none header'>
+        // <header className='flex flex-col justify-center items-center w-full h-20 transition-all select-none header'>
+        <header className="w-full h-20 header">
+
             {/* max width container */}
-            <div className='flex flex-row items-center px-5 w-full max-w-7xl'>
-                {/* Navigation; wide screen header */}
-                <nav className='hidden flex-row items-center ml-auto space-x-3 md:flex w-fit md:space-x-8'>
+            {/*<div className='flex flex-row items-center px-5 h-full w-full max-w-7xl'>*/}
+            <div className="flex items-center justify-between h-full w-full max-w-7xl px-5 mx-auto">
+                {/* Navigation; wide screen header. */}
+                {/*Note: mr-auto pushes everything to the left, and ml-auto pushes everything to the right.*/}
+                {/*hidden means the nav bar is hidden for small screens.*/}
+
+                <div className="flex items-center gap-4">
+                    <img src={dashboardLogo} alt="SYSC Heat Decarbonisation Dashboard"
+                        // className='flex-shrink-0 my-auto w-auto h-13'/>
+                         className='hidden md:flex items-center gap-8 h-20'/>
+                    <img src={SYSClogo} alt="SYSC logo" className='flex-shrink-0 my-auto w-auto h-12'/>
+                    <h1 className="text-2xl font-semibold pl-10">SYSC Residential Decarbonisation Dashboard</h1>
+                </div>
+
+                <nav className='hidden md:flex items-center gap-8'>
+                    {/*<nav className='hidden flex-row items-center ml-auto space-x-3 md:flex w-fit md:space-x-8'>*/}
+
+
+                    {/*Primary links*/}
                     <ul className='flex flex-row items-center space-x-3'>
+
+
                         {props.primaryLinks?.map((link, index) => (
                             <NavLink
                                 key={link.href}
                                 to={link.href}
-                                className={({ isActive }) =>
+                                className={({isActive}) =>
                                     cn(
                                         'flex flex-row items-center gap-2 font-base text-gray-700 group',
                                         isActive ? 'text-gray-800 font-semibold' : 'hover:text-gray-500'
@@ -310,6 +331,7 @@ function Header(props: {
                             </NavLink>
                         ))}
                     </ul>
+                    {/*This is the part of the topbar with the user dropdown.*/}
                     <ul className='flex flex-row items-center space-x-1'>
                         {!user ? (
                             <>
@@ -331,8 +353,8 @@ function Header(props: {
                                 <Menu.Button className='-m-2.5 flex items-center justify-end p-1.5'>
                                     <span className='w-full sr-only'>Open user menu</span>
                                     <div className='inline-flex items-center space-x-2' aria-hidden='true'>
-                                        <ChevronDownIcon className='w-5 h-5 text-gray-400' aria-hidden='true' />
-                                        <Avatar size={40} />
+                                        <ChevronDownIcon className='w-5 h-5 text-gray-400' aria-hidden='true'/>
+                                        <Avatar size={40}/>
                                     </div>
                                 </Menu.Button>
                                 <Transition
@@ -343,10 +365,11 @@ function Header(props: {
                                     leaveFrom='transform opacity-100 scale-100'
                                     leaveTo='transform opacity-0 scale-95'
                                 >
-                                    <Menu.Items className='absolute right-0 z-10 py-2 mt-5 w-32 bg-gray-800 rounded-md ring-1 shadow-lg origin-top-right min-w-fit ring-gray-900/5 focus:outline-none'>
+                                    <Menu.Items
+                                        className='absolute right-0 z-10 py-2 mt-5 w-32 bg-gray-800 rounded-md ring-1 shadow-lg origin-top-right min-w-fit ring-gray-900/5 focus:outline-none'>
                                         {props?.secondaryLinks?.map((link, index) => (
                                             <Menu.Item key={index}>
-                                                {({ active }) => (
+                                                {({active}) => (
                                                     <a
                                                         href={link.href}
                                                         className={cn(
@@ -365,9 +388,10 @@ function Header(props: {
                         )}
                     </ul>
                 </nav>
-                {/* Navigation; small screen header */}
+                {/* Navigation; small screen header */
+                }
                 <Button.Icon
-                    icon={<Bars3Icon />}
+                    icon={<Bars3Icon/>}
                     className='flex ml-auto md:hidden'
                     iconClass='h-8 w-8 text-brand'
                     onClick={() => props.setSidebarOpen(true)}
@@ -377,6 +401,11 @@ function Header(props: {
     )
 }
 
+/**
+ * Page footer
+ * @param props
+ * @constructor
+ */
 function Footer(props: { primaryLinks?: INavLink[] }) {
     return (
         <footer>
