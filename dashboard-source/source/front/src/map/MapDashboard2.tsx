@@ -183,9 +183,9 @@ const MapDashboard: React.FC = () => {
             update
         )
         if (response.data.created) {
-            toast.success('New analysis created')
+            toast.success('Building set saved successfully.')
         } else {
-            toast.error('Error saving new analysis')
+            toast.error('Error saving new building set.')
         }
     }
 
@@ -630,7 +630,7 @@ const MapDashboard: React.FC = () => {
                     <div className='flex flex-col gap-4'>
                         <h3 className='text-lg font-semibold'>Save building collection</h3>
                         <TextField
-                            value={""}
+                            value={saveAsLabel}
                             onChange={(text) => setSaveAsLabel(text)}
                             placeholder='Name for this locality or collection of buildings'
                             autoFocus
