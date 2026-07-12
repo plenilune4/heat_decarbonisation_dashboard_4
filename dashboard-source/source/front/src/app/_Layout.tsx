@@ -72,7 +72,7 @@ export default function AppLayout() {
         return [
             ...(PUBLIC_LINKS.length ? [...PUBLIC_LINKS, {text: 'separator'}] : []),
             ...APPLICATION_LINKS,
-            ...(user?.permissions?.isAdmin ? [{text: 'separator'}, ...ADMIN_LINKS] : []),
+            // ...(user?.permissions?.isAdmin ? [{text: 'separator'}, ...ADMIN_LINKS] : []),
         ]
     }, [user])
 

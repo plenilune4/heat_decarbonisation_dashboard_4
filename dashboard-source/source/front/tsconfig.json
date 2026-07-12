@@ -1,15 +1,18 @@
 {
     "compilerOptions": {
-        "target": "ES2020",
+//        "target": "ES2020",
+        "target": "ES2025",
         "module": "ESNext",
-        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+//        "lib": ["ES2020", "DOM", "DOM.Iterable"],
+        "lib": ["ES2025", "DOM", "DOM.Iterable"],
         "jsx": "react-jsx",
         "outDir": "dist",
         "noEmit": true,
         "useDefineForClassFields": true,
         "strict": false,
         "moduleResolution": "bundler",
-        "baseUrl": ".",
+//        "baseUrl": ".", // no longer needed in latest Typescript versions.
+        "rootDir": "..",
         "paths": {
             "@/*": ["./src/*"],
             "@/MODELS/*": ["../back/src/models/*"],

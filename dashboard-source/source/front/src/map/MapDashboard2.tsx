@@ -136,7 +136,7 @@ const MapDashboard: React.FC = () => {
         bounds: null as L.LatLngBounds | null
     });
 
-    const buildingsRef = useRef<L.Map | null>(null);//Do we need this?
+    // const buildingsRef = useRef<L.Map | null>(null);//Do we need this?
 
     // Polygons drawn by user to select multiple buildings.
     // const [buildingSelectionAreas, setBuildingSelectionAreas] = useState<Feature[] | []>([]);
@@ -437,7 +437,7 @@ const MapDashboard: React.FC = () => {
         latestSelection: null,
         multiSelection: new Set(),
     })
-    const [mouseOverBuilding, setMouseOverBuilding] = useState<string[] | []>([])
+    const [mouseOverBuilding, setMouseOverBuilding] = useState<string[]>([])
 
     // console.log("building selection on this render:", buildingSelection);
 
@@ -451,7 +451,7 @@ const MapDashboard: React.FC = () => {
                 return
             }
 
-            const building_ids: Set<string> = new Set([])
+            let building_ids: Set<string> = new Set([])
 
             // To do: it would be better if we were only getting info for the most recent polygon, not all of them.
             // Also, where relevant polygons should be combined *before* sending the api request, rather than sending multiple requests.
@@ -460,7 +460,7 @@ const MapDashboard: React.FC = () => {
                 api(ROUTES.app.getVBuildingDataInPolygon, area.geometry)//I suspect this will currently fail wil multiple polygons.
                     .then((res) => {
                         console.log(res);
-                        let all_ids = res.data.features.map((feature) => feature.properties["dashboard_index"]);
+                        let all_ids = (res.data as FeatureCollection).features.map((feature) => feature.properties["dashboard_index"]);
                         building_ids = building_ids.union(new Set(all_ids))
 
                         // setBuildingSelection((current) => {
@@ -476,50 +476,51 @@ const MapDashboard: React.FC = () => {
         , [polygons])
 
     const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
-    const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
+    // const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
 
     const allSelectedBuildingIDs = useMemo<Set<string>>(() => {
-        let all_ids_set = buildingIDsInPolygons.union(new Set(manuallySelectedBuildingIDs))
-            .difference(new Set(manuallyRemovedBuildingIDs))
-    }, [buildingIDsInPolygons, manuallySelectedBuildingIDs, manuallyRemovedBuildingIDs])
-
+        let all_ids_set = (buildingIDsInPolygons || new Set([])).union(new Set(manuallySelectedBuildingIDs || []))
+        // .difference(new Set(manuallyRemovedBuildingIDs))
+        return all_ids_set
+    }, [buildingIDsInPolygons, manuallySelectedBuildingIDs])
 
     const onEachBuilding = (feature: any, layer: any) => {
         // To do: select none.
         layer.on({
             click: (e: any) => {
-                const id = feature.properties.id
+                const id = feature.properties["dashboard_index"]
 
                 // Note that you can't access the current state value directly in this scope (it will come back null)
                 // but you can access it like this in the 'set' call:
-                setBuildingSelection((current) => {
+                setBuildingSelectionState((current) => {
                     if (e.originalEvent.ctrlKey) {
                         try {
-                            if (current.multiSelection.has(id)) {
+                            // Note that, for the time being, you cannot remove a building that is including because it is inside a polygon.
+                            // And we are not using excludedBuildingIDs, although that has been built into the mongoose schema for that potential purpose.
+                            if (current.additionalBuildingIDs.includes(id)) {
                                 // Then the mouseclick *removes* the current building from the selection.
-                                let newMultiselection: Set<string> = new Set([...current.multiSelection].filter((item) => item !== id))
+                                let newMultiselection: String[] = [...current.additionalBuildingIDs].filter((item) => item !== id)
                                 return {
-                                    latestSelection: null,
-                                    multiSelection: newMultiselection
+                                    ...current,
+                                    additionalBuildingIDs: newMultiselection
                                 }
                             } else {
                                 // Add the current building to the multiselection.
                                 return {
-                                    latestSelection: id,
-                                    multiSelection: current.multiSelection.add(id)
+                                    ...current,
+                                    additionalBuildingIDs: [...current.additionalBuildingIDs, id]
                                 }
                             }
                         } catch (E) {
                             console.log(E)
                             console.log(current)
-                            console.log(current.multiSelection)
                             return current;
                         }
                     } else {
                         // No multiselect.
                         return {
-                            latestSelection: id,
-                            multiSelection: new Set([id])
+                            ...current,
+                            additionalBuildingIDs: [id]
                         }
                     }
                 })
@@ -530,7 +531,7 @@ const MapDashboard: React.FC = () => {
                 //   .openPopup();
             },
             mouseover: (e: any) => {
-                const id = feature.properties.id
+                const id = feature.properties["dashboard_index"]
                 setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
             },
             mouseout: (e: any) => {
@@ -625,7 +626,7 @@ const MapDashboard: React.FC = () => {
                     </Button>
                 </div>
 
-                <Modal open={showSaveAsConfirm} onClose={() => setShowSaveAsConfirm(false)}>
+                <Modal open={showSaveAsConfirm} onClose={() => setShowSaveAsConfirm(false)} zIndexClass={"z-[1001]"}>
                     <div className='flex flex-col gap-4'>
                         <h3 className='text-lg font-semibold'>Save building collection</h3>
                         <TextField
@@ -654,8 +655,9 @@ const MapDashboard: React.FC = () => {
                 <Typography variant="h6">Available case study areas</Typography>
 
                 {buildingSelections && buildingSelections.map((bs) => (
-                    <BuildingSelectionCard>
-                        buildingSelection = bs
+                    <BuildingSelectionCard
+                        buildingSelection={bs}
+                    >
                     </BuildingSelectionCard>))}
 
 
@@ -731,9 +733,14 @@ const MapDashboard: React.FC = () => {
                     center={[53.46, -1.29]}
                     zoom={11}
                     style={{height: "100%", width: "100%"}}
+                    // whenReady={(mapInstance) => {
+                    //     mapRef.current = mapInstance;
+                    // }}
+                    //@ts-ignore
                     whenCreated={(mapInstance) => {
                         mapRef.current = mapInstance;
                     }}
+
                 >
                     <MapViewListener
                         onViewChange={(zoom, bounds) => {
@@ -761,10 +768,11 @@ const MapDashboard: React.FC = () => {
                     {(mergedCollection.features && mapState.zoom >= BUILDING_ZOOM_THRESHOLD) && (
                         // {true && (
                         <GeoJSON
-                            ref={buildingsRef}
+                            // ref={buildingsRef}
                             key={`buildings-${mapState.zoom}-${mergedCollection.features.length}`}
                             data={mergedCollection as any}
                             style={styleBuilding}
+                            // @ts-ignore
                             pointerEvents={drawingOngoing.current ? true : "none"} // If polygon drawing is ongoing then individual building mouseover needs to be disabled.
                             onEachFeature={onEachBuilding}
                         />

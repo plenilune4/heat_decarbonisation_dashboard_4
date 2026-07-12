@@ -9,6 +9,7 @@ const endpoints = {
         checkOptimisationStatus: '/checkOptimisationStatus',
         getVBuildingDataInBounds: '/getVBuildingDataInBounds',
         getVBuildingDataInPolygon: '/getVBuildingDataInPolygon',
+        buildingSelections: '/buildingSelections',
     },
     admin: {
         user: '/user',

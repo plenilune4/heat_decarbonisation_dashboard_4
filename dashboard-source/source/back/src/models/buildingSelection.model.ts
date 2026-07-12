@@ -10,20 +10,20 @@ import {IUser} from "./user.model";
 
 // This is for the benefit of Typescript...it will closely match the actual schema.
 export interface IBuildingSelection {
-    _id: string
+    _id?: string
     owner: IUser
-    name: string
-    polygons: Feature<Polygon>[] | Feature<MultiPolygon>[]
-    excludedPolygons: Feature<Polygon>[] | Feature<MultiPolygon>[]
-    additionalBuildingIDs: String[]
-    excludedBuildingIDs: String[]
-    createdAt: Date
-    updatedAt: Date
+    name?: string
+    polygons?: Feature<Polygon>[] | Feature<MultiPolygon>[]
+    excludedPolygons?: Feature<Polygon>[] | Feature<MultiPolygon>[]
+    additionalBuildingIDs?: string[]
+    excludedBuildingIDs?: string[]
+    createdAt?: Date
+    updatedAt?: Date
 }
 
 const BuildingSelectionSchema = new Schema<IBuildingSelection>(
     {
-        owner: { type: Schema.Types.ObjectId, required: true },
+        owner: { type: Schema.Types.ObjectId, ref:'User', required: true },//uses ObjectID so needs to use ref and populate.
         name: {type: String, required: true},
         polygons: { type: [Object], required: false },// or might be [{ type: Object }]
         excludedPolygons: { type: [Object], required: false },

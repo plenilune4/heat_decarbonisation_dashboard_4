@@ -18,7 +18,7 @@ export default function Modal({
 }) {
     return (
         <Transition.Root show={open} as={Fragment}>
-            <Dialog as='div' className={cn('overflow-visible relative', zIndexClass ?? 'z-40')} onClose={onClose}>
+            <Dialog as='div' className={cn('overflow-visible relative', zIndexClass ?? 'z-50')} onClose={onClose}>
                 <Transition.Child
                     as={Fragment}
                     enter='ease-out duration-300'
