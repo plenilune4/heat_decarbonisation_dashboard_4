@@ -535,7 +535,7 @@ const MapDashboard: React.FC = () => {
                 setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
             },
             mouseout: (e: any) => {
-                const id = feature.properties.id
+                const id = feature.properties["dashboard_index"]
                 setMouseOverBuilding((current) => current.filter((item) => item !== id))
                 // console.log("mouseover buildings: ", mouseOverBuilding)
             },
@@ -548,7 +548,7 @@ const MapDashboard: React.FC = () => {
         // hoveredId: string | null,
         // selectedId: string | null
     ) => {
-        const id = feature.properties.id;
+        const id = feature.properties["dashboard_index"];
         try {
             // if (buildingSelection.multiSelection.has(id)) { // original version
             if (allSelectedBuildingIDs.has(id)) {
