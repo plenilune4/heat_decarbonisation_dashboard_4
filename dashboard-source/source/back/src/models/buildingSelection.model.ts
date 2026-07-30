@@ -13,6 +13,7 @@ export interface IBuildingSelection {
     _id?: string
     owner: IUser
     name?: string
+    text?:string
     polygons?: Feature<Polygon>[] | Feature<MultiPolygon>[]
     excludedPolygons?: Feature<Polygon>[] | Feature<MultiPolygon>[]
     additionalBuildingIDs?: string[]
@@ -25,6 +26,7 @@ const BuildingSelectionSchema = new Schema<IBuildingSelection>(
     {
         owner: { type: Schema.Types.ObjectId, ref:'User', required: true },//uses ObjectID so needs to use ref and populate.
         name: {type: String, required: true},
+        text: {type: String, required: true},
         polygons: { type: [Object], required: false },// or might be [{ type: Object }]
         excludedPolygons: { type: [Object], required: false },
         additionalBuildingIDs: { type: [String], required: false },

@@ -7,8 +7,8 @@ import {useAuth} from '@/services/authentication.service'
 import {IBuildingSelection} from "@/MODELS/buildingSelection.model";
 import BuildingSelectionCard from '@/components/BuildingSelectionCard';
 import Modal from '@/components/Modal'
-import {TextField} from '@/form-control/fields'
-import {useMapEvents} from "react-leaflet";
+import {SelectField, TextField} from '@/form-control/fields'
+import {ScaleControl, useMap, useMapEvents} from "react-leaflet";
 import {MapContainer} from "react-leaflet";
 import {TileLayer, GeoJSON, FeatureGroup} from "react-leaflet";
 import * as tilebelt from "@mapbox/tilebelt";
@@ -26,6 +26,9 @@ import RangeSlider from 'react-range-slider-input';
 import {api} from '@/services/api.service'
 import ROUTES from '@/ROUTES'
 import {LRUCache} from "lru-cache";
+import {Archetype, ArchetypeSummary} from "@/MODELS/caseStudy.model";
+import {processArchetypeData} from "@/utils/archetype-utils";
+import {cn} from '@/utils/cn'
 
 
 import {
@@ -39,6 +42,9 @@ import {
 } from "@mui/material";
 import Button from "@/components/Button.tsx";
 import {toast} from "react-toastify";
+import {ArchetypesBottomLevel, ICaseStudy} from "@/MODELS/caseStudy.model.ts";
+import {json} from "react-router-dom";
+import ArchetypePanel from "@/components/ArchetypePanel.tsx";
 
 interface FeatureProperties {
     name: string;
@@ -116,442 +122,530 @@ const BUILDING_TILE_ZOOM = 15
 
 const MapDashboard: React.FC = () => {
 
-    const {user} = useAuth()
+        const {user} = useAuth()
 
-    const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections)
-    const [showSaveAsConfirm, setShowSaveAsConfirm] = useState(false)
-    const [saveAsLabel, setSaveAsLabel] = useState('')
+        const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
+        const [showSaveAsConfirm, setShowSaveAsConfirm] = useState(false)
+        const [saveAsLabel, setSaveAsLabel] = useState('')
 
-    const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
-    const [visibleTiles, setVisibleTiles] = useState<string[]>([]);
+        const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
+        const [visibleTiles, setVisibleTiles] = useState<string[]>([]);
 
-    const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
-    const [selectedArea, setSelectedArea] = useState<FeatureProperties | null>(null);
-    const [valueRange, setValueRange] = useState<[number, number]>([0, 100]);
-    const [selectedDataset, setSelectedDataset] = useState<string>("LSOA");
+        const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
+        const [selectedArea, setSelectedArea] = useState<FeatureProperties | null>(null);
+        const [valueRange, setValueRange] = useState<[number, number]>([0, 100]);
+        const [selectedDataset, setSelectedDataset] = useState<string>("LSOA");
 
-    const mapRef = useRef<L.Map | null>(null);//Do we need this?
-    const [mapState, setMapState] = useState({
-        zoom: 10,
-        bounds: null as L.LatLngBounds | null
-    });
+        const mapRef = useRef<L.Map | null>(null);//Do we need this?
+        const [mapState, setMapState] = useState({
+            zoom: 10,
+            bounds: null as L.LatLngBounds | null
+        });
 
-    // const buildingsRef = useRef<L.Map | null>(null);//Do we need this?
+        // const buildingsRef = useRef<L.Map | null>(null);//Do we need this?
 
-    // Polygons drawn by user to select multiple buildings.
-    // const [buildingSelectionAreas, setBuildingSelectionAreas] = useState<Feature[] | []>([]);
-
-    /**
-     * The one loaded from database.
-     */
-    const [buildingSelection, setBuildingSelection] = useState<IBuildingSelection>({
-        owner: user,
-        polygons: [],
-        excludedPolygons: [],
-        additionalBuildingIDs: [],
-        excludedBuildingIDs: [],
-    })
-
-    /**
-     * The current state of the one being edited.
-     */
-    const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>({
-        owner: user,
-        polygons: [],
-        excludedPolygons: [],
-        additionalBuildingIDs: [],
-        excludedBuildingIDs: [],
-    })
+        // Polygons drawn by user to select multiple buildings.
+        // const [buildingSelectionAreas, setBuildingSelectionAreas] = useState<Feature[] | []>([]);
 
 
-    const bounds = mapState.bounds
-    const tileCacheRef = useRef(
-        new LRUCache<string, FeatureCollection>({max: 100}) // LRU = 'least recently used'.
-    );// We are using useRef to avoid changes to the cache triggering re-renders.
-    // LRUCache will limit the size of the cache by removing items not recently used.
+        // Bit of stuff for getting hold of archetype definitions:
+        const [archetypeDataRaw, setArchetypeDataRaw] = useState<string>("")
 
-
-    async function handleSaveAs(buildingSelection: IBuildingSelection,
-                                saveAsLabel: string) {
-        const update = {
-            ...buildingSelection,
-            _id: 'new',
-            name: saveAsLabel,
-        }
-        const response = await api<{ created?: IBuildingSelection }>(
-            ROUTES.app.user + '/' + user?._id + '/buildingSelections',
-            update
-        )
-        if (response.data.created) {
-            toast.success('Building set saved successfully.')
-        } else {
-            toast.error('Error saving new building set.')
-        }
-    }
-
-
-    async function getBuildingsForTile(
-        x: number,
-        y: number
-    ): Promise<FeatureCollection> {
-
-        const key = `${x}_${y}`;
-
-        if (tileCacheRef.current.has(key)) {
-            console.log(`Tile ${key} already in cache.`)
-            console.log(tileCacheRef.current.get(key))
-            return tileCacheRef.current.get(key);
-        }
-        console.log(`Obtaining tile ${key} for first time.`)
-
-        // This version using url params isn't working for some reason.
-        let url = `${ROUTES.app.getVBuildingData1}/${BUILDING_TILE_ZOOM}/${x}/${y}`
-
-        let tile: FeatureCollection
-        await api(url)
-            .then((res) => {
+        // ########## Getting basic info about the archetypes. ##########
+        // It isn't 100% clear that this is needed - at all, or at least in the frontend.
+        async function getArchetypes() {
+            // to do - presumably the processing of the raw data could also be included in this async function?
+            await api(ROUTES.data.getArchetypes)
                 //@ts-ignore
-                tile = res.data;
-            })
-            .catch(err => console.error(err));
-
-        // const response = await fetch(
-        //     `/api/buildings/${x}/${y}`
-        // );
-
-        // const tile = await response.json();
-        tileCacheRef.current.set(key, tile);
-        console.log("Hi!")
-        console.log(`Cache size: ${tileCacheRef.current.size}`)
-
-        return tile;
-        //This is probably ready to test once you have checked the backend part again.
-    }
-
-
-    // Original method of getting buildings, by comparing all of them to the bounding box:
-    // let bbox:string
-    // let nwTile:number[], seTile:number[]
-    // if (bounds && (mapState.zoom >= BUILDING_ZOOM_THRESHOLD))
-    // {
-    //     let x0 = bounds.getWest()
-    //     let x1 = bounds.getEast()
-    //     let y0 = bounds.getSouth()
-    //     let y1 = bounds.getNorth()
-    //     bbox = [
-    //     (1.5*x0 - 0.5*x1),
-    //     (1.5*y0 - 0.5*y1),
-    //     (1.5*x1 - 0.5*x0),
-    //     (1.5*y1 - 0.5*y0)
-    //     ].join(",");
-    // }
-    // else
-    // {
-    //     ;
-    //     bbox = "0,0,0,0"
-    // }
-    // console.log("bbox")
-    // console.log(bbox)
-
-    /**
-     * Uses the current bounds of the map to check which tiles are visible.
-     * @param bounds
-     */
-    function getVisibleTiles(bounds: L.LatLngBounds, zoom: number) {
-        console.log("Figuring out which tiles are visible...")
-        if (zoom < BUILDING_ZOOM_THRESHOLD) {
-            return []
+                .then(res => res.data.content)
+                .then(data => setArchetypeDataRaw(data))
+                .catch(err => console.error(err));
+            console.log("Retrieved archetypes from backend.")
         }
 
-        const nw = tilebelt.pointToTile(
-            bounds.getWest(),
-            bounds.getNorth(),
-            BUILDING_TILE_ZOOM
-        );
-        const se = tilebelt.pointToTile(
-            bounds.getEast(),
-            bounds.getSouth(),
-            BUILDING_TILE_ZOOM
-        );
-        const tiles: string[] = [];
-        for (let x = nw[0]; x <= se[0] + 1; x++) {
-            for (let y = nw[1]; y <= se[1] + 1; y++) {
-                tiles.push(`${x}_${y}`);
+        useEffect(() => {
+            getArchetypes()
+        }, []) // Empty dependencies means this should only run once
+
+        const archetypes: Archetype[] = useMemo(() => processArchetypeData(archetypeDataRaw), [archetypeDataRaw])
+        const archetypesByName = Object.fromEntries(archetypes.map(atype => [atype.name, atype]));
+
+        // ##########
+
+        /**
+         * The one loaded from database.
+         */
+        // const [buildingSelection, setBuildingSelection] = useState<IBuildingSelection>({
+        //     owner: user,
+        //     text: "Custom selection",
+        //     polygons: [],
+        //     excludedPolygons: [],
+        //     additionalBuildingIDs: [],
+        //     excludedBuildingIDs: [],
+        // })
+
+        /**
+         * The current state of the one being edited.
+         */
+        const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>({
+            owner: user,
+            text: "Custom selection",
+            polygons: [],
+            excludedPolygons: [],
+            additionalBuildingIDs: [],
+            excludedBuildingIDs: [],
+        })
+
+
+        const bounds = mapState.bounds
+        const tileCacheRef = useRef(
+            new LRUCache<string, FeatureCollection>({max: 100}) // LRU = 'least recently used'.
+        );// We are using useRef to avoid changes to the cache triggering re-renders.
+        // LRUCache will limit the size of the cache by removing items not recently used.
+
+
+        async function handleBSSaveAs(buildingSelection: IBuildingSelection,
+                                      saveAsLabel: string) {
+            const update = {
+                ...buildingSelection,
+                _id: 'new',
+                name: saveAsLabel,
             }
-        }
-        console.log(tiles)
-        return tiles;
-    }
-
-
-    /**
-     * Getting the required building data for the tiles that are visible.
-     * Might need to make this asynchronous somehow?
-     */
-    useEffect(() => {
-        console.log("getting the building data for visible tiles...")
-        visibleTiles.forEach(async tileId => {
-            if (tileCacheRef.current.has(tileId))
-                return;
-
-            const [x, y] =
-                tileId.split("_");
-
-            getBuildingsForTile(Number(x), Number(y))
-
-            // setTileVersion(v => v + 1);
-
-        });
-
-    }, [visibleTiles]);
-
-    // for (const [key, value] of tileCacheRef.current.entries()) {
-    //         console.log("cache entry:",key, value);
-    // }
-    for (const [key, value] of tileCacheRef.current.entries()) {
-        // console.log("cache entry:",key, tileCacheRef.current.get(key));
-        // console.log(key);
-        ;
-    }
-    // console.log("visible tiles", tileCacheRef.current.get(visibleTiles[0]))
-
-    /**
-     * Combine the visible buildings into a single FeatureCollection.
-     */
-    const visibleBuildings =
-        visibleTiles.flatMap(tileId =>
-            tileCacheRef.current.get(tileId)?.features ?? []
-        );
-    const mergedCollection = {
-        type: "FeatureCollection",
-        features: visibleBuildings
-    };
-
-
-    // const [filterValue, setFilterValue] = useState<number>(0);
-
-    // // Load GeoJSON data from public folder (or API)
-    // useEffect(() => {
-    //   fetch("/data/secondaries_for_dashboard.geojson")
-    //     .then((res) => {
-    //       if (!res.ok) throw new Error("Failed to fetch GeoJSON");
-    //       return res.json();
-    //     })
-    //     .then((data) => setGeoData(data))
-    //     .catch((err) => console.error(err));
-    // }, []);
-
-    // ***** Get the building footprint data...*****
-    // Old version using bounding box and relying on the buildingService in the backend.
-    // New version uses tiles.
-    // though this should probably be delayed until we know we need it, or are at the right zoom level.
-    // Might also want to add the user permissions checks here.
-    // async function getVBuildingData(){
-    //   let url = `${ROUTES.app.getVBuildingData1}?bbox=${bbox}`
-    //   await api(url)
-    //       .then((res) => {
-    //         setVBuildingData(res.data);
-    //       })
-    //       .catch(err => console.error(err));
-    //   console.log("Retrieved results for combined data.")
-    // }
-    //
-    // useEffect(() => {
-    //     getVBuildingData()
-    // }, [bbox])
-    // Empty dependencies means this should only run once. Update: now, it will run whenever the bbbox scrolls.
-    // One is inclined to wonder whether adding a buffer round the bbox might be helpful, so that newly visible buildings are already there.
-    // We can improve this...there shouldn't be any need to refetch data just for a zoom in.
-
-    // Fetching the LSOA data or similar.
-    // Fetch GeoJSON whenever dataset changes
-    // useEffect(() => {
-    //   const url = DATASETS[selectedDataset];
-    //   fetch(url)
-    //     .then((res) => res.json())
-    //     .then((data:FeatureCollection) => {
-    //       setGeoData(data);
-    //       // Reset slider range to dataset’s min/max
-    //       const vals = data.features.map((f: any) => f.properties.value);
-    //       const minv = Math.min(...vals);
-    //       const maxv = Math.max(...vals);
-    //       setValueRange([minv, maxv]);
-    //
-    //       // Zoom to dataset extent
-    //       if (mapRef.current) {
-    //         const layer = L.geoJSON(data);
-    //         const bounds = layer.getBounds();
-    //         if (bounds.isValid()) mapRef.current.fitBounds(bounds);
-    //       }
-    //     })
-    //     .catch((err) => console.error("Failed to fetch GeoJSON:", err));
-    // }, [selectedDataset]);
-
-    // console.log("vbuilding data")
-    // console.log(vBuildingData)
-    // console.log(typeof(vBuildingData))
-    // console.log(vBuildingData?.features.length)
-    // console.log(vBuildingData?.features[0])
-    //
-    // console.log("geodata")
-    // console.log(geoData)
-
-    // Highlight by range
-    const styleFeature = (feature: any) => {
-        const v = feature.properties.value;
-        const [minv, maxv] = valueRange;
-        const inRange = v >= minv && v <= maxv;
-        return {
-            fillColor: inRange ? "#e41a1c" : "#cccccc",
-            weight: 1,
-            color: "white",
-            fillOpacity: inRange ? 0.7 : 0.3,
-        };
-    };
-
-    /**
-     * Original version for working with LSOA geometries and similar.
-     * @param feature
-     * @param layer
-     */
-    const onEachFeature = (feature: any, layer: any) => {
-        layer.on({
-            click: () => {
-                setSelectedArea(feature.properties);
-                layer
-                    .bindPopup(
-                        `<b>${feature.properties.name}</b><br/>Value: ${feature.properties.value}`
-                    )
-                    .openPopup();
-            },
-        });
-    };
-
-    type IncludedBuildingsStatus = {
-        latestSelection: string | null;
-        multiSelection: Set<string>;
-    }
-
-    // To enable selection of multiple buildings.
-    const [includedBuildingsStatus, setIncludedBuildingsStatus] = useState<IncludedBuildingsStatus | null>({
-        latestSelection: null,
-        multiSelection: new Set(),
-    })
-    const [mouseOverBuilding, setMouseOverBuilding] = useState<string[]>([])
-
-    // console.log("building selection on this render:", buildingSelection);
-
-    // We use the buildingSelectionState (which has polygons AND individual building selections)
-    // to update the list of included building indices.
-    const polygons = buildingSelectionState.polygons
-
-    const buildingIDsInPolygons = useMemo(() => {
-            //To do: we also need to check that the polygons have changed, not just the individual buildings.
-            if (polygons.length === 0) {
-                return
+            const response = await api<{ created?: IBuildingSelection }>(
+                ROUTES.app.user + '/' + user?._id + '/buildingSelections',
+                update
+            )
+            if (response.data.created) {
+                toast.success('Building set saved successfully.')
+            } else {
+                toast.error('Error saving new building set.')
             }
-
-            let building_ids: Set<string> = new Set([])
-
-            // To do: it would be better if we were only getting info for the most recent polygon, not all of them.
-            // Also, where relevant polygons should be combined *before* sending the api request, rather than sending multiple requests.
-            polygons.forEach((area) =>
-                // await api(ROUTES.app.getVBuildingDataInPolygon,buildingSelectionAreas)//Sort out the asynchronous aspect at some point.
-                api(ROUTES.app.getVBuildingDataInPolygon, area.geometry)//I suspect this will currently fail wil multiple polygons.
-                    .then((res) => {
-                        console.log(res);
-                        let all_ids = (res.data as FeatureCollection).features.map((feature) => feature.properties["dashboard_index"]);
-                        building_ids = building_ids.union(new Set(all_ids))
-
-                        // setBuildingSelection((current) => {
-                        // setIncludedBuildingsStatus((current) => {
-                        //     return {
-                        //         latestSelection: current.latestSelection,
-                        //         multiSelection: current.multiSelection.union(new Set(all_ids))
-                        //     }
-                        // })
-                    }))
-            return building_ids
+            // To do: need to ensure now that the new name appears in the dropdown,
+            // and is selected.
+            // To do: at the minute it looks tricky to avoid every CaseStudy separately saving the polygons for the geography.
+            // Find a way to just store the object ID for the buildingset.
         }
-        , [polygons])
 
-    const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
-    // const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
 
-    const allSelectedBuildingIDs = useMemo<Set<string>>(() => {
-        let all_ids_set = (buildingIDsInPolygons || new Set([])).union(new Set(manuallySelectedBuildingIDs || []))
-        // .difference(new Set(manuallyRemovedBuildingIDs))
-        return all_ids_set
-    }, [buildingIDsInPolygons, manuallySelectedBuildingIDs])
+        /**
+         * Gets building geojson for a specific tile.
+         * @param x
+         * @param y
+         */
+        async function getBuildingsForTile(
+            x: number,
+            y: number
+        ): Promise<FeatureCollection> {
 
-    const onEachBuilding = (feature: any, layer: any) => {
-        // To do: select none.
-        layer.on({
-            click: (e: any) => {
-                const id = feature.properties["dashboard_index"]
 
-                // Note that you can't access the current state value directly in this scope (it will come back null)
-                // but you can access it like this in the 'set' call:
-                setBuildingSelectionState((current) => {
-                    if (e.originalEvent.ctrlKey) {
-                        try {
-                            // Note that, for the time being, you cannot remove a building that is including because it is inside a polygon.
-                            // And we are not using excludedBuildingIDs, although that has been built into the mongoose schema for that potential purpose.
-                            if (current.additionalBuildingIDs.includes(id)) {
-                                // Then the mouseclick *removes* the current building from the selection.
-                                let newMultiselection: String[] = [...current.additionalBuildingIDs].filter((item) => item !== id)
-                                return {
-                                    ...current,
-                                    additionalBuildingIDs: newMultiselection
-                                }
-                            } else {
-                                // Add the current building to the multiselection.
-                                return {
-                                    ...current,
-                                    additionalBuildingIDs: [...current.additionalBuildingIDs, id]
-                                }
-                            }
-                        } catch (E) {
-                            console.log(E)
-                            console.log(current)
-                            return current;
-                        }
-                    } else {
-                        // No multiselect.
-                        return {
-                            ...current,
-                            additionalBuildingIDs: [id]
-                        }
-                    }
+            const key = `${x}_${y}`;
+
+            if (tileCacheRef.current.has(key)) {
+                // console.log(`Tile ${key} already in cache.`)
+                // console.log(tileCacheRef.current.get(key))
+                return tileCacheRef.current.get(key);
+            }
+            // console.log(`Obtaining tile ${key} for first time.`)
+
+            // This version using url params isn't working for some reason.
+            let url = `${ROUTES.app.getVBuildingData1}/${BUILDING_TILE_ZOOM}/${x}/${y}`
+
+            let tile: FeatureCollection
+            await api(url)
+                .then((res) => {
+                    //@ts-ignore
+                    tile = res.data;
                 })
-                // layer
-                //   .bindPopup(
-                //     `<b>${feature.properties.name}</b><br/>Value: ${feature.properties.value}`
-                //   )
-                //   .openPopup();
-            },
-            mouseover: (e: any) => {
-                const id = feature.properties["dashboard_index"]
-                setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
-            },
-            mouseout: (e: any) => {
-                const id = feature.properties["dashboard_index"]
-                setMouseOverBuilding((current) => current.filter((item) => item !== id))
-                // console.log("mouseover buildings: ", mouseOverBuilding)
-            },
-        });
-    };
+                .catch(err => console.error(err));
 
-    //Can we compare to sets that are calculated above, or do we have to use sets that are in State???
-    const styleBuilding = (
-        feature: any,
-        // hoveredId: string | null,
-        // selectedId: string | null
-    ) => {
-        const id = feature.properties["dashboard_index"];
-        try {
-            // if (buildingSelection.multiSelection.has(id)) { // original version
-            if (allSelectedBuildingIDs.has(id)) {
+            // const response = await fetch(
+            //     `/api/buildings/${x}/${y}`
+            // );
+
+            // const tile = await response.json();
+            tileCacheRef.current.set(key, tile);
+
+            return tile;
+            //This is probably ready to test once you have checked the backend part again.
+        }
+
+
+        // Original method of getting buildings, by comparing all of them to the bounding box:
+        // let bbox:string
+        // let nwTile:number[], seTile:number[]
+        // if (bounds && (mapState.zoom >= BUILDING_ZOOM_THRESHOLD))
+        // {
+        //     let x0 = bounds.getWest()
+        //     let x1 = bounds.getEast()
+        //     let y0 = bounds.getSouth()
+        //     let y1 = bounds.getNorth()
+        //     bbox = [
+        //     (1.5*x0 - 0.5*x1),
+        //     (1.5*y0 - 0.5*y1),
+        //     (1.5*x1 - 0.5*x0),
+        //     (1.5*y1 - 0.5*y0)
+        //     ].join(",");
+        // }
+        // else
+        // {
+        //     ;
+        //     bbox = "0,0,0,0"
+        // }
+        // console.log("bbox")
+        // console.log(bbox)
+
+        /**
+         * Uses the current bounds of the map to check which tiles are visible.
+         * @param bounds
+         */
+        function getVisibleTiles(bounds: L.LatLngBounds, zoom: number) {
+            // console.log("Figuring out which tiles are visible...")
+            if (zoom < BUILDING_ZOOM_THRESHOLD) {
+                return []
+            }
+
+            const nw = tilebelt.pointToTile(
+                bounds.getWest(),
+                bounds.getNorth(),
+                BUILDING_TILE_ZOOM
+            );
+            const se = tilebelt.pointToTile(
+                bounds.getEast(),
+                bounds.getSouth(),
+                BUILDING_TILE_ZOOM
+            );
+            const tiles: string[] = [];
+            for (let x = nw[0]; x <= se[0] + 1; x++) {
+                for (let y = nw[1]; y <= se[1] + 1; y++) {
+                    tiles.push(`${x}_${y}`);
+                }
+            }
+            // console.log(tiles)
+            return tiles;
+        }
+
+
+        /**
+         * Getting the required building data for the tiles that are visible.
+         * Might need to make this asynchronous somehow?
+         */
+        useEffect(() => {
+            // console.log("getting the building data for visible tiles...")
+            visibleTiles.forEach(async tileId => {
+                if (tileCacheRef.current.has(tileId))
+                    return;
+
+                const [x, y] =
+                    tileId.split("_");
+
+                getBuildingsForTile(Number(x), Number(y))
+
+                // setTileVersion(v => v + 1);
+
+            });
+
+        }, [visibleTiles]);
+
+        // for (const [key, value] of tileCacheRef.current.entries()) {
+        //         console.log("cache entry:",key, value);
+        // }
+
+        // console.log("visible tiles", tileCacheRef.current.get(visibleTiles[0]))
+
+        /**
+         * Combine the visible buildings into a single FeatureCollection.
+         */
+        const visibleBuildings =
+            visibleTiles.flatMap(tileId =>
+                tileCacheRef.current.get(tileId)?.features ?? []
+            );
+        const mergedCollection = {
+            type: "FeatureCollection",
+            features: visibleBuildings
+        };
+
+
+        // const [filterValue, setFilterValue] = useState<number>(0);
+
+        // // Load GeoJSON data from public folder (or API)
+        // useEffect(() => {
+        //   fetch("/data/secondaries_for_dashboard.geojson")
+        //     .then((res) => {
+        //       if (!res.ok) throw new Error("Failed to fetch GeoJSON");
+        //       return res.json();
+        //     })
+        //     .then((data) => setGeoData(data))
+        //     .catch((err) => console.error(err));
+        // }, []);
+
+
+        // Highlight by range
+        const styleFeature = (feature: any) => {
+            const v = feature.properties.value;
+            const [minv, maxv] = valueRange;
+            const inRange = v >= minv && v <= maxv;
+            return {
+                fillColor: inRange ? "#e41a1c" : "#cccccc",
+                weight: 1,
+                color: "white",
+                fillOpacity: inRange ? 0.7 : 0.3,
+            };
+        };
+
+        /**
+         * Original version for working with LSOA geometries and similar.
+         * @param feature
+         * @param layer
+         */
+        const onEachFeature = (feature: any, layer: any) => {
+            layer.on({
+                click: () => {
+                    setSelectedArea(feature.properties);
+                    layer
+                        .bindPopup(
+                            `<b>${feature.properties.name}</b><br/>Value: ${feature.properties.value}`
+                        )
+                        .openPopup();
+                },
+            });
+        };
+
+        type IncludedBuildingsStatus = {
+            latestSelection: string | null;
+            multiSelection: Set<string>;
+        }
+
+        // To enable selection of multiple buildings.
+        const [includedBuildingsStatus, setIncludedBuildingsStatus] = useState<IncludedBuildingsStatus | null>({
+            latestSelection: null,
+            multiSelection: new Set(),
+        })
+        const [mouseOverBuilding, setMouseOverBuilding] = useState<string[]>([])
+
+        // console.log("building selection on this render:", buildingSelection);
+
+        // We use the buildingSelectionState (which has polygons AND individual building selections)
+        // to update the list of included building indices.
+        // console.log("rest and be thankful")
+        const polygons = buildingSelectionState.polygons ?? []
+
+        // ########## Checking which buildings are in the polygons. ##########
+        // This is needed in order to highlight the relevant ones.
+        // To do: we could save time by getting the summary by archetype and the building ids at the same time.
+        // It is done asynchronously via the api.
+        // The following is (?) the correct way to handle long-running api calls:
+        const [buildingIDsInPolygons, setBuildingIDsInPolygons] = useState<Set<string>>(new Set([]))
+
+        //to do - can verticode's useresource hook avoid the need for this structure???
+        async function getBuildingDatainPolygons() {
+            await api(ROUTES.app.getVBuildingDataInPolygons, polygons.map((p) => p.geometry))
+                .then((res) => {
+                    // console.log("Response from getVBuildingDataInPolygons:")
+                    // console.log(res);
+                    let all_ids = (res.data as FeatureCollection).features.map((feature) => feature.properties["dashboard_index"]);
+                    //@ts-ignore
+                    setBuildingIDsInPolygons(new Set(all_ids))
+                })
+                .catch(err => console.error(err));
+        }
+
+        useEffect(() => {
+                getBuildingDatainPolygons();
+            }, [polygons]
+        )
+
+        console.log("We've got these building IDs inside the polygon(s):")
+        console.log(buildingIDsInPolygons)
+
+        useEffect(() => {
+            if (polygons.length > 0) {
+                const layer = L.geoJSON({
+                    type: "FeatureCollection",
+                    features: polygons,
+                });
+
+                console.log("bounds of polygons:")
+                console.log(layer.getBounds())
+
+
+                try {
+                    // The try wrapper just ensures we don't crash if the map isn't ready.
+                    mapRef.current.fitBounds(layer.getBounds(), {
+                        padding: [40, 40],
+                        animate: true,
+                        duration: 0.75
+                    });
+
+                    // mapRef.current.fitBounds(})
+                    console.log("fitbounds ran successfully.")
+                } catch (error) {
+                    console.log("Problem with fitbounds", error)
+                    ;
+                }
+            }
+        }, [polygons])
+
+        // ########## Getting the summary of archetype data for the given polygons. ##########
+        const [archetypeSummaries, setArchetypeSummaries] = useState<Map<string, ArchetypeSummary>>(new Map<string, ArchetypeSummary>)
+
+        /**
+         * Recursive function to get totals to propagate up the archetype taxonomy.
+         * @param atype
+         * @param prop
+         */
+
+        async function getSummaryForPolygons() {
+            await api(ROUTES.app.getAggregateDatainPolygons, polygons.map((p) => p.geometry))
+                .then((res) => {
+                    // console.log(res);
+                    let rawdata = res.data;
+                    let summaries = new Map(Object.entries(res.data));
+                    //@ts-ignore
+                    setArchetypeSummaries(summaries)
+                })
+                .catch(err => console.error(err));
+        }
+
+        useEffect(() => {
+            getSummaryForPolygons();
+        }, [polygons])
+
+        function getArchetypeTotal(atype: Archetype, prop: string) {
+            if (atype.bottom_level) {
+                if (archetypeSummaries.has(atype.name)) {
+                    if (prop === "totalHeatDemand") {
+                        let val = archetypeSummaries.get(atype.name)["totalFloorArea"] * atype.kWh_per_GFA / 1000000.0
+                        return val
+                    } else {
+                        let val = archetypeSummaries.get(atype.name)[prop]
+                        return val
+                    }
+                } else {
+                    return 0
+                }
+            } else {
+                console.log(atype.name, archetypes.filter((a) => (a.supertype === atype.name)))
+                let val = archetypes.filter((a) => (a.supertype === atype.name)).reduce((partialSum, ar) => partialSum + getArchetypeTotal(ar, prop), 0);
+                return val
+            }
+        }
+
+
+        useEffect(() => {
+            // Updates the totals for the archetype 'supertypes'.
+            if (archetypeSummaries?.size > 0) {
+                archetypes.forEach((a) => {
+                    a.totalGFA = getArchetypeTotal(a, "totalFloorArea")
+                })
+                archetypes.forEach((a) => {
+                    a.totalBuildings = getArchetypeTotal(a, "numBuildings")
+                })
+                archetypes.forEach((a) => {
+                    a.totalHeatDemand = getArchetypeTotal(a, "totalHeatDemand")
+                })
+            }
+        }, [archetypeSummaries])
+
+        console.log("polygons")
+        console.log(polygons)
+        console.log("Archetype summaries:")
+        console.log(archetypeSummaries)
+        console.log("archetypes")
+        console.log(archetypes)
+
+        const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
+// const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
+
+        const allSelectedBuildingIDs = useMemo<Set<string>>(() => {
+            if (buildingIDsInPolygons?.size > 0) {
+                let all_ids_set = (buildingIDsInPolygons || new Set([])).union(new Set(manuallySelectedBuildingIDs || []))
+                // .difference(new Set(manuallyRemovedBuildingIDs))
+                return all_ids_set
+            }
+            return new Set(manuallySelectedBuildingIDs)
+
+        }, [buildingIDsInPolygons, manuallySelectedBuildingIDs])
+
+        const onEachBuilding = (feature: any, layer: any) => {
+            // To do: select none.
+            layer.on({
+                click: (e: any) => {
+                    const id = feature.properties["dashboard_index"]
+
+                    console.log("CLICKED BUILDING:")
+                    console.log(feature.properties)
+
+                    // Note that you can't access the current state value directly in this scope (it will come back null)
+                    // but you can access it like this in the 'set' call:
+                    setBuildingSelectionState((current) => {
+                        if (e.originalEvent.ctrlKey) {
+                            try {
+                                // Note that, for the time being, you cannot remove a building that is including because it is inside a polygon.
+                                // And we are not using excludedBuildingIDs, although that has been built into the mongoose schema for that potential purpose.
+                                if (current.additionalBuildingIDs.includes(id)) {
+                                    // Then the mouseclick *removes* the current building from the selection.
+                                    let newMultiselection: String[] = [...current.additionalBuildingIDs].filter((item) => item !== id)
+                                    return {
+                                        ...current,
+                                        additionalBuildingIDs: newMultiselection
+                                    }
+                                } else {
+                                    // Add the current building to the multiselection.
+                                    return {
+                                        ...current,
+                                        additionalBuildingIDs: [...current.additionalBuildingIDs, id]
+                                    }
+                                }
+                            } catch (E) {
+                                console.log(E)
+                                console.log(current)
+                                return current;
+                            }
+                        } else {
+                            // No multiselect.
+                            return {
+                                ...current,
+                                additionalBuildingIDs: [id]
+                            }
+                        }
+                    })
+                    // layer
+                    //   .bindPopup(
+                    //     `<b>${feature.properties.name}</b><br/>Value: ${feature.properties.value}`
+                    //   )
+                    //   .openPopup();
+                },
+                mouseover: (e: any) => {
+                    const id = feature.properties["dashboard_index"]
+                    setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
+                },
+                mouseout: (e: any) => {
+                    const id = feature.properties["dashboard_index"]
+                    setMouseOverBuilding((current) => current.filter((item) => item !== id))
+                    // console.log("mouseover buildings: ", mouseOverBuilding)
+                },
+            });
+        };
+
+//Can we compare to sets that are calculated above, or do we have to use sets that are in State???
+        const styleBuilding = (
+            feature: any,
+            // hoveredId: string | null,
+            // selectedId: string | null
+        ) => {
+            const id = feature.properties["dashboard_index"];
+            try {
+                // if (buildingSelection.multiSelection.has(id)) { // original version
+                if (allSelectedBuildingIDs.has(id)) {
+                    return {
+                        fillColor: "#ff4444",
+                        weight: 0,
+                        color: "#000",
+                        fillOpacity: 1
+                    };
+                }
+            } catch (E) {
+                console.log(E)
                 return {
                     fillColor: "#ff4444",
                     weight: 0,
@@ -559,275 +653,334 @@ const MapDashboard: React.FC = () => {
                     fillOpacity: 1
                 };
             }
-        } catch (E) {
-            console.log(E)
-            return {
-                fillColor: "#ff4444",
-                weight: 0,
-                color: "#000",
-                fillOpacity: 1
-            };
-        }
 
-        if (mouseOverBuilding.includes(id)) {
-            return {
-                fillColor: "#ffaa00",
-                weight: 0,
-                color: "#000",
-                fillOpacity: 0.9
-            };
-        }
+            if (mouseOverBuilding.includes(id)) {
+                return {
+                    fillColor: "#ffaa00",
+                    weight: 0,
+                    color: "#000",
+                    fillOpacity: 0.9
+                };
+            }
 
-        return {
-            fillColor: "#0000FF",
-            weight: 1,
-            color: "blue",
-            fillOpacity: 0.7,
+            return {
+                fillColor: "#0000FF",
+                weight: 1,
+                color: "blue",
+                fillOpacity: 0.7,
+            };
         };
-    };
 
 
-    // Zoom to filtered polygons (for use with LSOA data etc.)
-    // useEffect(() => {
-    //   if (!geoData || !mapRef.current) return;
-    //   const [minv, maxv] = valueRange;
-    //   const filtered = geoData.features.filter(
-    //     (f: any) => f.properties.value >= minv && f.properties.value <= maxv
-    //   );
-    //   const subset = { ...geoData, features: filtered };
-    //   const layer = L.geoJSON(subset);
-    //   const bounds = layer.getBounds();
-    //   if (bounds.isValid()) mapRef.current.fitBounds(bounds, { padding: [20, 20] });
-    // }, [geoData, valueRange]);
+// Zoom to filtered polygons (for use with LSOA data etc.)
+// useEffect(() => {
+//   if (!geoData || !mapRef.current) return;
+//   const [minv, maxv] = valueRange;
+//   const filtered = geoData.features.filter(
+//     (f: any) => f.properties.value >= minv && f.properties.value <= maxv
+//   );
+//   const subset = { ...geoData, features: filtered };
+//   const layer = L.geoJSON(subset);
+//   const bounds = layer.getBounds();
+//   if (bounds.isValid()) mapRef.current.fitBounds(bounds, { padding: [20, 20] });
+// }, [geoData, valueRange]);
 
-    // Handler for MUI Slider change
-    // const handleSliderChange = (event: Event, newValue: number | number[]) => {
-    //   if (Array.isArray(newValue) && newValue.length === 2) {
-    //     setValueRange([newValue[0], newValue[1]]);
-    //   }
-    // };
-
-
-    const drawingOngoing = useRef<boolean>(false)
+// Handler for MUI Slider change
+// const handleSliderChange = (event: Event, newValue: number | number[]) => {
+//   if (Array.isArray(newValue) && newValue.length === 2) {
+//     setValueRange([newValue[0], newValue[1]]);
+//   }
+// };
 
 
-    return (
-        <div style={{display: "flex"}}>
+        const drawingOngoing = useRef<boolean>(false)
 
-            {/* Controls panel */}
-            <div style={{flex: 1, padding: "1rem", borderLeft: "1px solid #ccc"}}>
-                {/*<Typography variant="h6">Map Controls</Typography>*/}
 
-                <div className='flex flex-col items-center m-6'>
-                    <Button className='w-full text-brand-300' onClick={() => {
-                        setShowSaveAsConfirm(true)
-                    }}>
-                        Save this building collection
-                    </Button>
+        return (
+            <div style={{display: "flex"}}>
+
+                {/* Controls panel */}
+                <div style={{flex: 1, padding: "1rem", borderLeft: "1px solid #ccc"}}>
+                    {/*<Typography variant="h6">Map Controls</Typography>*/}
+
+                    <div className='flex flex-col items-center m-6 italic space-y-3'>
+
+                        <Button className='w-full text-brand-300 italic' onClick={() => {
+                            ;
+                        }}>
+                            Save case study
+                        </Button>
+
+                        <Button className='w-full text-brand-300 italic' onClick={() => {
+                            ;
+                        }}>
+                            Save case study as...
+                        </Button>
+
+                        <Button className='w-full text-brand-300 italic' onClick={() => {
+                            ;
+                        }}>
+                            Load case study
+                        </Button>
+                    </div>
+
+                    <Modal open={showSaveAsConfirm} onClose={() => setShowSaveAsConfirm(false)}
+                           zIndexClass={"z-[1001]"}>
+                        <div className='flex flex-col gap-4'>
+                            <h3 className='text-lg font-semibold'>Save building collection</h3>
+                            <TextField
+                                value={saveAsLabel}
+                                onChange={(text) => setSaveAsLabel(text)}
+                                placeholder='Name for this locality or collection of buildings'
+                                autoFocus
+                                label=''
+                            />
+                            <div className='flex flex-row gap-2 justify-end'>
+                                <Button onClick={() => setShowSaveAsConfirm(false)}>Cancel</Button>
+                                <Button.Success
+                                    onClickAsync={async () => {
+                                        await handleBSSaveAs(buildingSelectionState, saveAsLabel)
+                                        setShowSaveAsConfirm(false)
+                                    }}
+                                    disabled={!saveAsLabel.trim()}
+                                >
+                                    Save
+                                </Button.Success>
+                            </div>
+                        </div>
+                    </Modal>
+
+                    {/*<Typography variant="h6">Available building stock subsets:</Typography>*/}
+
+                    {/*{buildingSelections && buildingSelections.map((bs) => (*/}
+                    {/*    <BuildingSelectionCard*/}
+                    {/*        buildingSelection={bs}*/}
+                    {/*    >*/}
+                    {/*    </BuildingSelectionCard>))}*/}
+
+                    {buildingSelections && (
+                        <SelectField
+                            value={buildingSelectionState.name}
+                            onChange={(value) => {
+                                // To do - what if 'Custom' is clicked on again?
+                                let bs: IBuildingSelection = buildingSelections.find((bs) => (bs.name === value));
+                                console.log("Changing the building selection to:")
+                                console.log(bs)
+                                // setBuildingSelection(value);
+                                setBuildingSelectionState(bs)
+                            }
+                            }
+                            options={[buildingSelectionState, ...buildingSelections.filter((bs) => (bs.text !== buildingSelectionState.text))]
+                                .map((bs) => ({
+                                    text: bs.text,
+                                    value: bs.name,
+                                }))}
+                            label={'Available building stock subsets'}
+                        />
+                    )}
+
+                    <div className='flex flex-col items-center m-6 italic space-y-3'>
+                        <Button className='w-full text-brand-300 italic' onClick={() => {
+                            setShowSaveAsConfirm(true)
+                        }}>
+                            Save custom building subset...
+                        </Button>
+                    </div>
+
+
+                    {/*/!* Dataset selector *!/*/}
+                    {/*<FormControl fullWidth sx={{mt: 2}}>*/}
+                    {/*    <InputLabel>Dataset</InputLabel>*/}
+                    {/*    <Select*/}
+                    {/*        value={selectedDataset}*/}
+                    {/*        label="Dataset"*/}
+                    {/*        onChange={(e) => setSelectedDataset(e.target.value)}*/}
+                    {/*    >*/}
+                    {/*        {Object.keys(DATASETS).map((name) => (*/}
+                    {/*            <MenuItem key={name} value={name}>*/}
+                    {/*                {name}*/}
+                    {/*            </MenuItem>*/}
+                    {/*        ))}*/}
+                    {/*    </Select>*/}
+                    {/*</FormControl>*/}
+
+                    {/*/!* Value range slider *!/*/}
+                    {/*<Box sx={{mt: 4}}>*/}
+                    {/*    <Typography gutterBottom>Filter by value</Typography>*/}
+                    {/*    <Slider*/}
+                    {/*        value={valueRange}*/}
+                    {/*        onChange={(_, val) =>*/}
+                    {/*            Array.isArray(val) && setValueRange([val[0], val[1]])*/}
+                    {/*        }*/}
+                    {/*        valueLabelDisplay="auto"*/}
+                    {/*        min={*/}
+                    {/*            geoData ? Math.min(...geoData.features.map((f: any) => f.properties.value)) : 0*/}
+                    {/*        }*/}
+                    {/*        max={*/}
+                    {/*            geoData ? Math.max(...geoData.features.map((f: any) => f.properties.value)) : 100*/}
+                    {/*        }*/}
+                    {/*    />*/}
+                    {/*    <Typography variant="body2">*/}
+                    {/*        Showing values between <b>{valueRange[0]}</b> and <b>{valueRange[1]}</b>*/}
+                    {/*    </Typography>*/}
+                    {/*</Box>*/}
+
+                    {/*/!* Selected area info *!/*/}
+                    {/*<Box sx={{mt: 3}}>*/}
+                    {/*    {selectedArea ? (*/}
+                    {/*        <>*/}
+                    {/*            <Typography variant="subtitle1">{selectedArea.name}</Typography>*/}
+                    {/*            <Typography>Value: {selectedArea.value}</Typography>*/}
+                    {/*        </>*/}
+                    {/*    ) : (*/}
+                    {/*        <Typography variant="body2">Click an area for details</Typography>*/}
+                    {/*    )}*/}
+                    {/*</Box>*/}
+
+
+                    {/*<Button onClick={() => {*/}
+                    {/*    api(ROUTES.app.optimiseDHNlayout, {*/}
+                    {/*        param1: 5,*/}
+                    {/*        param2: 8,*/}
+                    {/*        param3: 4,*/}
+                    {/*        param4: 0,*/}
+                    {/*    });*/}
+                    {/*}}*/}
+                    {/*>*/}
+                    {/*    Optimise*/}
+                    {/*</Button>*/}
+
+
                 </div>
 
-                <Modal open={showSaveAsConfirm} onClose={() => setShowSaveAsConfirm(false)} zIndexClass={"z-[1001]"}>
-                    <div className='flex flex-col gap-4'>
-                        <h3 className='text-lg font-semibold'>Save building collection</h3>
-                        <TextField
-                            value={saveAsLabel}
-                            onChange={(text) => setSaveAsLabel(text)}
-                            placeholder='Name for this locality or collection of buildings'
-                            autoFocus
-                            label=''
+                {/* ########## Map section ########## */}
+                <div style={{flex: 3, height: "100vh", paddingRight: 50, paddingTop: 30, paddingLeft: 25}}>
+                    <MapContainer
+                        ref={mapRef}
+                        crs={CRS.EPSG3857}
+                        center={[53.46, -1.29]}
+                        zoom={11}
+                        style={{height: "100%", width: "100%"}}
+                        // whenReady={(mapInstance) => {
+                        //     mapRef.current = mapInstance;
+                        // }}
+                    >
+                        <ScaleControl position="topright"/>
+
+                        <MapViewListener
+                            onViewChange={(zoom, bounds) => {
+                                setMapState({zoom, bounds});
+                                console.log(`New zoom : ${zoom}`);
+                                console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
+                                setVisibleTiles(getVisibleTiles(bounds, zoom));
+                            }
+                            }
                         />
-                        <div className='flex flex-row gap-2 justify-end'>
-                            <Button onClick={() => setShowSaveAsConfirm(false)}>Cancel</Button>
-                            <Button.Success
-                                onClickAsync={async () => {
-                                    await handleSaveAs(buildingSelectionState, saveAsLabel)
-                                    setShowSaveAsConfirm(false)
+                        <TileLayer
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                            attribution="&copy; OpenStreetMap contributors"
+                        />
+
+                        {/*{geoData && (*/}
+                        {/*  <GeoJSON*/}
+                        {/*    key={`${selectedDataset}-${JSON.stringify(valueRange)}`}*/}
+                        {/*    data={geoData as any}*/}
+                        {/*    style={styleFeature}*/}
+                        {/*    onEachFeature={onEachFeature}*/}
+                        {/*  />*/}
+                        {/*)}*/}
+
+                        {(mergedCollection.features && mapState.zoom >= BUILDING_ZOOM_THRESHOLD) && (
+                            // {true && (
+                            <GeoJSON
+                                // ref={buildingsRef}
+                                key={`buildings-${mapState.zoom}-${mergedCollection.features.length}`}
+                                data={mergedCollection as any}
+                                style={styleBuilding}
+                                // @ts-ignore
+                                pointerEvents={drawingOngoing.current ? "none" : true} // If polygon drawing is ongoing then individual building mouseover needs to be disabled. I think I had this the wrong way round before??
+                                onEachFeature={onEachBuilding}
+                            />
+                        )}
+
+                        <FeatureGroup>
+                            <EditControl
+                                position="topleft"
+                                draw={{
+                                    polygon: true,
+                                    polyline: false,
+                                    circle: false,
+                                    circlemarker: false,
+                                    marker: false,
+                                    rectangle: false
                                 }}
-                                disabled={!saveAsLabel.trim()}
-                            >
-                                Save
-                            </Button.Success>
-                        </div>
-                    </div>
-                </Modal>
 
+                                edit={{
+                                    edit: false,
+                                    remove: true
+                                }}
 
-                <Typography variant="h6">Available case study areas</Typography>
+                                onDrawStart={(e) => {
+                                    console.log("you're drawing!");
+                                    drawingOngoing.current = true;
+                                }}
+                                onDrawStop={(e) => {
+                                    console.log("you've stopped drawing!");
+                                    drawingOngoing.current = false;
+                                }}
 
-                {buildingSelections && buildingSelections.map((bs) => (
-                    <BuildingSelectionCard
-                        buildingSelection={bs}
-                    >
-                    </BuildingSelectionCard>))}
+                                onCreated={(e) => {
+                                    if (e.layerType === "polygon") {
+                                        const layer = e.layer;
+                                        const geojson = e.layer.toGeoJSON();
+                                        // setBuildingSelectionState((current) => [...current, geojson]);
 
-
-                {/* Dataset selector */}
-                <FormControl fullWidth sx={{mt: 2}}>
-                    <InputLabel>Dataset</InputLabel>
-                    <Select
-                        value={selectedDataset}
-                        label="Dataset"
-                        onChange={(e) => setSelectedDataset(e.target.value)}
-                    >
-                        {Object.keys(DATASETS).map((name) => (
-                            <MenuItem key={name} value={name}>
-                                {name}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-
-                {/* Value range slider */}
-                <Box sx={{mt: 4}}>
-                    <Typography gutterBottom>Filter by value</Typography>
-                    <Slider
-                        value={valueRange}
-                        onChange={(_, val) =>
-                            Array.isArray(val) && setValueRange([val[0], val[1]])
-                        }
-                        valueLabelDisplay="auto"
-                        min={
-                            geoData ? Math.min(...geoData.features.map((f: any) => f.properties.value)) : 0
-                        }
-                        max={
-                            geoData ? Math.max(...geoData.features.map((f: any) => f.properties.value)) : 100
-                        }
-                    />
-                    <Typography variant="body2">
-                        Showing values between <b>{valueRange[0]}</b> and <b>{valueRange[1]}</b>
-                    </Typography>
-                </Box>
-
-                {/* Selected area info */}
-                <Box sx={{mt: 3}}>
-                    {selectedArea ? (
-                        <>
-                            <Typography variant="subtitle1">{selectedArea.name}</Typography>
-                            <Typography>Value: {selectedArea.value}</Typography>
-                        </>
-                    ) : (
-                        <Typography variant="body2">Click an area for details</Typography>
-                    )}
-                </Box>
-
-
-                <Button onClick={() => {
-                    api(ROUTES.app.optimiseDHNlayout, {
-                        param1: 5,
-                        param2: 8,
-                        param3: 4,
-                        param4: 0,
-                    });
-                }}
-                >
-                    Optimise
-                </Button>
-
-
-            </div>
-
-            {/* ########## Map section ########## */}
-            <div style={{flex: 3, height: "100vh", paddingRight: 50, paddingTop: 30, paddingLeft: 25}}>
-                <MapContainer
-                    crs={CRS.EPSG3857}
-                    center={[53.46, -1.29]}
-                    zoom={11}
-                    style={{height: "100%", width: "100%"}}
-                    // whenReady={(mapInstance) => {
-                    //     mapRef.current = mapInstance;
-                    // }}
-                    //@ts-ignore
-                    whenCreated={(mapInstance) => {
-                        mapRef.current = mapInstance;
-                    }}
-
-                >
-                    <MapViewListener
-                        onViewChange={(zoom, bounds) => {
-                            setMapState({zoom, bounds});
-                            console.log(`New zoom : ${zoom}`);
-                            console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
-                            setVisibleTiles(getVisibleTiles(bounds, zoom));
-                        }
-                        }
-                    />
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution="&copy; OpenStreetMap contributors"
-                    />
-
-                    {/*{geoData && (*/}
-                    {/*  <GeoJSON*/}
-                    {/*    key={`${selectedDataset}-${JSON.stringify(valueRange)}`}*/}
-                    {/*    data={geoData as any}*/}
-                    {/*    style={styleFeature}*/}
-                    {/*    onEachFeature={onEachFeature}*/}
-                    {/*  />*/}
-                    {/*)}*/}
-
-                    {(mergedCollection.features && mapState.zoom >= BUILDING_ZOOM_THRESHOLD) && (
-                        // {true && (
-                        <GeoJSON
-                            // ref={buildingsRef}
-                            key={`buildings-${mapState.zoom}-${mergedCollection.features.length}`}
-                            data={mergedCollection as any}
-                            style={styleBuilding}
-                            // @ts-ignore
-                            pointerEvents={drawingOngoing.current ? true : "none"} // If polygon drawing is ongoing then individual building mouseover needs to be disabled.
-                            onEachFeature={onEachBuilding}
-                        />
-                    )}
-
-                    <FeatureGroup>
-                        <EditControl
-                            position="topleft"
-                            draw={{
-                                polygon: true,
-                                polyline: false,
-                                circle: false,
-                                circlemarker: false,
-                                marker: false,
-                                rectangle: false
-                            }}
-
-                            edit={{
-                                edit: false,
-                                remove: true
-                            }}
-
-                            onDrawStart={(e) => {
-                                console.log("you're drawing!");
-                                drawingOngoing.current = true;
-                            }}
-                            onDrawStop={(e) => {
-                                console.log("you've stopped drawing!");
-                                drawingOngoing.current = false;
-                            }}
-
-                            onCreated={(e) => {
-                                if (e.layerType === "polygon") {
-                                    const layer = e.layer;
-                                    const geojson = e.layer.toGeoJSON();
-                                    // setBuildingSelectionState((current) => [...current, geojson]);
-
-                                    // The new polygon is added to the selected areas in the state.
-                                    const newSelectionState = {
-                                        ...buildingSelectionState,
-                                        selectedArea: [buildingSelectionState.polygons, geojson]
+                                        // The new polygon is added to the selected areas in the state.
+                                        const newSelectionState = {
+                                            ...buildingSelectionState,
+                                            polygons: [buildingSelectionState.polygons, geojson]
+                                        }
+                                        setBuildingSelectionState(newSelectionState);
+                                        // We still need to think about how we *remove* polygons...
                                     }
-                                    setBuildingSelectionState(newSelectionState);
-                                    // We still need to think about how we *remove* polygons...
-                                }
-                            }}
-                        />
-                    </FeatureGroup>
-                </MapContainer>
+                                }}
+                            />
+                        </FeatureGroup>
+                    </MapContainer>
+
+                    {["Building stock report", "Decarbonisation strategies", "Results"].map((tabname, index) => (
+                        <li
+                            key={index}
+                            className={cn(
+                                'flex items-center gap-2 px-4 py-2 rounded-t-md border-b-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+                                index === currentIndex
+                                    ? 'bg-brand-600 border-brand-500 text-white shadow-md'
+                                    : 'bg-gray-800 border-transparent text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer'
+                            )}
+                            onClick={() => setCurrentIndex(index)}
+                            tabIndex={0}
+                            aria-selected={index === currentIndex}
+                            aria-controls={`chart-tabpanel-${index}`}
+                            role='tab'
+                        >
+                            <span className='text-base'>{chart?.label ?? `Chart ${index + 1}`}</span>
+                        </li>
+                    ))}
+
+                    {archetypesByName["Residential"] && (
+                        <div className="pt-5 text-brand-900">
+                            <ArchetypePanel key={"TopA"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
+                                            parentArchetype={archetypesByName["Residential"]} level={1}/>
+                            <ArchetypePanel key={"TopB"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
+                                            parentArchetype={archetypesByName["Non-residential"]} level={1}/>
+                        </div>
+                    )}
+                </div>
             </div>
+        );
+    }
+;
 
-
-        </div>
-    );
-};
 
 export default MapDashboard;
 

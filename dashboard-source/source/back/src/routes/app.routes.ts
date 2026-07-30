@@ -13,6 +13,7 @@ import RefreshToken from '../models/refreshToken.model'
 import Token from '../models/token.model'
 import User from '../models/user.model'
 import BuildingSelection from "../models/buildingSelection.model";
+import {ArchetypeSummary} from "../models/caseStudy.model"
 
 const POPULATE_BUILDING_SELECTION = ['owner']
 
@@ -197,6 +198,71 @@ router.post(ROUTES.getVBuildingDataInPolygon,
     }
 );
 
+/**
+ * Similar to above but uses multiple polygons.
+ */
+router.post(ROUTES.getVBuildingDataInPolygons,
+    (req, res) => {
+
+        const polygons = req.body;
+        console.log(`getVBuildingDataInPolygons received ${polygons.length} polygons:`)
+        console.log(polygons)
+
+        const buildingsFound = polygons.filter((p) => !!p).flatMap((polygon) =>
+            buildingService
+                .findBuildingsInPolygon(
+                    polygon
+                )
+        )
+
+        res.json({
+            count: buildingsFound.length,
+            features: buildingsFound
+        });
+    }
+);
+
+router.post(ROUTES.getAggregateDatainPolygons,
+    (req, res) => {
+
+        const polygons = req.body;
+        console.log(`getAggregateDatainPolygons received ${polygons.length} polygons`)
+        console.log(polygons)
+
+        r:Response
+
+        const summary = new Map<string, ArchetypeSummary>();
+
+        if (!polygons)
+        {
+            res.json(new Map<string, ArchetypeSummary>());
+            return;
+        }
+
+        polygons.forEach((polygon) => {
+            const summaries = buildingService.summariseBuildingsInPolygon(polygon);
+            summaries.forEach((s, atype) => {
+                let record = summary.get(atype);
+                if (!record) {
+                    record = {
+                        archetype: atype,
+                        numBuildings: 0,
+                        totalFloorArea: 0
+                    };
+                    summary.set(atype, record);
+                }
+                record.numBuildings += s.numBuildings;
+                record.totalFloorArea += s.totalFloorArea;
+            })
+        })
+
+        console.log("getAggregateDatainPolygons() generated this building stock summary:")
+        console.log(summary)
+
+        res.json(Object.fromEntries(summary)); // we can worry about any sorting that is needed in the frontend.
+    }
+);
+
 
 /**
  * Route that gets building data for a specific tile, with zoom, x and y specified in the url params.
@@ -246,11 +312,11 @@ BaseRoutes(router, {
  * Retrieve all the building selections for the logged-in user.
  */
 router.get(ROUTES.buildingSelections, async (req: Request, res: Response) => {
-    const { sessionUser } = res.locals
+    const {sessionUser} = res.locals
     console.log(`Finding all saved case study buildings for user ${sessionUser}.`)
 
-    const selections = await BuildingSelection.find({ owner: sessionUser._id })
-        .sort({ createdAt: -1 })
+    const selections = await BuildingSelection.find({owner: sessionUser._id})
+        .sort({createdAt: -1})
         .select('-results')
         .populate(POPULATE_BUILDING_SELECTION)
 
@@ -262,23 +328,23 @@ router.get(ROUTES.buildingSelections, async (req: Request, res: Response) => {
  * Retrieve all the building selections for a specified user.
  */
 router.get(ROUTES.user + '/:user_id/buildingSelections', async (req: Request, res: Response) => {
-    const { sessionUser } = res.locals
+    const {sessionUser} = res.locals
 
     if (!req.params.user_id || req.params.user_id === 'undefined') {
-        return res.status(400).json({ message: 'User ID is required' })
+        return res.status(400).json({message: 'User ID is required'})
     }
 
     const targetUser = await User.findById(req.params.user_id)
     if (!targetUser) {
-        return res.status(404).json({ message: 'User not found' })
+        return res.status(404).json({message: 'User not found'})
     }
 
     if (sessionUser._id.toString() !== targetUser._id.toString()) {
-        return res.status(403).json({ message: 'You are not authorised to access data for this user.' })
+        return res.status(403).json({message: 'You are not authorised to access data for this user.'})
     }
 
-    const buildingSelections = await BuildingSelection.find({ user: targetUser._id })
-        .sort({ createdAt: -1 })
+    const buildingSelections = await BuildingSelection.find({user: targetUser._id})
+        .sort({createdAt: -1})
         .populate(POPULATE_BUILDING_SELECTION)
 
     return res.status(200).json(buildingSelections)
@@ -329,19 +395,19 @@ router.post(ROUTES.user + '/:user_id/buildingSelections', async (req: Request, r
  * Route to get a specific building selection by its ID.
  */
 router.get(ROUTES.user + '/:user_id/buildingSelections/:selection_id', async (req: Request, res: Response) => {
-    const { sessionUser } = res.locals
+    const {sessionUser} = res.locals
 
     if (!req.params.user_id || req.params.user_id === 'undefined') {
-        return res.status(400).json({ message: 'User ID is required' })
+        return res.status(400).json({message: 'User ID is required'})
     }
 
     const targetUser = await User.findById(req.params.user_id)
     if (!targetUser) {
-        return res.status(404).json({ message: 'User not found' })
+        return res.status(404).json({message: 'User not found'})
     }
 
     if (sessionUser._id.toString() !== targetUser._id.toString()) {
-        return res.status(403).json({ message: 'You are not authorised to access data for this user' })
+        return res.status(403).json({message: 'You are not authorised to access data for this user'})
     }
 
     const bs = await BuildingSelection.findOne({
@@ -350,12 +416,11 @@ router.get(ROUTES.user + '/:user_id/buildingSelections/:selection_id', async (re
     }).populate(POPULATE_BUILDING_SELECTION)
 
     if (!bs) {
-        return res.status(404).json({ message: 'Building selection not found' })
+        return res.status(404).json({message: 'Building selection not found'})
     }
 
     return res.status(200).json(bs)
 })
-
 
 
 export default router

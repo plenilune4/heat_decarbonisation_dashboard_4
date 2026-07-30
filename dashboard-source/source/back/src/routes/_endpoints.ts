@@ -9,10 +9,16 @@ const endpoints = {
         checkOptimisationStatus: '/checkOptimisationStatus',
         getVBuildingDataInBounds: '/getVBuildingDataInBounds',
         getVBuildingDataInPolygon: '/getVBuildingDataInPolygon',
+        getVBuildingDataInPolygons: '/getVBuildingDataInPolygons',
+        getAggregateDatainPolygons: '/getAggregateDataInPolygons',
         buildingSelections: '/buildingSelections',
+        caseStudies: '/caseStudies',
     },
     admin: {
         user: '/user',
+    },
+    data: {
+        getArchetypes: '/getArchetypes',
     },
     public: {},
     auth: {

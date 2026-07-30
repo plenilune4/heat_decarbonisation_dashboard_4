@@ -99,24 +99,26 @@ export default function AppLayout() {
                 {/*    <DesktopSidebar logo={logo} primaryLinks={primaryLinks} />*/}
                 {/*</aside>*/}
                 <div className="flex flex-col flex-1 min-w-0">
-                {/*<div className="flex flex-col flex-1 min-w-0 md:pl-5">*/}
+                    {/*<div className="flex flex-col flex-1 min-w-0 md:pl-5">*/}
                     {/*<div className='flex relative flex-col flex-1 w-full md:pl-5'>*/}
                     {/*<div className='flex relative flex-col flex-1 w-full'>*/}
                     <Header secondaryLinks={user ? ACCOUNT_LINKS : []} setSidebarOpen={setSidebarOpen}/>
                     {/*Original*/}
-                    {/*<main className={cn(*/}
-                    {/*        'flex relative flex-col flex-1 px-5 w-full',*/}
-                    {/*        FULL_BLEED_PAGES.includes(location.pathname) ? 'max-w-none mx-0' : 'max-w-7xl mx-auto'*/}
-                    {/*    )}*/}
-                    {/*>*/}
-                    {/*Suggested by ChatGPT*/}
                     <main className={cn(
-                        "flex flex-col flex-1 min-w-0",
-                        FULL_BLEED_PAGES.includes(location.pathname)
-                            ? "max-w-none"
-                            : "max-w-7xl mx-auto"
+                        'flex relative flex-col flex-1 px-5 w-full',
+                        FULL_BLEED_PAGES.includes(location.pathname) ? 'max-w-none mx-0' : 'max-w-7xl mx-auto'
                     )}
                     >
+
+                        {/*Suggested by ChatGPT...not quite working exactly right*/}
+                        {/*<main className={cn(*/}
+                        {/*    "flex flex-col flex-1 min-w-0",*/}
+                        {/*    FULL_BLEED_PAGES.includes(location.pathname)*/}
+                        {/*        ? "max-w-none"*/}
+                        {/*        : "max-w-7xl mx-auto"*/}
+                        {/*)}*/}
+                        {/*>*/}
+
                         {/*Main content of the app goes here ('outlet'*/}
                         <ErrorBoundary componentName='Admin Layout - Main'>
                             <Outlet/>

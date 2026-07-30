@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import ROUTES from '@/ROUTES'
 
+import {ICaseStudy} from '@/MODELS/caseStudy.model'
 import { api_delete } from '@/services/api.service'
 import { cn } from '@/utils/cn'
 
@@ -10,20 +11,20 @@ import Avatar from './Avatar'
 import Button from './Button'
 import Confirm from './ConfirmModal'
 import FrameworkBadge from './FrameworkBadge'
-import {IBuildingSelection} from "@/MODELS/buildingSelection.model";
 
-export default function BuildingSelectionCard({
-    buildingSelection,
+export default function AnalysisCard({
+    casestudy,
     isSelected = false,
     onClick,
     onDelete,
 }: {
-    buildingSelection: IBuildingSelection
+    casestudy: ICaseStudy
     isSelected?: boolean
     onClick?: () => void
     onDelete?: () => void
 }) {
-    const [deleteBSId, setDeleteBSId] = useState<string | null>(null)
+    // could potentially collect some summarising info from the case study here.
+    const [deleteCaseStudyID, setDeleteCaseStudyID] = useState<string | null>(null)
 
     return (
         <section
@@ -38,7 +39,7 @@ export default function BuildingSelectionCard({
             <header className='flex gap-2 items-center'>
                 {/* <div className='flex flex-col gap-2'> */}
                 <h1 className='w-full text-2xl font-bold text-gray-100 truncate'>
-                    {buildingSelection.name}
+                    {casestudy.name || "Unnamed case study"}
                 </h1>
                 {/* {analysis.evaluationFunction && (
                         <h2 className='flex gap-2 items-center font-mono text-lg text-gray-400'>
@@ -47,11 +48,21 @@ export default function BuildingSelectionCard({
                         </h2>
                     )} */}
                 {/* </div> */}
-                {buildingSelection?.owner && <Avatar.Base64 user={buildingSelection.owner} size={40} className='ml-auto' />}
+                {casestudy?.owner && <Avatar.Base64 user={casestudy.owner} size={40} className='ml-auto' />}
             </header>
 
             {/* Pill Row: Sampling, Inputs, Outputs */}
             {/* <div className='flex flex-wrap gap-y-2 gap-x-4 mt-1 text-base'> */}
+            <div className='flex flex-col gap-y-2 text-base'>
+                {/*Example extra info:*/}
+                {/*{exogenous > 0 && (*/}
+                {/*    <div className='flex flex-row gap-2 items-center'>*/}
+                {/*        <FrameworkBadge component='exogenous' />*/}
+                {/*        <span className='font-mono text-xl'>{exogenous}</span>*/}
+                {/*        <span className='text-gray-400'>exogenous</span>*/}
+                {/*    </div>*/}
+                {/*)}*/}
+            </div>
 
             {/* Actions */}
             {!onClick && (
@@ -62,55 +73,47 @@ export default function BuildingSelectionCard({
                             View
                         </Button>
                     </Link> */}
-                    {/*<Link to={`/analyses/run/${buildingSelection._id}`} className='flex-1'>*/}
-                    {/*    <Button.Success className='w-full'>*/}
-                    {/*        <FolderOpenIcon className='w-4 h-4' />*/}
-                    {/*        Open*/}
-                    {/*    </Button.Success>*/}
-                    {/*</Link>*/}
-
-                    <Button onClick ={() => {
-                    }}>
-                        <FolderOpenIcon className='w-4 h-4' />
-                        {buildingSelection.name}
-                    </Button>
-
+                    <Link to={`/analyses/run/${analysis._id}`} className='flex-1'>
+                        <Button.Success className='w-full'>
+                            <FolderOpenIcon className='w-4 h-4' />
+                            Open
+                        </Button.Success>
+                    </Link>
                     <Button.Outline
                         className='px-3 hover:text-red-500'
-                        onClick={() => setDeleteBSId(buildingSelection._id)}
+                        onClick={() => setDeleteAnalysisId(analysis._id)}
                     >
                         <TrashIcon className='w-5 h-5' />
                     </Button.Outline>
                     <Confirm
-                        open={!!deleteBSId}
-                        onCancel={() => setDeleteBSId(null)}
+                        open={!!deleteAnalysisId}
+                        onCancel={() => setDeleteAnalysisId(null)}
                         onConfirm={async () => {
-                            await api_delete(`${ROUTES.app.buildingSelections}/${buildingSelection._id}`)
-                            setDeleteBSId(null)
+                            await api_delete(`${ROUTES.app.analysis}/${analysis._id}`)
+                            setDeleteAnalysisId(null)
                             onDelete?.()
                         }}
-                        title='Delete building set.'
-                        description='Are you sure you want to delete this building set? This action cannot be undone.'
+                        title='Delete Analysis'
+                        description='Are you sure you want to delete this analysis? This action cannot be undone.'
                         confirmText='Delete'
                         cancelText='Cancel'
                         intent='danger'
-                        className={'z-index[1002]'}
                     />
                 </div>
             )}
 
             {/* Footer: Dates */}
             <footer className='flex flex-wrap gap-4 pt-2 mt-2 text-xs text-gray-500 border-t border-gray-700'>
-                {buildingSelection.createdAt && (
+                {analysis.createdAt && (
                     <span>
                         <span className='font-semibold text-gray-400'>Created:</span>{' '}
-                        {new Date(buildingSelection.createdAt).toLocaleDateString()}
+                        {new Date(analysis.createdAt).toLocaleDateString()}
                     </span>
                 )}
-                {buildingSelection.updatedAt && (
+                {analysis.updatedAt && (
                     <span>
                         <span className='font-semibold text-gray-400'>Updated:</span>{' '}
-                        {new Date(buildingSelection.updatedAt).toLocaleDateString()}
+                        {new Date(analysis.updatedAt).toLocaleDateString()}
                     </span>
                 )}
             </footer>

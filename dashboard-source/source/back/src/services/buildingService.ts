@@ -9,6 +9,7 @@ import {
     Polygon,
     MultiPolygon
 } from "geojson";
+import {ArchetypeSummary} from "../models/caseStudy.model";
 
 interface IndexedFeature {
     minX: number;
@@ -74,7 +75,7 @@ export class BuildingService {
 
         const entries = await fs.readdir(
             dir,
-            { withFileTypes: true }
+            {withFileTypes: true}
         );
 
         const files = await Promise.all(
@@ -85,23 +86,29 @@ export class BuildingService {
 
                 if (entry.isDirectory()) {
                     // For dev, we just keep a few tiles fr the middle of the map:
-                    if (this.x_for_dev.some((s) => s === entry.name)) {
-                    // if (true) {
-                        return this.getGeojsonFiles(
-                            fullPath
-                        );
-                    }
+                    // if (this.x_for_dev.some((s) => s === entry.name)) {
+                    //     // if (true) {
+                    //     return this.getGeojsonFiles(
+                    //         fullPath
+                    //     );
+                    // }
+
+                    // For production or demos, we want all the tiles:
+                    return this.getGeojsonFiles(
+                        fullPath
+                    );
+
                     return [];
                 }
 
                 // ['16265/10603.geojson', '16265/10604.geojson', '16265_10605', '16265_10606', '16266_10603', '16266_10604', '16266_10605', '16266_10606', '16267_10603', '16267_10604', '16267_10605', '16267_10606', '16268_10603', '16268_10604', '16268_10605', '16268_10606']
 
                 // For dev, we just keep a few tiles from the middle of the map:
-
-                return this.y_for_dev.some((s) => fullPath.endsWith(s + ".geojson"))
-                // return fullPath.endsWith(".geojson")
+                // return this.y_for_dev.some((s) => fullPath.endsWith(s + ".geojson"))
+                return fullPath.endsWith(".geojson") // for production.
                     ? [fullPath]
                     : [];
+
 
             })
         );
@@ -124,7 +131,7 @@ export class BuildingService {
         const geojsonFiles =
             await this.getGeojsonFiles(baseDir);
 
-        console.log(geojsonFiles.slice(0,10))
+        console.log(geojsonFiles.slice(0, 10))
 
         console.log(
             `Found ${geojsonFiles.length} GeoJSON tiles.`
@@ -173,6 +180,9 @@ export class BuildingService {
             Feature<Polygon> |
             Feature<MultiPolygon>
     ) {
+        if (!polygon) {
+            return [];
+        }
 
         const bbox = turf.bbox(polygon);
 
@@ -193,6 +203,63 @@ export class BuildingService {
             )
             .map(item => item.feature);
     }
+
+    public summariseBuildingsInPolygon(
+        polygon: Feature<Polygon | MultiPolygon>
+    ): Map<string, ArchetypeSummary> {
+
+        console.log(`generating a polygon building summary for:`)
+        console.log(polygon)
+
+        if (!polygon) {
+            return new Map<string, ArchetypeSummary>();
+        }
+
+        const bbox = turf.bbox(polygon);
+
+        const candidates = this.tree.search({
+            minX: bbox[0],
+            minY: bbox[1],
+            maxX: bbox[2],
+            maxY: bbox[3]
+        });
+
+        const summary = new Map<string, ArchetypeSummary>();
+
+        for (const item of candidates) {
+
+            if (!turf.booleanIntersects(item.feature, polygon))
+                continue;
+            const props = item.feature.properties ?? {};
+            const archetype = props.archetype ?? "Not found";
+            const floorArea =
+                Number(props.gross_area) || (props.premise_floor_count || 2)*(props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
+
+            let record = summary.get(archetype);
+
+            if (!record) {
+                record = {
+                    archetype: archetype,
+                    numBuildings: 0,
+                    totalFloorArea: 0
+                };
+                summary.set(archetype, record);
+            }
+
+            record.numBuildings++;
+            record.totalFloorArea += floorArea;
+        }
+
+        console.log("buildingService.summariseBuildingsInPolygon() generated this building stock summary:")
+        console.log(summary)
+
+        return summary;
+        // return [...summary.values()]
+        //     .sort((a, b) =>
+        //         b.totalFloorArea - a.totalFloorArea
+        //     );
+    }
+
 
     /**
      * Find buildings within a rectangle.
