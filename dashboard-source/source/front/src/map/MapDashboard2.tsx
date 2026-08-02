@@ -6,6 +6,9 @@ import {useResource} from '@/services/resource.service';
 import {useAuth} from '@/services/authentication.service'
 import {IBuildingSelection} from "@/MODELS/buildingSelection.model";
 import BuildingSelectionCard from '@/components/BuildingSelectionCard';
+import {SpecifyStrategy, SpecifyStrategies} from '@/components/SpecifyStrategy';
+import Results from "@/components/Results";
+
 import Modal from '@/components/Modal'
 import {SelectField, TextField} from '@/form-control/fields'
 import {ScaleControl, useMap, useMapEvents} from "react-leaflet";
@@ -692,6 +695,7 @@ const MapDashboard: React.FC = () => {
 //   }
 // };
 
+        const [currentTabIndex, setCurrentTabIndex] = useState<number>(0)
 
         const drawingOngoing = useRef<boolean>(false)
 
@@ -948,33 +952,56 @@ const MapDashboard: React.FC = () => {
                         </FeatureGroup>
                     </MapContainer>
 
-                    {["Building stock report", "Decarbonisation strategies", "Results"].map((tabname, index) => (
-                        <li
-                            key={index}
-                            className={cn(
-                                'flex items-center gap-2 px-4 py-2 rounded-t-md border-b-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
-                                index === currentIndex
-                                    ? 'bg-brand-600 border-brand-500 text-white shadow-md'
-                                    : 'bg-gray-800 border-transparent text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer'
-                            )}
-                            onClick={() => setCurrentIndex(index)}
-                            tabIndex={0}
-                            aria-selected={index === currentIndex}
-                            aria-controls={`chart-tabpanel-${index}`}
-                            role='tab'
-                        >
-                            <span className='text-base'>{chart?.label ?? `Chart ${index + 1}`}</span>
-                        </li>
-                    ))}
+                    <ul className='flex gap-2 px-2 mb-4 border-b border-gray-700 pt-5'>
+                        {["Building stock report", "Decarbonisation strategies", "Results"].map((tabname, index) => (
+                            <li
+                                key={index}
+                                className={cn(
+                                    'flex items-center gap-2 px-4 py-2 rounded-t-md border-b-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+                                    index === currentTabIndex
+                                        ? 'bg-brand-600 border-brand-500 text-white shadow-md'
+                                        : 'bg-gray-800 border-transparent text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer'
+                                )}
+                                onClick={() => setCurrentTabIndex(index)}
+                                tabIndex={0}
+                                aria-selected={index === currentTabIndex}
+                                aria-controls={`chart-tabpanel-${index}`}
+                                role='tab'
+                            >
+                                <span className='text-base'>{tabname}</span>
+                            </li>
+                        ))}
+                    </ul>
 
-                    {archetypesByName["Residential"] && (
-                        <div className="pt-5 text-brand-900">
+                    {(currentTabIndex == 0) && archetypesByName["Residential"] && (
+                        <div className="pt-5 pb-5 text-brand-900">
                             <ArchetypePanel key={"TopA"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
                                             parentArchetype={archetypesByName["Residential"]} level={1}/>
                             <ArchetypePanel key={"TopB"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
                                             parentArchetype={archetypesByName["Non-residential"]} level={1}/>
                         </div>
                     )}
+
+                    {(currentTabIndex == 1) && (
+                        <div className="pt-5 pb-5 text-brand-900">
+                            {/*<SpecifyStrategy*/}
+                            {/*    archetypes={archetypes}*/}
+                            {/*/>*/}
+                            <SpecifyStrategies/>
+                        </div>
+                    )
+                    }
+
+                    {(currentTabIndex == 2) && (
+                        <div className="pt-5 pb-5 text-brand-900">
+                            {/*<SpecifyStrategy*/}
+                            {/*    archetypes={archetypes}*/}
+                            {/*/>*/}
+                            <Results/>
+                        </div>
+                    )
+                    }
+
                 </div>
             </div>
         );

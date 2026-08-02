@@ -124,7 +124,7 @@ export default function AppLayout() {
                             <Outlet/>
                         </ErrorBoundary>
                     </main>
-                    <Footer primaryLinks={FOOTER_LINKS}/>
+                    {/*<Footer primaryLinks={FOOTER_LINKS}/>*/}
                 </div>
             </>
         </>

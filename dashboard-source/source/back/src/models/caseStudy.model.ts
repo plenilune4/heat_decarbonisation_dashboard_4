@@ -195,7 +195,7 @@ export type SingleStrategy =
  */
 export type OverallStrategy = {
     name?: string
-    strategies?: Record<ArchetypesAnyLevel, SingleStrategy>
+    strategies?: Map<string, SingleStrategy>
 }
 
 export interface ICaseStudy {
