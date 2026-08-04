@@ -38,93 +38,94 @@ const ROUTES = ENDPOINTS.app
 /**
  * Route for running a DHN optimisation in the backend.
  */
-// router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
-//   try {
-//
-//     const { sessionUser } = res.locals
-//
-//     const {
-//       param1,
-//       param2,
-//       param3,
-//       param4
-//     } = req.body;
-//
-//
-//     if (
-//       param1 === undefined ||
-//       param2 === undefined
-//     ) {
-//       return res.status(400).json({
-//         error: "Missing parameters"
-//       });
-//     }
-//
-//     const job = await Job.create({
-//       userId: sessionUser._id,
-//       params: {
-//         param1,
-//         param2,
-//         param3,
-//         param4
-//       }
-//     });
-//
-//     await optimisationQueue.add(
-//       "runOptimisation",
-//       {
-//         jobId: job._id.toString(),
-//         param1,
-//         param2,
-//         param3,
-//         param4
-//       },
-//       {
-//         attempts: 3,
-//         removeOnComplete: 100,
-//         removeOnFail: 100
-//       }
-//     );
-//
-//     return res.status(202).json({
-//       jobId: job._id,
-//       status: "queued"
-//     });
-//
-//   } catch (err) {
-//
-//     console.error(err);
-//
-//     return res.status(500).json({
-//       error: "Failed to create job"
-//     });
-//
-//   }
-// });
+router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
+  try {
+
+    const { sessionUser } = res.locals
+
+    const {
+      param1,
+      param2,
+      param3,
+      param4
+    } = req.body;
+
+
+    if (
+      param1 === undefined ||
+      param2 === undefined
+    ) {
+      return res.status(400).json({
+        error: "Missing parameters"
+      });
+    }
+
+    const job = await Job.create({
+      userId: sessionUser._id,
+      params: {
+        param1,
+        param2,
+        param3,
+        param4
+      }
+    });
+
+    await optimisationQueue.add(
+      "runOptimisation",
+      {
+        jobId: job._id.toString(),
+        param1,
+        param2,
+        param3,
+        param4
+      },
+      {
+        attempts: 3,
+        removeOnComplete: 100,
+        removeOnFail: 100
+      }
+    );
+
+    // Note that the route sends back the jobid so that we can check on the job at leisure. It does not send back the final results!
+    return res.status(202).json({
+      jobId: job._id,
+      status: "queued"
+    });
+
+  } catch (err) {
+
+    console.error(err);
+
+    return res.status(500).json({
+      error: "Failed to create job"
+    });
+
+  }
+});
 
 /**
  * Route for checking current status of optimisation job.
  * Note that Job will need switching for DHNoptimisationJob.
  */
-// router.get(ROUTES.checkOptimisationStatus + "/:jobId", async (req, res) => {
-//
-//   const job = await Job.findById(
-//     req.params.jobId
-//   );
-//
-//   if (!job) {
-//     return res.status(404).json({
-//       error: "Job not found"
-//     });
-//   }
-//
-//   res.json({
-//     status: job.status,
-//     results: job.results,
-//     error: job.error
-//   });
-//
-// });
+router.get(ROUTES.checkOptimisationStatus + "/:jobId", async (req, res) => {
+
+  const job = await Job.findById(
+    req.params.jobId
+  );
+
+  if (!job) {
+    return res.status(404).json({
+      error: "Job not found"
+    });
+  }
+
+  res.json({
+    status: job.status,
+    results: job.results,
+    error: job.error
+  });
+
+});
 
 /**
  * Gets the buildings geojson for those which fall within a requested bounding box.
