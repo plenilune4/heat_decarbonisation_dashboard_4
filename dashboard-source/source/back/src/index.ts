@@ -14,6 +14,7 @@ const port = process.env.PORT || 8000
 const start = async () => {
     try {
         await mongoose.connect(process.env.DB_CONNECTION_STRING);
+        console.log(`########## trying to listen on ${port} ############`)
         server.listen(port, () => {
             Logger.info(`Express server started on port: ${port}`)
         })
