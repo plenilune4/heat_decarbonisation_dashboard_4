@@ -10,7 +10,6 @@ import { Server } from "socket.io";
 
 // import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
 
-
 async function start() {
     await buildingService.ready();
 
