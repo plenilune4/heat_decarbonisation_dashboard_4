@@ -83,7 +83,8 @@ export default function LoadCaseStudy() {
                         Open an existing case study.
                     </p>
                 </div>
-                <Link to='/casestudies/new' className={cn('flex gap-2 items-center button', ButtonStylePrimary)}>
+                {/*<Link to='/casestudies/run/new' className={cn('flex gap-2 items-center button', ButtonStylePrimary)}>*/}
+                <Link to='/casestudies/run/new' className={cn('flex gap-2 items-center button bg-brand-600 border-brand-500 text-white shadow-md')}>
                     <PlusIcon className='w-5 h-5 shrink-0'/>
                     Start New Case Study
                 </Link>
@@ -111,7 +112,7 @@ export default function LoadCaseStudy() {
                     />
                 </div>
                 <p className='mt-2 text-base text-gray-300'>
-                    Found <span className='font-semibold text-white'>{filteredAnalyses.length}</span> of{' '}
+                    Found <span className='font-semibold text-white'>{filteredCaseStudies.length}</span> of{' '}
                     <span className='font-semibold text-white'>
                         {sortedCaseStudies.length}
                     </span>{' '}
@@ -142,13 +143,6 @@ export default function LoadCaseStudy() {
                         onAction={() => setSearch('')}
                     />
                 )}
-            {!CaseStudyResource.isLoading && !caseStudies?.length && (
-                <Empty
-                    icon={<ForwardIcon className='w-16 h-16'/>}
-                    actionText='Start a new case study'
-                    onAction={() => navigate('/analyses/create')}
-                />
-            )}
         </div>
     )
 }

@@ -32,6 +32,7 @@ const data1 = [
     {strategy: 'ASHP + deep retrofit', CAPEX_system: 6050, CAPEX_fabric: 24025, OPEX: 6500},
     {strategy: 'ASHP + modest retrofit', CAPEX_system: 7090, CAPEX_fabric: 3500, OPEX: 11950},
     {strategy: 'DHN + no retrofit', CAPEX_system: 11500, CAPEX_fabric: 0, OPEX: 6500},
+    {strategy: 'DHN + modest retrofit', CAPEX_system: 10100, CAPEX_fabric: 3500, OPEX: 4900},
 ];
 
 // Emissions:
@@ -39,6 +40,7 @@ const data2 = [
     {strategy: 'ASHP + deep retrofit', Embodied_system: 3.8, Embodied_fabric: 6.0, Operational: 200},
     {strategy: 'ASHP + modest retrofit', Embodied_system: 4.2, Embodied_fabric: 0.8, Operational: 220},
     {strategy: 'DHN + no retrofit', Embodied_system: 11.2, Embodied_fabric: 0.0, Operational: 880},
+    {strategy: 'DHN + modest retrofit', Embodied_system: 11.0, Embodied_fabric: 0.8, Operational: 810},
 ];
 
 const BAR_CATEGORY_GAP = "20%"

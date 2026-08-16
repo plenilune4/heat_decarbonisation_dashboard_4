@@ -13,9 +13,10 @@ import RefreshToken from '../models/refreshToken.model'
 import Token from '../models/token.model'
 import User from '../models/user.model'
 import BuildingSelection from "../models/buildingSelection.model";
-import {ArchetypeSummary} from "../models/caseStudy.model"
+import CaseStudy, {ArchetypeSummary} from "../models/caseStudy.model"
 
 const POPULATE_BUILDING_SELECTION = ['owner']
+const POPULATE_CASE_STUDY = ['owner', 'buildingSelection']
 
 
 import {
@@ -402,6 +403,185 @@ router.get(ROUTES.user + '/:user_id/buildingSelections/:selection_id', async (re
 
     return res.status(200).json(bs)
 })
+
+/**
+ * Route to get a specific building selection by its ID.
+ */
+router.get(ROUTES.user + '/:user_id/buildingSelections/:selection_id', async (req: Request, res: Response) => {
+    const {sessionUser} = res.locals
+
+    if (!req.params.user_id || req.params.user_id === 'undefined') {
+        return res.status(400).json({message: 'User ID is required'})
+    }
+
+    const targetUser = await User.findById(req.params.user_id)
+    if (!targetUser) {
+        return res.status(404).json({message: 'User not found'})
+    }
+
+    if (sessionUser._id.toString() !== targetUser._id.toString()) {
+        return res.status(403).json({message: 'You are not authorised to access data for this user'})
+    }
+
+    const bs = await BuildingSelection.findOne({
+        _id: req.params.selection_id,
+        user: targetUser._id,
+    }).populate(POPULATE_BUILDING_SELECTION)
+
+    if (!bs) {
+        return res.status(404).json({message: 'Building selection not found'})
+    }
+
+    return res.status(200).json(bs)
+})
+
+////////// Case studies //////////
+
+/**
+ * Retrieve all the case studies for the logged-in user.
+ */
+router.get(ROUTES.caseStudies, async (req: Request, res: Response) => {
+    const {sessionUser} = res.locals
+    console.log(`Finding all saved case studies for user ${sessionUser}.`)
+
+    const selections = await CaseStudy.find({owner: sessionUser._id})
+        .sort({createdAt: -1})
+        .select('-results')
+        .populate(POPULATE_CASE_STUDY)
+
+    return res.status(200).json(selections)
+})
+
+
+/**
+ * Retrieve all the case studies for a specified user.
+ */
+router.get(ROUTES.user + '/:user_id/caseStudies', async (req: Request, res: Response) => {
+    const {sessionUser} = res.locals
+
+    if (!req.params.user_id || req.params.user_id === 'undefined') {
+        return res.status(400).json({message: 'User ID is required'})
+    }
+
+    const targetUser = await User.findById(req.params.user_id)
+    if (!targetUser) {
+        return res.status(404).json({message: 'User not found'})
+    }
+
+    if (sessionUser._id.toString() !== targetUser._id.toString()) {
+        return res.status(403).json({message: 'You are not authorised to access data for this user.'})
+    }
+
+    const caseStudies = await CaseStudy.find({user: targetUser._id})
+        .sort({createdAt: -1})
+        .populate(POPULATE_CASE_STUDY)
+
+    return res.status(200).json(caseStudies)
+})
+
+/**
+ * Save a new case study, or update one.
+ */
+router.post(ROUTES.user + '/:user_id/caseStudies', async (req: Request, res: Response) => {
+    const {sessionUser} = res.locals
+    const targetUser = await User.findById(req.params.user_id)
+    if (!targetUser) {
+        return res.status(404).json({message: 'User not found.'})
+    }
+    if (sessionUser._id.toString() !== targetUser._id.toString()) {
+        return res.status(403).json({message: 'You are not authorised to save data for this user.'})
+    }
+
+    const {_id, ...body} = req.body
+
+    if (!_id || _id === 'new') {
+        const newCaseStudy = new CaseStudy({
+            ...body,
+            owner: res.locals.sessionUser._id,
+        })
+        await newCaseStudy.save()
+
+        return res.status(201).json({created: await CaseStudy.findById(newCaseStudy._id).populate(POPULATE_CASE_STUDY)})
+    } else {
+        const existingCaseStudy = await CaseStudy.findOne({_id, user: targetUser._id})
+        if (!existingCaseStudy) {
+            return res.status(404).json({message: 'Case study not found'})
+        }
+        const update = {
+            ...body,
+            owner: res.locals.sessionUser._id,
+        }
+        await CaseStudy.findByIdAndUpdate(_id, update)
+
+        return res
+            .status(200)
+            .json({updated: await CaseStudy.findById(existingCaseStudy._id).populate(POPULATE_CASE_STUDY)})
+    }
+})
+
+/**
+ * Route to get a specific case study by its ID.
+ */
+router.get(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: Response) => {
+    const {sessionUser} = res.locals
+
+    if (!req.params.user_id || req.params.user_id === 'undefined') {
+        return res.status(400).json({message: 'User ID is required'})
+    }
+
+    const targetUser = await User.findById(req.params.user_id)
+    if (!targetUser) {
+        return res.status(404).json({message: 'User not found'})
+    }
+
+    if (sessionUser._id.toString() !== targetUser._id.toString()) {
+        return res.status(403).json({message: 'You are not authorised to access data for this user'})
+    }
+
+    const cs = await CaseStudy.findOne({
+        _id: req.params.id,
+        user: targetUser._id,
+    }).populate(POPULATE_CASE_STUDY)
+
+    if (!cs) {
+        return res.status(404).json({message: 'Case study not found'})
+    }
+
+    return res.status(200).json(cs)
+})
+
+/**
+ * Route to get a specific case study by its ID.
+ */
+router.get(ROUTES.user + '/:user_id/caseStudies/:selection_id', async (req: Request, res: Response) => {
+    const {sessionUser} = res.locals
+
+    if (!req.params.user_id || req.params.user_id === 'undefined') {
+        return res.status(400).json({message: 'User ID is required'})
+    }
+
+    const targetUser = await User.findById(req.params.user_id)
+    if (!targetUser) {
+        return res.status(404).json({message: 'User not found'})
+    }
+
+    if (sessionUser._id.toString() !== targetUser._id.toString()) {
+        return res.status(403).json({message: 'You are not authorised to access data for this user'})
+    }
+
+    const bs = await CaseStudy.findOne({
+        _id: req.params.selection_id,
+        user: targetUser._id,
+    }).populate(POPULATE_CASE_STUDY)
+
+    if (!bs) {
+        return res.status(404).json({message: 'Case study not found'})
+    }
+
+    return res.status(200).json(bs)
+})
+
+
 
 
 export default router

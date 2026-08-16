@@ -67,7 +67,7 @@ root.render(
 
                                 <Route path='casestudies'>
                                     <Route index element={<LoadCaseStudy/>}/>
-                                    <Route path='new' element={<MapDashboard/>}/>
+                                    <Route path='run/:id' element={<MapDashboard/>}/>
                                     {/*<Route path='run/:id' element={<CaseStudyDashboard/>}/>*/}
                                 </Route>
 

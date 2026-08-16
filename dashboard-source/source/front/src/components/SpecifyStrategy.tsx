@@ -14,6 +14,8 @@ import {cn} from '@/utils/cn'
 import {ChartBarIcon, PlusIcon, TrashIcon} from '@heroicons/react/24/solid'
 import Button from './Button'
 import EditableTitle from './EditableTitle'
+import {SelectField} from "@/form-control/fields";
+import {IBuildingSelection} from "@/MODELS/buildingSelection.model.ts";
 
 // --- INITIAL TILES ---
 const INITIAL_TILES = [
@@ -129,6 +131,7 @@ export function SpecifyStrategy() {
 
     const [fabricTimeframe, setFabricTimeframe] = useState<number[]>([2025, 2030])
     const [systemTimeframe, setSystemTimeframe] = useState<number[]>([2025, 2030])
+    const [DHNsource, setDHNsource] = useState<string>()
 
     return (
         <div>
@@ -220,8 +223,30 @@ export function SpecifyStrategy() {
                     </table>
                 </div>
             </DndContext>
+            <div className="h-[100dvh]">
+                {true && (
+                    <SelectField
+                        value={DHNsource}
+                        onChange={(value) => {
+                            setDHNsource(value)
+                        }
+                        }
+                        options={["EfW (new)", "EfW (extant)", "GSHP", "CHP", "Industrial", "Minewater"]
+                            .map((hs) => ({
+                                text: hs,
+                                value: hs,
+                            }))}
+                        label={'DHN heat source'}
+                    />
+                )}
+
+            </div>
+
         </div>
-    );
+
+
+    )
+        ;
 }
 
 // Inline style object for header styling
@@ -307,7 +332,7 @@ export function SpecifyStrategies() {
                         overflow: 'hidden',
                         padding: index === currentIndex ? '0.25rem' : '0',
                     }}
-                    className = 'text-white'
+                    className='text-white'
                 >
                     <EditableTitle
                         label={strat.name ?? ''}

@@ -8,6 +8,7 @@ import {IBuildingSelection} from "@/MODELS/buildingSelection.model";
 import BuildingSelectionCard from '@/components/BuildingSelectionCard';
 import {SpecifyStrategy, SpecifyStrategies} from '@/components/SpecifyStrategy';
 import Results from "@/components/Results";
+import {useParams} from 'react-router-dom'
 
 import Modal from '@/components/Modal'
 import {SelectField, TextField} from '@/form-control/fields'
@@ -32,6 +33,7 @@ import {LRUCache} from "lru-cache";
 import {Archetype, ArchetypeSummary} from "@/MODELS/caseStudy.model";
 import {processArchetypeData} from "@/utils/archetype-utils";
 import {cn} from '@/utils/cn'
+import MapGlobalTooltip from "@/map/MapToolTip";
 
 
 import {
@@ -48,6 +50,7 @@ import {toast} from "react-toastify";
 import {ArchetypesBottomLevel, ICaseStudy} from "@/MODELS/caseStudy.model.ts";
 import {json} from "react-router-dom";
 import ArchetypePanel from "@/components/ArchetypePanel.tsx";
+import {Tooltip} from "recharts";
 
 interface FeatureProperties {
     name: string;
@@ -125,6 +128,9 @@ const BUILDING_TILE_ZOOM = 15
 
 const MapDashboard: React.FC = () => {
 
+        const params = useParams()
+        const caseStudyID = params.id ?? 'new'
+
         const {user} = useAuth()
 
         const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
@@ -174,6 +180,15 @@ const MapDashboard: React.FC = () => {
         const archetypesByName = Object.fromEntries(archetypes.map(atype => [atype.name, atype]));
 
         // ##########
+        if (caseStudyID === 'new'){
+        //     actually maybe we create it before coming here
+        }
+
+        // Now, we set up the case study.
+        const [caseStudy, setCasestudy, CasestudyResource] = useResource<ICaseStudy>(ROUTES.app.caseStudies + '/' + caseStudyID)
+        const [caseStudyState, setCasestudyState] = useState<ICaseStudy>(caseStudy)
+
+
 
         /**
          * The one loaded from database.
@@ -859,17 +874,21 @@ const MapDashboard: React.FC = () => {
 
                 {/* ########## Map section ########## */}
                 <div style={{flex: 3, height: "100vh", paddingRight: 50, paddingTop: 30, paddingLeft: 25}}>
+                    Select building stock for your case study by clicking on individual buildings,
+                    using the polygon tool, or choosing an existing selection from the sidebar.
                     <MapContainer
                         ref={mapRef}
                         crs={CRS.EPSG3857}
                         center={[53.46, -1.29]}
                         zoom={11}
                         style={{height: "100%", width: "100%"}}
+
                         // whenReady={(mapInstance) => {
                         //     mapRef.current = mapInstance;
                         // }}
                     >
                         <ScaleControl position="topright"/>
+
 
                         <MapViewListener
                             onViewChange={(zoom, bounds) => {
@@ -882,8 +901,11 @@ const MapDashboard: React.FC = () => {
                         />
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            attribution="&copy; OpenStreetMap contributors"
-                        />
+                            attribution="&copy; OpenStreetMap contributors">
+                        </TileLayer>
+
+                        {/*<MapGlobalTooltip></MapGlobalTooltip>*/}
+
 
                         {/*{geoData && (*/}
                         {/*  <GeoJSON*/}
@@ -905,6 +927,7 @@ const MapDashboard: React.FC = () => {
                                 pointerEvents={drawingOngoing.current ? "none" : true} // If polygon drawing is ongoing then individual building mouseover needs to be disabled. I think I had this the wrong way round before??
                                 onEachFeature={onEachBuilding}
                             />
+
                         )}
 
                         <FeatureGroup>

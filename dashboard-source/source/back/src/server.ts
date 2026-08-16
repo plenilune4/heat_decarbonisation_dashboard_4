@@ -6,7 +6,10 @@ import { logRouter, morganMiddleware } from './logger'
 import BaseRouter from './routes/api'
 import {buildingService} from "./services";
 
-import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
+import { Server } from "socket.io";
+
+// import { startClientAccessReminderScheduler } from './services/client-access-reminder.service'
+
 
 async function start() {
     await buildingService.ready();
@@ -42,5 +45,6 @@ app.use('/api', BaseRouter)
 app.use('/api/log', logRouter)
 
 // startClientAccessReminderScheduler()
+
 
 export default app
