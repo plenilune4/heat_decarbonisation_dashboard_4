@@ -1,23 +1,24 @@
-import { FolderOpenIcon, TrashIcon } from '@heroicons/react/20/solid'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import {FolderOpenIcon, TrashIcon} from '@heroicons/react/20/solid'
+import {useState} from 'react'
+import {Link} from 'react-router-dom'
 import ROUTES from '@/ROUTES'
 
 import {ICaseStudy} from '@/MODELS/caseStudy.model'
-import { api_delete } from '@/services/api.service'
-import { cn } from '@/utils/cn'
+import {api_delete} from '@/services/api.service'
+import {cn} from '@/utils/cn'
 
 import Avatar from './Avatar'
 import Button from './Button'
 import Confirm from './ConfirmModal'
 import FrameworkBadge from './FrameworkBadge'
+import {useAuth} from "@/services/authentication.service.tsx";
 
 export default function AnalysisCard({
-    casestudy,
-    isSelected = false,
-    onClick,
-    onDelete,
-}: {
+                                         casestudy,
+                                         isSelected = false,
+                                         onClick,
+                                         onDelete,
+                                     }: {
     casestudy: ICaseStudy
     isSelected?: boolean
     onClick?: () => void
@@ -25,6 +26,7 @@ export default function AnalysisCard({
 }) {
     // could potentially collect some summarising info from the case study here.
     const [deleteCaseStudyID, setDeleteCaseStudyID] = useState<string | null>(null)
+    const {user} = useAuth()
 
     return (
         <section
@@ -48,7 +50,7 @@ export default function AnalysisCard({
                         </h2>
                     )} */}
                 {/* </div> */}
-                {casestudy?.owner && <Avatar.Base64 user={casestudy.owner} size={40} className='ml-auto' />}
+                {casestudy?.owner && <Avatar.Base64 user={casestudy.owner} size={40} className='ml-auto'/>}
             </header>
 
             {/* Pill Row: Sampling, Inputs, Outputs */}
@@ -73,28 +75,28 @@ export default function AnalysisCard({
                             View
                         </Button>
                     </Link> */}
-                    <Link to={`/analyses/run/${analysis._id}`} className='flex-1'>
+                    <Link to={`/caseStudies/run/${casestudy._id}`} className='flex-1'>
                         <Button.Success className='w-full'>
-                            <FolderOpenIcon className='w-4 h-4' />
+                            <FolderOpenIcon className='w-4 h-4'/>
                             Open
                         </Button.Success>
                     </Link>
                     <Button.Outline
                         className='px-3 hover:text-red-500'
-                        onClick={() => setDeleteAnalysisId(analysis._id)}
+                        onClick={() => setDeleteCaseStudyID(casestudy._id)}
                     >
-                        <TrashIcon className='w-5 h-5' />
+                        <TrashIcon className='w-5 h-5'/>
                     </Button.Outline>
                     <Confirm
-                        open={!!deleteAnalysisId}
-                        onCancel={() => setDeleteAnalysisId(null)}
+                        open={!!deleteCaseStudyID}
+                        onCancel={() => setDeleteCaseStudyID(null)}
                         onConfirm={async () => {
-                            await api_delete(`${ROUTES.app.analysis}/${analysis._id}`)
-                            setDeleteAnalysisId(null)
+                            await api_delete(`${ROUTES.app.user}/${user._id}/caseStudies/${casestudy._id}`)
+                            setDeleteCaseStudyID(null)
                             onDelete?.()
                         }}
-                        title='Delete Analysis'
-                        description='Are you sure you want to delete this analysis? This action cannot be undone.'
+                        title='Delete Case Study'
+                        description='Are you sure you want to delete this case study? This action cannot be undone.'
                         confirmText='Delete'
                         cancelText='Cancel'
                         intent='danger'
@@ -104,16 +106,16 @@ export default function AnalysisCard({
 
             {/* Footer: Dates */}
             <footer className='flex flex-wrap gap-4 pt-2 mt-2 text-xs text-gray-500 border-t border-gray-700'>
-                {analysis.createdAt && (
+                {casestudy.createdAt && (
                     <span>
                         <span className='font-semibold text-gray-400'>Created:</span>{' '}
-                        {new Date(analysis.createdAt).toLocaleDateString()}
+                        {new Date(casestudy.createdAt).toLocaleDateString()}
                     </span>
                 )}
-                {analysis.updatedAt && (
+                {casestudy.updatedAt && (
                     <span>
                         <span className='font-semibold text-gray-400'>Updated:</span>{' '}
-                        {new Date(analysis.updatedAt).toLocaleDateString()}
+                        {new Date(casestudy.updatedAt).toLocaleDateString()}
                     </span>
                 )}
             </footer>
@@ -121,7 +123,7 @@ export default function AnalysisCard({
     )
 }
 
-function Pill({ children, color }: { children: React.ReactNode; color?: 'brand' | 'gray' }) {
+function Pill({children, color}: { children: React.ReactNode; color?: 'brand' | 'gray' }) {
     let base = 'px-3 py-1 font-mono rounded-full text-base'
     if (color === 'brand') {
         base += ' bg-brand-900/40 text-brand-400'
