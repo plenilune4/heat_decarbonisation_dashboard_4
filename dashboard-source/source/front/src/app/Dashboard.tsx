@@ -3,6 +3,8 @@ import {useNavigate} from 'react-router-dom'
 import {api} from '@/services/api.service'
 import {useAuth} from '@/services/authentication.service'
 import ROUTES from '@/ROUTES'
+import { toast } from 'react-toastify'
+
 
 
 import Button from '@/components/Button'
@@ -17,13 +19,21 @@ export default function DashboardPage() {
 
         // may want async here.
         const resp = await api(ROUTES.app.user + `/${user_id}/caseStudies`,
-            {_id: 'new'})
+            {
+                _id: 'new',
+                name: 'new case study'
+            })
 
-        console.log('hello')
-
-        //navigate('/casestudies/new')
+        if (resp?.error || resp?.status !== 201 || resp.message !== 'Created') {
+            toast.error(resp?.error ?? 'Failed to create new case study. Please log a bug if the issue persists.')
+            return
+        }
+        else
+        {
+            const new_cs_id = resp.data.created._id
+            navigate(`casestudies/run/${new_cs_id}`)
+        }
     }
-
 
     return (
         <div className='flex flex-col gap-y-16 justify-center py-10 mx-auto w-full max-w-5xl h-full'>
