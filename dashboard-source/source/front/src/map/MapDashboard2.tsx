@@ -128,12 +128,11 @@ const BUILDING_TILE_ZOOM = 15
 
 const MapDashboard: React.FC = () => {
 
-        const params = useParams()
-        const caseStudyID = params.id ?? 'new'
-
         const {user} = useAuth()
 
+        // All available building selections:
         const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
+
         const [showSaveAsConfirm, setShowSaveAsConfirm] = useState(false)
         const [saveAsLabel, setSaveAsLabel] = useState('')
 
@@ -150,12 +149,6 @@ const MapDashboard: React.FC = () => {
             zoom: 10,
             bounds: null as L.LatLngBounds | null
         });
-
-        // const buildingsRef = useRef<L.Map | null>(null);//Do we need this?
-
-        // Polygons drawn by user to select multiple buildings.
-        // const [buildingSelectionAreas, setBuildingSelectionAreas] = useState<Feature[] | []>([]);
-
 
         // Bit of stuff for getting hold of archetype definitions:
         const [archetypeDataRaw, setArchetypeDataRaw] = useState<string>("")
@@ -179,15 +172,24 @@ const MapDashboard: React.FC = () => {
         const archetypes: Archetype[] = useMemo(() => processArchetypeData(archetypeDataRaw), [archetypeDataRaw])
         const archetypesByName = Object.fromEntries(archetypes.map(atype => [atype.name, atype]));
 
-        // ##########
-        if (caseStudyID === 'new'){
-        //     actually maybe we create it before coming here
+        // ########## Processing the case study from the url params. ##########
+        const params = useParams()
+        const caseStudyID = params.id
+
+        if (!caseStudyID) {
+            // do something about it
+            ;
         }
 
         // Now, we set up the case study.
-        const [caseStudy, setCasestudy, CasestudyResource] = useResource<ICaseStudy>(ROUTES.app.caseStudies + '/' + caseStudyID)
+        const [caseStudy, setCasestudy, CasestudyResource] = useResource<ICaseStudy>(ROUTES.app.user + `/${user._id}/caseStudies/${caseStudyID}`)
         const [caseStudyState, setCasestudyState] = useState<ICaseStudy>(caseStudy)
 
+        // The building selection may point to somethimg extant or may not.
+        useEffect(() => {
+            console.log("####################### case study:")
+            console.log(caseStudy)
+        }, [caseStudy])
 
 
         /**
@@ -876,6 +878,7 @@ const MapDashboard: React.FC = () => {
                 <div style={{flex: 3, height: "100vh", paddingRight: 50, paddingTop: 30, paddingLeft: 25}}>
                     Select building stock for your case study by clicking on individual buildings,
                     using the polygon tool, or choosing an existing selection from the sidebar.
+
                     <MapContainer
                         ref={mapRef}
                         crs={CRS.EPSG3857}
