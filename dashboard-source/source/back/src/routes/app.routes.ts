@@ -14,6 +14,7 @@ import Token from '../models/token.model'
 import User from '../models/user.model'
 import BuildingSelection from "../models/buildingSelection.model";
 import CaseStudy, {ArchetypeSummary} from "../models/caseStudy.model"
+import LoggingService from "../services/logging.service";
 
 const POPULATE_BUILDING_SELECTION = ['owner']
 const POPULATE_CASE_STUDY = ['owner', 'buildingSelection']
@@ -544,21 +545,15 @@ router.get(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: 
     }).populate(POPULATE_CASE_STUDY)
 
     if (!cs) {
+        console.log(`Couldn't find case study ${req.params.id}.`)
         return res.status(404).json({message: 'Case study not found'})
     }
 
     return res.status(200).json(cs)
 })
 
-/**
- * Route to get a specific case study by its ID.
- */
-router.get(ROUTES.user + '/:user_id/caseStudies/:selection_id', async (req: Request, res: Response) => {
+router.delete(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: Response) => {
     const {sessionUser} = res.locals
-
-    if (!req.params.user_id || req.params.user_id === 'undefined') {
-        return res.status(400).json({message: 'User ID is required'})
-    }
 
     const targetUser = await User.findById(req.params.user_id)
     if (!targetUser) {
@@ -569,19 +564,35 @@ router.get(ROUTES.user + '/:user_id/caseStudies/:selection_id', async (req: Requ
         return res.status(403).json({message: 'You are not authorised to access data for this user'})
     }
 
-    const bs = await CaseStudy.findOne({
-        _id: req.params.selection_id,
-        user: targetUser._id,
-    }).populate(POPULATE_CASE_STUDY)
-
-    if (!bs) {
+    const targetCaseStudy = await CaseStudy.findOne({_id: req.params.id, owner: sessionUser._id})
+    if (!targetCaseStudy) {
         return res.status(404).json({message: 'Case study not found'})
     }
 
-    return res.status(200).json(bs)
+    try {
+        // Create soft delete case study
+        // const softDeleteCS = new CaseStudy({
+        // })
+        // await softDeleteCS.save()
+
+        // Delete user
+        await CaseStudy.findByIdAndDelete(targetCaseStudy._id)
+    } catch (error) {
+        LoggingService.log({
+            level: 'error',
+            service: 'Case study deletion',
+            message: 'Failed to delete case study',
+            error,
+            data: {
+                targetCaseStudy,
+                sessionUser: res.locals.sessionUser,
+            },
+        })
+        return res.status(500).json({message: 'Failed to delete case study'})
+    }
+
+    return res.status(200).json({message: 'Case study deleted'})
 })
-
-
 
 
 export default router
