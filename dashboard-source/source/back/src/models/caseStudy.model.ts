@@ -212,7 +212,7 @@ const CaseStudySchema = new Schema<ICaseStudy>(
     {
         owner: {type: Schema.Types.ObjectId, ref: 'User', required: true},//uses ObjectID so needs to use ref and populate.
         name: {type: String, required: true},
-        buildingSelection: {type: [Object], required: false},
+        buildingSelection: {type: Schema.Types.ObjectId, ref: 'BuildingSelection', required: false},
         strategies: {type: [Object], required: false},
     },
     {

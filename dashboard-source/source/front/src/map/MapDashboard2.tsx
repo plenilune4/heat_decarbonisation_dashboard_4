@@ -9,6 +9,8 @@ import BuildingSelectionCard from '@/components/BuildingSelectionCard';
 import {SpecifyStrategy, SpecifyStrategies} from '@/components/SpecifyStrategy';
 import Results from "@/components/Results";
 import {useParams} from 'react-router-dom'
+import {useNavigate} from 'react-router-dom'
+
 
 import Modal from '@/components/Modal'
 import {SelectField, TextField} from '@/form-control/fields'
@@ -50,7 +52,7 @@ import {toast} from "react-toastify";
 import {ArchetypesBottomLevel, ICaseStudy} from "@/MODELS/caseStudy.model.ts";
 import {json} from "react-router-dom";
 import ArchetypePanel from "@/components/ArchetypePanel.tsx";
-import {Tooltip} from "recharts";
+import {Text, Tooltip} from "recharts";
 
 interface FeatureProperties {
     name: string;
@@ -129,12 +131,19 @@ const BUILDING_TILE_ZOOM = 15
 const MapDashboard: React.FC = () => {
 
         const {user} = useAuth()
+        const navigate = useNavigate()
 
         // All available building selections:
         const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
 
-        const [showSaveAsConfirm, setShowSaveAsConfirm] = useState(false)
-        const [saveAsLabel, setSaveAsLabel] = useState('')
+        const [showBSSaveAsConfirm, setShowBSSaveAsConfirm] = useState(false)
+        const [saveBSasLabel, setSaveBSasLabel] = useState('')
+
+        // If buildingSelection needs to be saved first, this will be used.
+        const [showCSSaveClarify, setShowCSSaveClarify] = useState(false)
+
+        const [showCSSaveAsConfirm, setShowCSSaveAsConfirm] = useState(false)
+        const [saveCSasLabel, setSaveCSasLabel] = useState('')
 
         const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
         const [visibleTiles, setVisibleTiles] = useState<string[]>([]);
@@ -185,29 +194,17 @@ const MapDashboard: React.FC = () => {
         const [caseStudy, setCasestudy, CasestudyResource] = useResource<ICaseStudy>(ROUTES.app.user + `/${user._id}/caseStudies/${caseStudyID}`)
         const [caseStudyState, setCasestudyState] = useState<ICaseStudy>(caseStudy)
 
-        // The building selection may point to somethimg extant or may not.
         useEffect(() => {
             console.log("####################### case study:")
             console.log(caseStudy)
         }, [caseStudy])
 
+        // The building selection may point to somethimg extant or may not.
 
         /**
-         * The one loaded from database.
+         * The current state of the building selection being used. If one is present on the saved case study we initialise to that.
          */
-        // const [buildingSelection, setBuildingSelection] = useState<IBuildingSelection>({
-        //     owner: user,
-        //     text: "Custom selection",
-        //     polygons: [],
-        //     excludedPolygons: [],
-        //     additionalBuildingIDs: [],
-        //     excludedBuildingIDs: [],
-        // })
-
-        /**
-         * The current state of the one being edited.
-         */
-        const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>({
+        const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>(caseStudy?.buildingSelection || {
             owner: user,
             text: "Custom selection",
             polygons: [],
@@ -215,7 +212,6 @@ const MapDashboard: React.FC = () => {
             additionalBuildingIDs: [],
             excludedBuildingIDs: [],
         })
-
 
         const bounds = mapState.bounds
         const tileCacheRef = useRef(
@@ -237,13 +233,32 @@ const MapDashboard: React.FC = () => {
             )
             if (response.data.created) {
                 toast.success('Building set saved successfully.')
+                return response.data.created._id
             } else {
                 toast.error('Error saving new building set.')
+                return
             }
             // To do: need to ensure now that the new name appears in the dropdown,
             // and is selected.
             // To do: at the minute it looks tricky to avoid every CaseStudy separately saving the polygons for the geography.
             // Find a way to just store the object ID for the buildingset.
+        }
+
+        async function handleCSsave(cs: ICaseStudy, buildingSelectionID) {
+            //Critically, we have to 'un-populate' the building selection in order to save it again. I presume so anyway. Need to check.
+            const update = {
+                ...cs,
+                buildingSelection: buildingSelectionID,
+            }
+            const response = await api<{ created?: IBuildingSelection }>(
+                ROUTES.app.user + '/' + user?._id + '/caseStudies',
+                update
+            )
+            if (response.data.created) {
+                toast.success('Case study saved successfully.')
+            } else {
+                toast.error('Error saving changes.')
+            }
         }
 
 
@@ -727,7 +742,10 @@ const MapDashboard: React.FC = () => {
                     <div className='flex flex-col items-center m-6 italic space-y-3'>
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
-                            ;
+                            // More generally, we need to check whether the current BS? state differs from the document originally loaded.
+                            buildingSelectionState._id
+                                ? handleCSsave(caseStudy, buildingSelectionState._id)
+                                : setShowCSSaveClarify(true)
                         }}>
                             Save case study
                         </Button>
@@ -739,31 +757,60 @@ const MapDashboard: React.FC = () => {
                         </Button>
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
-                            ;
+                            navigate('/casestudies')
                         }}>
                             Load case study
                         </Button>
                     </div>
 
-                    <Modal open={showSaveAsConfirm} onClose={() => setShowSaveAsConfirm(false)}
+                    <Modal open={showCSSaveClarify} onClose={() => setShowCSSaveClarify(false)}
                            zIndexClass={"z-[1001]"}>
                         <div className='flex flex-col gap-4'>
-                            <h3 className='text-lg font-semibold'>Save building collection</h3>
+                            <h3 className='text-lg font-semibold'>Before saving case study...</h3>
+                            <Text>This case study uses a new building selection. Save this so it can be reused at any time.</Text>
                             <TextField
-                                value={saveAsLabel}
-                                onChange={(text) => setSaveAsLabel(text)}
+                                value={saveBSasLabel}
+                                onChange={(text) => setSaveBSasLabel(text)}
                                 placeholder='Name for this locality or collection of buildings'
                                 autoFocus
                                 label=''
                             />
                             <div className='flex flex-row gap-2 justify-end'>
-                                <Button onClick={() => setShowSaveAsConfirm(false)}>Cancel</Button>
+                                <Button onClick={() => setShowCSSaveClarify(false)}>Cancel</Button>
                                 <Button.Success
                                     onClickAsync={async () => {
-                                        await handleBSSaveAs(buildingSelectionState, saveAsLabel)
-                                        setShowSaveAsConfirm(false)
+                                        const new_id = await handleBSSaveAs(buildingSelectionState, saveBSasLabel)
+                                        setShowBSSaveAsConfirm(false)
+                                        handleCSsave(caseStudy, new_id)
                                     }}
-                                    disabled={!saveAsLabel.trim()}
+                                    disabled={!saveBSasLabel.trim()}
+                                >
+                                    Proceed to save building selection and case study
+                                </Button.Success>
+                            </div>
+                        </div>
+                    </Modal>
+
+
+                    <Modal open={showBSSaveAsConfirm} onClose={() => setShowBSSaveAsConfirm(false)}
+                           zIndexClass={"z-[1001]"}>
+                        <div className='flex flex-col gap-4'>
+                            <h3 className='text-lg font-semibold'>Save building collection</h3>
+                            <TextField
+                                value={saveBSasLabel}
+                                onChange={(text) => setSaveBSasLabel(text)}
+                                placeholder='Name for this locality or collection of buildings'
+                                autoFocus
+                                label=''
+                            />
+                            <div className='flex flex-row gap-2 justify-end'>
+                                <Button onClick={() => setShowBSSaveAsConfirm(false)}>Cancel</Button>
+                                <Button.Success
+                                    onClickAsync={async () => {
+                                        await handleBSSaveAs(buildingSelectionState, saveBSasLabel)
+                                        setShowBSSaveAsConfirm(false)
+                                    }}
+                                    disabled={!saveBSasLabel.trim()}
                                 >
                                     Save
                                 </Button.Success>
@@ -788,7 +835,10 @@ const MapDashboard: React.FC = () => {
                                 console.log("Changing the building selection to:")
                                 console.log(bs)
                                 // setBuildingSelection(value);
+
+                                // We set the working building selection state using the already populated bs document.
                                 setBuildingSelectionState(bs)
+                                // May want to set the id on caseStudyState at the same time???
                             }
                             }
                             options={[buildingSelectionState, ...buildingSelections.filter((bs) => (bs.text !== buildingSelectionState.text))]
@@ -802,7 +852,7 @@ const MapDashboard: React.FC = () => {
 
                     <div className='flex flex-col items-center m-6 italic space-y-3'>
                         <Button className='w-full text-brand-300 italic' onClick={() => {
-                            setShowSaveAsConfirm(true)
+                            setShowBSSaveAsConfirm(true)
                         }}>
                             Save custom building subset...
                         </Button>
