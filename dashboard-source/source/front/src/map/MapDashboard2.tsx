@@ -246,6 +246,7 @@ const MapDashboard: React.FC = () => {
 
         async function handleCSsave(cs: ICaseStudy, buildingSelectionID = null) {
             // Do we have to unpopulate the objectID in order to save? I don't think we do, I think it should be OK.
+            console.log("hello, we're here tryig to save")
             const update = buildingSelectionID ? {
                 ...cs,
                 buildingSelection: buildingSelectionID,
@@ -256,10 +257,16 @@ const MapDashboard: React.FC = () => {
                 ROUTES.app.user + '/' + user?._id + '/caseStudies',
                 update
             )
+            console.log("hello, we're here still trying to save")
+
             if (response.data.created) {
                 toast.success('Case study saved successfully.')
+            } else if (response.data.updated) {
+                toast.success('Case study saved.')
             } else {
                 toast.error('Error saving changes.')
+                console.log("Error with save")
+                console.log(response)
             }
         }
 
@@ -491,8 +498,8 @@ const MapDashboard: React.FC = () => {
             }, [polygons]
         )
 
-        console.log("We've got these building IDs inside the polygon(s):")
-        console.log(buildingIDsInPolygons)
+        // console.log("We've got these building IDs inside the polygon(s):")
+        // console.log(buildingIDsInPolygons)
 
         useEffect(() => {
             if (polygons.length > 0) {
@@ -583,8 +590,8 @@ const MapDashboard: React.FC = () => {
             }
         }, [archetypeSummaries])
 
-        console.log("polygons")
-        console.log(polygons)
+        // console.log("polygons")
+        // console.log(polygons)
         console.log("Archetype summaries:")
         console.log(archetypeSummaries)
         console.log("archetypes")
@@ -744,9 +751,10 @@ const MapDashboard: React.FC = () => {
                     <div className='flex flex-col items-center m-6 italic space-y-3'>
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
-                            // More generally, we need to check whether the current BS? state differs from the document originally loaded.
                             if (buildingSelectionState?._id) {
-                                handleCSsave(caseStudy)
+                                handleCSsave(caseStudy, buildingSelectionState)
+                                // This is incorrect if the buildingSelectionState has changed since it was populated.
+                                // but will do for a bit while we test. Sort this by comparing json.stringify of the bs and bsstate.
                                 console.log(`Saving case study with extant building selection ID ${buildingSelectionState._id}, name ${buildingSelectionState.name}`)
                             } else {
                                 // Need also to save the buildung selection to database first, so we do this
@@ -954,8 +962,8 @@ const MapDashboard: React.FC = () => {
                         <MapViewListener
                             onViewChange={(zoom, bounds) => {
                                 setMapState({zoom, bounds});
-                                console.log(`New zoom : ${zoom}`);
-                                console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
+                                // console.log(`New zoom : ${zoom}`);
+                                // console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
                                 setVisibleTiles(getVisibleTiles(bounds, zoom));
                             }
                             }
