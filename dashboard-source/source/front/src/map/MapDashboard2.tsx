@@ -715,27 +715,6 @@ const MapDashboard: React.FC = () => {
             };
         };
 
-
-// Zoom to filtered polygons (for use with LSOA data etc.)
-// useEffect(() => {
-//   if (!geoData || !mapRef.current) return;
-//   const [minv, maxv] = valueRange;
-//   const filtered = geoData.features.filter(
-//     (f: any) => f.properties.value >= minv && f.properties.value <= maxv
-//   );
-//   const subset = { ...geoData, features: filtered };
-//   const layer = L.geoJSON(subset);
-//   const bounds = layer.getBounds();
-//   if (bounds.isValid()) mapRef.current.fitBounds(bounds, { padding: [20, 20] });
-// }, [geoData, valueRange]);
-
-// Handler for MUI Slider change
-// const handleSliderChange = (event: Event, newValue: number | number[]) => {
-//   if (Array.isArray(newValue) && newValue.length === 2) {
-//     setValueRange([newValue[0], newValue[1]]);
-//   }
-// };
-
         const [currentTabIndex, setCurrentTabIndex] = useState<number>(0)
 
         const drawingOngoing = useRef<boolean>(false)
