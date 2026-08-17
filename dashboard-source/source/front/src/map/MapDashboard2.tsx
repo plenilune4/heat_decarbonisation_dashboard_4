@@ -244,11 +244,13 @@ const MapDashboard: React.FC = () => {
             // Find a way to just store the object ID for the buildingset.
         }
 
-        async function handleCSsave(cs: ICaseStudy, buildingSelectionID) {
-            //Critically, we have to 'un-populate' the building selection in order to save it again. I presume so anyway. Need to check.
-            const update = {
+        async function handleCSsave(cs: ICaseStudy, buildingSelectionID = null) {
+            // Do we have to unpopulate the objectID in order to save? I don't think we do, I think it should be OK.
+            const update = buildingSelectionID ? {
                 ...cs,
                 buildingSelection: buildingSelectionID,
+            } : {
+                ...cs,
             }
             const response = await api<{ created?: IBuildingSelection }>(
                 ROUTES.app.user + '/' + user?._id + '/caseStudies',
@@ -743,9 +745,14 @@ const MapDashboard: React.FC = () => {
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
                             // More generally, we need to check whether the current BS? state differs from the document originally loaded.
-                            buildingSelectionState._id
-                                ? handleCSsave(caseStudy, buildingSelectionState._id)
-                                : setShowCSSaveClarify(true)
+                            if (buildingSelectionState?._id) {
+                                handleCSsave(caseStudy)
+                                console.log(`Saving case study with extant building selection ID ${buildingSelectionState._id}, name ${buildingSelectionState.name}`)
+                            } else {
+                                // Need also to save the buildung selection to database first, so we do this
+                                console.log("Need new building selection ID in order to save case study.")
+                                setShowCSSaveClarify(true)
+                            }
                         }}>
                             Save case study
                         </Button>
@@ -767,7 +774,8 @@ const MapDashboard: React.FC = () => {
                            zIndexClass={"z-[1001]"}>
                         <div className='flex flex-col gap-4'>
                             <h3 className='text-lg font-semibold'>Before saving case study...</h3>
-                            <Text>This case study uses a new building selection. Save this so it can be reused at any time.</Text>
+                            <Text>This case study uses a new building selection. Save this so it can be reused at any
+                                time.</Text>
                             <TextField
                                 value={saveBSasLabel}
                                 onChange={(text) => setSaveBSasLabel(text)}
