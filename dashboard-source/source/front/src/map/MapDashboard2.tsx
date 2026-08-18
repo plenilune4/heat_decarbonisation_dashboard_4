@@ -49,10 +49,11 @@ import {
 } from "@mui/material";
 import Button from "@/components/Button.tsx";
 import {toast} from "react-toastify";
-import {ArchetypesBottomLevel, ICaseStudy} from "@/MODELS/caseStudy.model.ts";
+import {ICaseStudy} from "@/MODELS/caseStudy.model.ts";
 import {json} from "react-router-dom";
 import ArchetypePanel from "@/components/ArchetypePanel.tsx";
 import {Text, Tooltip} from "recharts";
+import EditableTitle from "@/components/EditableTitle.tsx";
 
 interface FeatureProperties {
     name: string;
@@ -191,20 +192,25 @@ const MapDashboard: React.FC = () => {
         }
 
         // Now, we set up the case study.
-        const [caseStudy, setCasestudy, CasestudyResource] = useResource<ICaseStudy>(ROUTES.app.user + `/${user._id}/caseStudies/${caseStudyID}`)
-        const [caseStudyState, setCasestudyState] = useState<ICaseStudy>(caseStudy)
+        // The first one is intended to always match the version most recently saved to / loaded from the database:
+        const [caseStudyFromDB, setCasestudyFromDB, CasestudyResource] = useResource<ICaseStudy>(ROUTES.app.user + `/${user._id}/caseStudies/${caseStudyID}`)
+        // The second one is the working version which accumulates changes until saved:
+        const [caseStudyWorking, setCaseStudyWorking] = useState<ICaseStudy>(caseStudyFromDB)
 
         useEffect(() => {
+            // If the user has changed the name of the case study, then the name change is saved to database *without* any of the other changes. This avoids having to potentially save a new buildingselection name when you are only trying to rename the case study.
+            // In this case, we do not want to overwrite local changes. This is a 'to do'.
+            setCaseStudyWorking(caseStudyFromDB)
             console.log("####################### case study:")
-            console.log(caseStudy)
-        }, [caseStudy])
-
-        // The building selection may point to somethimg extant or may not.
+            console.log(caseStudyFromDB)
+        }, [caseStudyFromDB])
 
         /**
          * The current state of the building selection being used. If one is present on the saved case study we initialise to that.
+         * To do: currently we do not work directly on caseStudyState.buildingSelection; but we probably could, with care, if we wanted.
+         * Before saving, would need to check for the presence of _id and also whether the presaved selection had been tinkered with.
          */
-        const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>(caseStudy?.buildingSelection || {
+        const [buildingSelectionState, setBuildingSelectionState] = useState<IBuildingSelection>(caseStudyFromDB?.buildingSelection || {
             owner: user,
             text: "Custom selection",
             polygons: [],
@@ -246,7 +252,6 @@ const MapDashboard: React.FC = () => {
 
         async function handleCSsave(cs: ICaseStudy, buildingSelectionID = null) {
             // Do we have to unpopulate the objectID in order to save? I don't think we do, I think it should be OK.
-            console.log("hello, we're here tryig to save")
             const update = buildingSelectionID ? {
                 ...cs,
                 buildingSelection: buildingSelectionID,
@@ -257,11 +262,14 @@ const MapDashboard: React.FC = () => {
                 ROUTES.app.user + '/' + user?._id + '/caseStudies',
                 update
             )
-            console.log("hello, we're here still trying to save")
 
+            //@ts-ignore
             if (response.data.created) {
+                setCasestudyFromDB({...update}) // I think this is necessary to ensure that caseStudy still reflects the most recently saved version??
                 toast.success('Case study saved successfully.')
+                //@ts-ignore
             } else if (response.data.updated) {
+                setCasestudyFromDB({...update}) // I think this is necessary to ensure that caseStudy still reflects the most recently saved version??
                 toast.success('Case study saved.')
             } else {
                 toast.error('Error saving changes.')
@@ -270,6 +278,14 @@ const MapDashboard: React.FC = () => {
             }
         }
 
+        function renameCaseStudy(newname: string) {
+            // We save the case study with its new name. We do not save any other local changes (hence use caseStudy rather than casestudyState).
+            // This will also call setCasestudy with the update.
+            handleCSsave({...caseStudyWorking, name: newname})
+
+            // but not setCasestudyState, which we do manually:
+            setCaseStudyWorking((current) => ({...current, name: newname}))
+        }
 
         /**
          * Gets building geojson for a specific tile.
@@ -501,16 +517,17 @@ const MapDashboard: React.FC = () => {
         // console.log("We've got these building IDs inside the polygon(s):")
         // console.log(buildingIDsInPolygons)
 
+        //need get this to run when first renders.
         useEffect(() => {
             if (polygons.length > 0) {
                 const layer = L.geoJSON({
                     type: "FeatureCollection",
+                    //@ts-ignore
                     features: polygons,
                 });
 
                 console.log("bounds of polygons:")
                 console.log(layer.getBounds())
-
 
                 try {
                     // The try wrapper just ensures we don't crash if the map isn't ready.
@@ -715,6 +732,7 @@ const MapDashboard: React.FC = () => {
             };
         };
 
+
         const [currentTabIndex, setCurrentTabIndex] = useState<number>(0)
 
         const drawingOngoing = useRef<boolean>(false)
@@ -731,7 +749,7 @@ const MapDashboard: React.FC = () => {
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
                             if (buildingSelectionState?._id) {
-                                handleCSsave(caseStudy, buildingSelectionState)
+                                handleCSsave(caseStudyWorking, buildingSelectionState)
                                 // This is incorrect if the buildingSelectionState has changed since it was populated.
                                 // but will do for a bit while we test. Sort this by comparing json.stringify of the bs and bsstate.
                                 console.log(`Saving case study with extant building selection ID ${buildingSelectionState._id}, name ${buildingSelectionState.name}`)
@@ -776,7 +794,7 @@ const MapDashboard: React.FC = () => {
                                     onClickAsync={async () => {
                                         const new_id = await handleBSSaveAs(buildingSelectionState, saveBSasLabel)
                                         setShowBSSaveAsConfirm(false)
-                                        handleCSsave(caseStudy, new_id)
+                                        handleCSsave(caseStudyWorking, new_id)
                                     }}
                                     disabled={!saveBSasLabel.trim()}
                                 >
@@ -921,8 +939,21 @@ const MapDashboard: React.FC = () => {
 
                 {/* ########## Map section ########## */}
                 <div style={{flex: 3, height: "100vh", paddingRight: 50, paddingTop: 30, paddingLeft: 25}}>
-                    Select building stock for your case study by clicking on individual buildings,
-                    using the polygon tool, or choosing an existing selection from the sidebar.
+                    <div className='flex flex-row gap-2'>
+                        <EditableTitle
+                            label={caseStudyWorking ? caseStudyWorking.name : 'unnamed case study'} // or caseStudyState?
+                            //@ts-ignore
+                            onSave={(val) => {
+                                renameCaseStudy(val)
+                            }}
+                        />
+                    </div>
+
+                    <p className={'pb-4'}>
+                        Select building stock for your case study by clicking on individual buildings,
+                        using the polygon tool, or choosing an existing selection from the sidebar.
+                    </p>
+
 
                     <MapContainer
                         ref={mapRef}
@@ -1044,38 +1075,43 @@ const MapDashboard: React.FC = () => {
                         ))}
                     </ul>
 
-                    {(currentTabIndex == 0) && archetypesByName["Residential"] && (
-                        <div className="pt-5 pb-5 text-brand-900">
-                            <ArchetypePanel key={"TopA"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
-                                            parentArchetype={archetypesByName["Residential"]} level={1}/>
-                            <ArchetypePanel key={"TopB"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
-                                            parentArchetype={archetypesByName["Non-residential"]} level={1}/>
-                        </div>
-                    )}
-
-                    {(currentTabIndex == 1) && (
-                        <div className="pt-5 pb-5 text-brand-900">
-                            {/*<SpecifyStrategy*/}
-                            {/*    archetypes={archetypes}*/}
-                            {/*/>*/}
-                            <SpecifyStrategies/>
-                        </div>
-                    )
+                    {
+                        (currentTabIndex == 0) && archetypesByName["Residential"] && (
+                            <div className="pt-5 pb-5 text-brand-900">
+                                <ArchetypePanel key={"TopA"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
+                                                parentArchetype={archetypesByName["Residential"]} level={1}/>
+                                <ArchetypePanel key={"TopB"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
+                                                parentArchetype={archetypesByName["Non-residential"]} level={1}/>
+                            </div>
+                        )
                     }
 
-                    {(currentTabIndex == 2) && (
-                        <div className="pt-5 pb-5 text-brand-900">
-                            {/*<SpecifyStrategy*/}
-                            {/*    archetypes={archetypes}*/}
-                            {/*/>*/}
-                            <Results/>
-                        </div>
-                    )
+                    {
+                        (currentTabIndex == 1) && (
+                            <div className="pt-5 pb-5 text-brand-900">
+                                {/*<SpecifyStrategy*/}
+                                {/*    archetypes={archetypes}*/}
+                                {/*/>*/}
+                                <SpecifyStrategies/>
+                            </div>
+                        )
+                    }
+
+                    {
+                        (currentTabIndex == 2) && (
+                            <div className="pt-5 pb-5 text-brand-900">
+                                {/*<SpecifyStrategy*/}
+                                {/*    archetypes={archetypes}*/}
+                                {/*/>*/}
+                                <Results/>
+                            </div>
+                        )
                     }
 
                 </div>
             </div>
-        );
+        )
+            ;
     }
 ;
 

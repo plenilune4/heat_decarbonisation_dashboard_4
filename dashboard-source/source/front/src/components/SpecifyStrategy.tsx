@@ -53,6 +53,7 @@ function Tile({id, label}) {
 
     // Bit silly to be using style and tailwind className...
     return (
+        //@ts-ignore
         <div ref={setNodeRef} style={style}
              className='bg-brand-600 border-brand-500 text-white shadow-md' {...listeners} {...attributes}>
             {label}
@@ -270,6 +271,7 @@ export function SpecifyStrategies() {
     }])
 
     function handleSetStrat(index: number, strat: OverallStrategy) {
+        //@ts-ignore
         setStrategySet(strategySet.map((c, i) => (i === index ? strat : c)))
     }
 

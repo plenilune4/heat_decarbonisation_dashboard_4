@@ -30,6 +30,7 @@ export default function DashboardPage() {
         }
         else
         {
+            //@ts-ignore
             const new_cs_id = resp.data.created._id
             navigate(`casestudies/run/${new_cs_id}`)
         }

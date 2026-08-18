@@ -77,7 +77,7 @@ export default function LoadCaseStudy() {
         <div className='flex flex-col gap-5 px-5 mx-auto my-10 w-full max-w-7xl'>
             <header className='flex flex-row justify-between items-center'>
                 <div>
-                    <h2 className='text-xl text-gray-400'>{user?.client?.name}</h2>
+                    {/*<h2 className='text-xl text-gray-400'>{user?.name ?? ''}</h2>*/}
                     <h1 className='text-4xl font-normal text-gray-100'>Load Existing Case Study</h1>
                     <p className='mt-1 text-lg text-gray-400'>
                         Open an existing case study.

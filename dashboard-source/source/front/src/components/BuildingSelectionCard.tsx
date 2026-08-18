@@ -94,6 +94,7 @@ export default function BuildingSelectionCard({
                         confirmText='Delete'
                         cancelText='Cancel'
                         intent='danger'
+                        //@ts-ignore
                         className={'z-index[1002]'}
                     />
                 </div>
