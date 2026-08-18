@@ -219,6 +219,9 @@ const MapDashboard: React.FC = () => {
             excludedBuildingIDs: [],
         })
 
+        useEffect(() => {},
+            [caseStudyFromDB])
+
         const bounds = mapState.bounds
         const tileCacheRef = useRef(
             new LRUCache<string, FeatureCollection>({max: 100}) // LRU = 'least recently used'.
