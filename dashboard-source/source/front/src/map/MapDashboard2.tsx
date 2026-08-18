@@ -544,7 +544,7 @@ const MapDashboard: React.FC = () => {
                     ;
                 }
             }
-        }, [polygons])
+        }, [polygons, caseStudyFromDB])
 
         // ########## Getting the summary of archetype data for the given polygons. ##########
         const [archetypeSummaries, setArchetypeSummaries] = useState<Map<string, ArchetypeSummary>>(new Map<string, ArchetypeSummary>)
@@ -841,6 +841,7 @@ const MapDashboard: React.FC = () => {
 
                     {buildingSelections && (
                         <SelectField
+                            key = {`selectfield${buildingSelectionState?.name}`}
                             value={buildingSelectionState.name}
                             onChange={(value) => {
                                 // To do - what if 'Custom' is clicked on again?
