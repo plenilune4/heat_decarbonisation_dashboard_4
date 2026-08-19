@@ -14,6 +14,7 @@ import {cn} from '@/utils/cn'
 
 import CaseStudyCard from '@/components/CaseStudyCard'
 import {ButtonStylePrimary} from '@/components/Button'
+import Button from '@/components/Button'
 import Empty from '@/components/Empty'
 import Loading from '@/components/Loading'
 
@@ -84,10 +85,11 @@ export default function LoadCaseStudy() {
                     </p>
                 </div>
                 {/*<Link to='/casestudies/run/new' className={cn('flex gap-2 items-center button', ButtonStylePrimary)}>*/}
-                <Link to='/casestudies/run/new' className={cn('flex gap-2 items-center button bg-brand-600 border-brand-500 text-white shadow-md')}>
-                    <PlusIcon className='w-5 h-5 shrink-0'/>
-                    Start New Case Study
+
+                <Link to='/'>
+                    <Button.Back text='Back to start page' onClick={() => {}} />
                 </Link>
+
             </header>
             <section className='flex flex-col'>
                 <div className='flex flex-row flex-wrap gap-2 items-center'>
@@ -125,7 +127,7 @@ export default function LoadCaseStudy() {
                         <CaseStudyCard
                             key={casestudy._id}
                             casestudy={casestudy}
-                            // onDelete={() => AnalysisResource.get()}// To revisit.
+                            onDelete={() => CaseStudyResource.get()}// To revisit.
                         />
                     )
                 })}
