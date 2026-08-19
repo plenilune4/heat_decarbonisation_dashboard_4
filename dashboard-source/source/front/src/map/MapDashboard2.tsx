@@ -219,7 +219,11 @@ const MapDashboard: React.FC = () => {
             excludedBuildingIDs: [],
         })
 
-        useEffect(() => {},
+        useEffect(() => {
+                if (caseStudyFromDB?.buildingSelection) {
+                    setBuildingSelectionState(caseStudyFromDB.buildingSelection)
+                }
+            },
             [caseStudyFromDB])
 
         const bounds = mapState.bounds
@@ -235,6 +239,7 @@ const MapDashboard: React.FC = () => {
                 ...buildingSelection,
                 _id: 'new',
                 name: saveAsLabel,
+                text: saveAsLabel,
             }
             const response = await api<{ created?: IBuildingSelection }>(
                 ROUTES.app.user + '/' + user?._id + '/buildingSelections',
@@ -242,6 +247,7 @@ const MapDashboard: React.FC = () => {
             )
             if (response.data.created) {
                 toast.success('Building set saved successfully.')
+                BuildingSelectionResource.get()
                 return response.data.created._id
             } else {
                 toast.error('Error saving new building set.')
@@ -844,7 +850,7 @@ const MapDashboard: React.FC = () => {
 
                     {buildingSelections && (
                         <SelectField
-                            key = {`selectfield${buildingSelectionState?.name}`}
+                            key={JSON.stringify(buildingSelections.map((bs) => bs?.name)) + buildingSelectionState.name}
                             value={buildingSelectionState.name}
                             onChange={(value) => {
                                 // To do - what if 'Custom' is clicked on again?
