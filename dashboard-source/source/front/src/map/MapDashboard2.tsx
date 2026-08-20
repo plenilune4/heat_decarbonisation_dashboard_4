@@ -135,7 +135,7 @@ const MapDashboard: React.FC = () => {
         const navigate = useNavigate()
 
         // All available building selections:
-        const [buildingSelections, BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
+        const [buildingSelections, ,BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
 
         const [showBSSaveAsConfirm, setShowBSSaveAsConfirm] = useState(false)
         const [saveBSasLabel, setSaveBSasLabel] = useState('')
