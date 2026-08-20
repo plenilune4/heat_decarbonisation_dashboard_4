@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import RBush from "rbush";
+import RBushType from "rbush";
 import * as turf from "@turf/turf";
 
 import {
@@ -22,17 +22,17 @@ interface IndexedFeature {
 let instanceCount = 0;
 
 export class BuildingService {
-
-    private tree = new RBush<IndexedFeature>();
-
     private buildingCount = 0;
 
+    private tree: RBushType<IndexedFeature> | null = null;
     private readyPromise: Promise<void>;
 
     constructor() {
-        instanceCount += 1;
-        console.log("Instance count", instanceCount)
-        this.readyPromise = this.loadAllBuildings();
+        this.readyPromise = this.initialise();
+    }
+
+    public async ready(): Promise<void> {
+        await this.readyPromise;
     }
 
     /**
@@ -40,9 +40,21 @@ export class BuildingService {
      * await buildingService.ready();
      * during app startup, then we will know the buildings are actually all loaded.
      */
-    public async ready(): Promise<void> {
-        await this.readyPromise;
+    private async initialise(): Promise<void> {
+
+        // Dynamic import avoids CommonJS -> ESM problem
+        const { default: RBush } = await import("rbush");
+
+        this.tree = new RBush<IndexedFeature>();
+
+        await this.loadAllBuildings();
     }
+
+
+
+
+
+
 
     public getBuildingCount(): number {
         return this.buildingCount;
