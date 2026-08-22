@@ -135,7 +135,7 @@ const MapDashboard: React.FC = () => {
         const navigate = useNavigate()
 
         // All available building selections:
-        const [buildingSelections, ,BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
+        const [buildingSelections, , BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
 
         const [showBSSaveAsConfirm, setShowBSSaveAsConfirm] = useState(false)
         const [saveBSasLabel, setSaveBSasLabel] = useState('')
@@ -772,12 +772,6 @@ const MapDashboard: React.FC = () => {
                         </Button>
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
-                            ;
-                        }}>
-                            Save case study as...
-                        </Button>
-
-                        <Button className='w-full text-brand-300 italic' onClick={() => {
                             navigate('/casestudies')
                         }}>
                             Load case study
@@ -868,18 +862,30 @@ const MapDashboard: React.FC = () => {
                                 .map((bs) => ({
                                     text: bs.text,
                                     value: bs.name,
-                                }))}
+                                }))
+                                .sort((a, b) => {
+                                    const nameA = a.text.toUpperCase(); // ignore upper and lowercase
+                                    const nameB = b.text.toUpperCase(); // ignore upper and lowercase
+                                    if (nameA < nameB) {
+                                        return -1;
+                                    }
+                                    if (nameA > nameB) {
+                                        return 1;
+                                    }
+                                    // names must be equal
+                                    return 0;
+                                })}
                             label={'Available building stock subsets'}
                         />
                     )}
 
-                    <div className='flex flex-col items-center m-6 italic space-y-3'>
-                        <Button className='w-full text-brand-300 italic' onClick={() => {
-                            setShowBSSaveAsConfirm(true)
-                        }}>
-                            Save custom building subset...
-                        </Button>
-                    </div>
+                    {/*<div className='flex flex-col items-center m-6 italic space-y-3'>*/}
+                    {/*    <Button className='w-full text-brand-300 italic' onClick={() => {*/}
+                    {/*        setShowBSSaveAsConfirm(true)*/}
+                    {/*    }}>*/}
+                    {/*        Save custom building subset...*/}
+                    {/*    </Button>*/}
+                    {/*</div>*/}
 
 
                     {/*/!* Dataset selector *!/*/}
