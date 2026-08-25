@@ -206,14 +206,23 @@ router.post(ROUTES.getVBuildingDataInPolygons,
     }
 );
 
+router.post(ROUTES.getAggregateDataForBS,
+    (req, res) => {
+        const bs = req.body;
+        console.log(`getAggregateDataForBS received ${bs?.name ?? "unnamed building selection"}.`)
+        const summary = buildingService.summariseBuildingSelection(bs);
+        console.log("getAggregateDataForBS() generated this building stock summary:")
+        console.log(summary)
+        res.json(Object.fromEntries(summary)); // we can worry about any sorting that is needed in the frontend.
+    }
+)
+
 router.post(ROUTES.getAggregateDatainPolygons,
     (req, res) => {
 
         const polygons = req.body;
         console.log(`getAggregateDatainPolygons received ${polygons.length} polygons`)
         console.log(polygons)
-
-        r:Response
 
         const summary = new Map<string, ArchetypeSummary>();
 
@@ -222,27 +231,12 @@ router.post(ROUTES.getAggregateDatainPolygons,
             return;
         }
 
-        polygons.forEach((polygon) => {
-            const summaries = buildingService.summariseBuildingsInPolygon(polygon);
-            summaries.forEach((s, atype) => {
-                let record = summary.get(atype);
-                if (!record) {
-                    record = {
-                        archetype: atype,
-                        numBuildings: 0,
-                        totalFloorArea: 0
-                    };
-                    summary.set(atype, record);
-                }
-                record.numBuildings += s.numBuildings;
-                record.totalFloorArea += s.totalFloorArea;
-            })
-        })
+        const combined_bss = buildingService.combineBuildingStockSummaries(polygons.map((polygon) => buildingService.summariseBuildingsInPolygon(polygon)))
 
         console.log("getAggregateDatainPolygons() generated this building stock summary:")
-        console.log(summary)
+        console.log(combined_bss)
 
-        res.json(Object.fromEntries(summary)); // we can worry about any sorting that is needed in the frontend.
+        res.json(Object.fromEntries(combined_bss)); // we can worry about any sorting that is needed in the frontend.
     }
 );
 

@@ -9,7 +9,8 @@ import {
     Polygon,
     MultiPolygon
 } from "geojson";
-import {ArchetypeSummary} from "../models/caseStudy.model";
+import {ArchetypeSummary, BuildingStockSummary} from "../models/caseStudy.model";
+import {IBuildingSelection} from "../models/buildingSelection.model";
 
 interface IndexedFeature {
     minX: number;
@@ -25,6 +26,7 @@ export class BuildingService {
     private buildingCount = 0;
 
     private tree: RBushType<IndexedFeature> | null = null;
+    private buildingById = new Map<string, Feature>();
     private readyPromise: Promise<void>;
 
     constructor() {
@@ -43,17 +45,12 @@ export class BuildingService {
     private async initialise(): Promise<void> {
 
         // Dynamic import avoids CommonJS -> ESM problem
-        const { default: RBush } = await import("rbush");
+        const {default: RBush} = await import("rbush");
 
         this.tree = new RBush<IndexedFeature>();
 
         await this.loadAllBuildings();
     }
-
-
-
-
-
 
 
     public getBuildingCount(): number {
@@ -162,16 +159,21 @@ export class BuildingService {
                 const bbox =
                     turf.bbox(feature);
 
-                items.push({
+                const indexedFeature: IndexedFeature = {
                     minX: bbox[0],
                     minY: bbox[1],
                     maxX: bbox[2],
                     maxY: bbox[3],
-                    feature:
-                        feature as Feature<
-                            Polygon | MultiPolygon
-                        >
-                });
+                    feature: feature as Feature<Polygon | MultiPolygon>
+                };
+
+                items.push(indexedFeature);
+
+                const id = feature.properties?.id;
+
+                if (id !== undefined && id !== null) {
+                    this.buildingById.set(String(id), feature);
+                }
             }
         }
 
@@ -216,9 +218,75 @@ export class BuildingService {
             .map(item => item.feature);
     }
 
+    public combineBuildingStockSummaries(
+        BSsummaries: BuildingStockSummary[]
+    ): BuildingStockSummary {
+
+        const aggregated_bs_summary: BuildingStockSummary = new Map<string, ArchetypeSummary>();
+
+        BSsummaries.forEach((bss) => {
+            bss.forEach((as, atype) => {
+                let record = aggregated_bs_summary.get(atype);
+                if (!record) {
+                    record = {
+                        archetype: atype,
+                        numBuildings: 0,
+                        totalFloorArea: 0
+                    };
+                    aggregated_bs_summary.set(atype, record);
+                }
+                record.numBuildings += as.numBuildings;
+                record.totalFloorArea += as.totalFloorArea;
+            })
+        })
+
+        return aggregated_bs_summary
+    }
+
+
+    public summariseBuildingsByIDs(
+        ids: string[]
+    ): BuildingStockSummary {
+
+        const summary = new Map<string, ArchetypeSummary>();
+
+        for (const id of ids) {
+            const feature = this.getBuildingById(id)
+
+            if (!feature) {
+                // may also need to alert frontend that the building is not found.
+                continue
+            }
+            const props = feature.properties ?? {};
+            const archetype = props.archetype ?? "Not found";
+            const floorArea =
+                Number(props.gross_area) || (props.premise_floor_count || 2) * (props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
+
+            let record = summary.get(archetype);
+
+            if (!record) {
+                record = {
+                    archetype: archetype,
+                    numBuildings: 0,
+                    totalFloorArea: 0
+                };
+                summary.set(archetype, record);
+            }
+
+            record.numBuildings++;
+            record.totalFloorArea += floorArea;
+        }
+
+        console.log("buildingService.summariseBuildingsByIDs() generated this building stock summary:")
+        console.log(summary)
+
+        return summary;
+    }
+
+
     public summariseBuildingsInPolygon(
         polygon: Feature<Polygon | MultiPolygon>
-    ): Map<string, ArchetypeSummary> {
+    ): BuildingStockSummary {
 
         console.log(`generating a polygon building summary for:`)
         console.log(polygon)
@@ -236,7 +304,7 @@ export class BuildingService {
             maxY: bbox[3]
         });
 
-        const summary = new Map<string, ArchetypeSummary>();
+        const building_stock_summary:BuildingStockSummary = new Map<string, ArchetypeSummary>();
 
         for (const item of candidates) {
 
@@ -245,9 +313,9 @@ export class BuildingService {
             const props = item.feature.properties ?? {};
             const archetype = props.archetype ?? "Not found";
             const floorArea =
-                Number(props.gross_area) || (props.premise_floor_count || 2)*(props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
+                Number(props.gross_area) || (props.premise_floor_count || 2) * (props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
 
-            let record = summary.get(archetype);
+            let record = building_stock_summary.get(archetype);
 
             if (!record) {
                 record = {
@@ -255,7 +323,7 @@ export class BuildingService {
                     numBuildings: 0,
                     totalFloorArea: 0
                 };
-                summary.set(archetype, record);
+                building_stock_summary.set(archetype, record);
             }
 
             record.numBuildings++;
@@ -263,14 +331,31 @@ export class BuildingService {
         }
 
         console.log("buildingService.summariseBuildingsInPolygon() generated this building stock summary:")
-        console.log(summary)
+        console.log(building_stock_summary)
 
-        return summary;
+        return building_stock_summary;
         // return [...summary.values()]
         //     .sort((a, b) =>
         //         b.totalFloorArea - a.totalFloorArea
         //     );
     }
+
+    public getBuildingById(id: string): Feature | undefined {
+        return this.buildingById.get(String(id));
+    }
+
+    public summariseBuildingSelection(
+        bs: IBuildingSelection
+    ): BuildingStockSummary {
+        // Handle case with no polygons.
+        const polygon_summaries = bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon))
+        const aggregate_polygon_summary = this.combineBuildingStockSummaries(polygon_summaries)
+        const additional_buildings_summary = this.summariseBuildingsByIDs(bs.additionalBuildingIDs)
+        const overall_summary = this.combineBuildingStockSummaries([aggregate_polygon_summary, additional_buildings_summary])
+
+        return overall_summary
+    }
+
 
 
     /**
