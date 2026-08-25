@@ -131,6 +131,8 @@ const BUILDING_TILE_ZOOM = 15
 
 const MapDashboard: React.FC = () => {
 
+        console.log(`##### RENDERING ${new Date()} #####`)
+
         const {user} = useAuth()
         const navigate = useNavigate()
 
@@ -419,7 +421,7 @@ const MapDashboard: React.FC = () => {
         //         console.log("cache entry:",key, value);
         // }
 
-        // console.log("visible tiles", tileCacheRef.current.get(visibleTiles[0]))
+        console.log("visible tiles", tileCacheRef.current.get(visibleTiles[0]))
 
         /**
          * Combine the visible buildings into a single FeatureCollection.
@@ -618,10 +620,10 @@ const MapDashboard: React.FC = () => {
 
         // console.log("polygons")
         // console.log(polygons)
-        console.log("Archetype summaries:")
-        console.log(archetypeSummaries)
-        console.log("archetypes")
-        console.log(archetypes)
+        // console.log("Archetype summaries:")
+        // console.log(archetypeSummaries)
+        // console.log("archetypes")
+        // console.log(archetypes)
 
         const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
 // const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
@@ -987,10 +989,15 @@ const MapDashboard: React.FC = () => {
 
                         <MapViewListener
                             onViewChange={(zoom, bounds) => {
-                                setMapState({zoom, bounds});
-                                // console.log(`New zoom : ${zoom}`);
-                                // console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
-                                setVisibleTiles(getVisibleTiles(bounds, zoom));
+                                if (!drawingOngoing.current) {
+                                    // if drawing is ongoing we mustn't triggder a rerender as we will lose our drawing...
+                                    //...is there a more elegant way round this???
+
+                                    setMapState({zoom, bounds});
+                                    // console.log(`New zoom : ${zoom}`);
+                                    // console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
+                                    setVisibleTiles(getVisibleTiles(bounds, zoom));
+                                }
                             }
                             }
                         />
@@ -1055,6 +1062,7 @@ const MapDashboard: React.FC = () => {
                                     if (e.layerType === "polygon") {
                                         const layer = e.layer;
                                         const geojson = e.layer.toGeoJSON();
+                                        drawingOngoing.current = false
                                         // setBuildingSelectionState((current) => [...current, geojson]);
 
                                         // The new polygon is added to the selected areas in the state.
