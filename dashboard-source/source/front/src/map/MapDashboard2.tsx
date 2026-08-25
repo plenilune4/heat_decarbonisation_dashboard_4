@@ -566,8 +566,8 @@ const MapDashboard: React.FC = () => {
          * @param prop
          */
 
-        async function getSummaryForPolygons() {
-            await api(ROUTES.app.getAggregateDatainPolygons, polygons.map((p) => p.geometry))
+        async function getSummaryForBS() {
+            await api(ROUTES.app.getAggregateDatainPolygons, buildingSelectionState)
                 .then((res) => {
                     // console.log(res);
                     let rawdata = res.data;
@@ -579,7 +579,7 @@ const MapDashboard: React.FC = () => {
         }
 
         useEffect(() => {
-            getSummaryForPolygons();
+            getSummaryForBS();
         }, [polygons])
 
         function getArchetypeTotal(atype: Archetype, prop: string) {
