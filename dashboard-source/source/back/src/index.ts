@@ -26,19 +26,27 @@ const start = async () => {
 
 start()
 
-// Handle termination signals
-process.on('SIGTERM', () => {
+function gracefulShutdown(signal) {
+  console.log(`Received ${signal}. Closing HTTP server...`);
   server.close(() => {
-    console.log('Server closed gracefully');
+    console.log('HTTP server closed. Exiting process.');
     process.exit(0);
   });
-});
 
-process.on('SIGINT', () => {
-  server.close(() => {
-    console.log('Server closed gracefully');
-    process.exit(0);
-  });
+  // Force exit after 10 seconds if closing hangs
+  setTimeout(() => {
+    console.error('Forced shutdown due to timeout.');
+    process.exit(1);
+  }, 10000);
+}
+
+
+// Handle termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT')); // Handles Ctrl+C
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  gracefulShutdown('uncaughtException');
 });
 
 
