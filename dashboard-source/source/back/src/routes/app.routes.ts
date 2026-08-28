@@ -210,6 +210,7 @@ router.post(ROUTES.getAggregateDataForBS,
     (req, res) => {
         const bs = req.body;
         console.log(`getAggregateDataForBS received ${bs?.name ?? "unnamed building selection"}.`)
+        console.log(bs)
         const summary = buildingService.summariseBuildingSelection(bs);
         console.log("getAggregateDataForBS() generated this building stock summary:")
         console.log(summary)

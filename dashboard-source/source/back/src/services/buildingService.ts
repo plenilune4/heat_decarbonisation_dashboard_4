@@ -169,7 +169,8 @@ export class BuildingService {
 
                 items.push(indexedFeature);
 
-                const id = feature.properties?.id;
+                // remember that the definitive index to use is dashboard_index.
+                const id = feature.properties['dashboard_index']
 
                 if (id !== undefined && id !== null) {
                     this.buildingById.set(String(id), feature);
@@ -252,6 +253,9 @@ export class BuildingService {
 
         for (const id of ids) {
             const feature = this.getBuildingById(id)
+            console.log(Array.from(this.buildingById).slice(0,10))
+            console.log("found this feature")
+            console.log(feature)
 
             if (!feature) {
                 // may also need to alert frontend that the building is not found.
@@ -341,14 +345,16 @@ export class BuildingService {
     }
 
     public getBuildingById(id: string): Feature | undefined {
-        return this.buildingById.get(String(id));
+        const building = this.buildingById.get("" + id);
+        console.log(`ID: ${id}. Building: ${building}`)
+        return building
     }
 
     public summariseBuildingSelection(
         bs: IBuildingSelection
     ): BuildingStockSummary {
         // Handle case with no polygons.
-        const polygon_summaries = bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon))
+        const polygon_summaries = bs?.polygons? bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon)) : new Map<string, ArchetypeSummary>()
         const aggregate_polygon_summary = this.combineBuildingStockSummaries(polygon_summaries)
         const additional_buildings_summary = this.summariseBuildingsByIDs(bs.additionalBuildingIDs)
         const overall_summary = this.combineBuildingStockSummaries([aggregate_polygon_summary, additional_buildings_summary])

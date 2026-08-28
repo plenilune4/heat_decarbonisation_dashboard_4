@@ -12,12 +12,12 @@ function hello(a, b) {
 }
 
 export default function ArchetypePanel({
-                                           archetypeSummaries,
+                                           buildingStockSummary,
                                            archetypes,
                                            parentArchetype,
                                            level,
                                        }: {
-    archetypeSummaries: Map<string, ArchetypeSummary>
+    buildingStockSummary: Map<string, ArchetypeSummary>
     archetypes: Archetype[]
     parentArchetype: Archetype
     level: number
@@ -106,7 +106,7 @@ export default function ArchetypePanel({
                         .sort((a,b) => (b.totalHeatDemand - a.totalHeatDemand))
                         .map((a) => (<ArchetypePanel
                             key={`${a.name}_${level}`}
-                            archetypeSummaries={archetypeSummaries}
+                            buildingStockSummary={buildingStockSummary}
                             archetypes={archetypes}
                             parentArchetype={a}
                             level={level + 1}

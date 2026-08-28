@@ -14,7 +14,7 @@ import {useNavigate} from 'react-router-dom'
 
 import Modal from '@/components/Modal'
 import {SelectField, TextField} from '@/form-control/fields'
-import {ScaleControl, useMap, useMapEvents} from "react-leaflet";
+import {ScaleControl, useMap, useMapEvents, Polygon} from "react-leaflet";
 import {MapContainer} from "react-leaflet";
 import {TileLayer, GeoJSON, FeatureGroup} from "react-leaflet";
 import * as tilebelt from "@mapbox/tilebelt";
@@ -32,7 +32,7 @@ import RangeSlider from 'react-range-slider-input';
 import {api} from '@/services/api.service'
 import ROUTES from '@/ROUTES'
 import {LRUCache} from "lru-cache";
-import {Archetype, ArchetypeSummary} from "@/MODELS/caseStudy.model";
+import {Archetype, ArchetypeSummary, BuildingStockSummary} from "@/MODELS/caseStudy.model";
 import {processArchetypeData} from "@/utils/archetype-utils";
 import {cn} from '@/utils/cn'
 import MapGlobalTooltip from "@/map/MapToolTip";
@@ -156,6 +156,8 @@ const MapDashboard: React.FC = () => {
         const [valueRange, setValueRange] = useState<[number, number]>([0, 100]);
         const [selectedDataset, setSelectedDataset] = useState<string>("LSOA");
 
+        const [triggerPolygonUpdate, setTriggerPolygonUpdate] = useState<Boolean>(false)
+
         const mapRef = useRef<L.Map | null>(null);//Do we need this?
         const [mapState, setMapState] = useState({
             zoom: 10,
@@ -221,12 +223,27 @@ const MapDashboard: React.FC = () => {
             excludedBuildingIDs: [],
         })
 
+        const [initialPolygons, setInitialPolygons] = useState([])
+
+        console.log("This is the building selection state.")
+        console.log(buildingSelectionState)
+
+        console.log("Available building selections:")
+        console.log(buildingSelections)
+
         useEffect(() => {
                 if (caseStudyFromDB?.buildingSelection) {
                     setBuildingSelectionState(caseStudyFromDB.buildingSelection)
+                    setInitialPolygons(caseStudyFromDB.buildingSelection.polygons)
+                    setTriggerPolygonUpdate((current) => !current) // this can't be the best way to do this...would a direct call to the async function from here be better?
                 }
             },
             [caseStudyFromDB])
+
+        console.log("initial polygons:")
+        console.log(initialPolygons)
+        // console.log("initial polygon coords")
+        // console.log(initialPolygons.map((pg) => pg.geometry.coordinates[0]))
 
         const bounds = mapState.bounds
         const tileCacheRef = useRef(
@@ -421,7 +438,7 @@ const MapDashboard: React.FC = () => {
         //         console.log("cache entry:",key, value);
         // }
 
-        console.log("visible tiles", tileCacheRef.current.get(visibleTiles[0]))
+        // console.log("visible tiles", tileCacheRef.current.get(visibleTiles[0]))
 
         /**
          * Combine the visible buildings into a single FeatureCollection.
@@ -521,8 +538,11 @@ const MapDashboard: React.FC = () => {
         }
 
         useEffect(() => {
+                console.log("getting building data!")
+                console.log("These polygons")
+                console.log(polygons)
                 getBuildingDatainPolygons();
-            }, [polygons]
+            }, [triggerPolygonUpdate]
         )
 
         // console.log("We've got these building IDs inside the polygon(s):")
@@ -537,8 +557,8 @@ const MapDashboard: React.FC = () => {
                     features: polygons,
                 });
 
-                console.log("bounds of polygons:")
-                console.log(layer.getBounds())
+                // console.log("bounds of polygons:")
+                // console.log(layer.getBounds())
 
                 try {
                     // The try wrapper just ensures we don't crash if the map isn't ready.
@@ -558,7 +578,7 @@ const MapDashboard: React.FC = () => {
         }, [polygons, caseStudyFromDB])
 
         // ########## Getting the summary of archetype data for the given polygons. ##########
-        const [archetypeSummaries, setArchetypeSummaries] = useState<Map<string, ArchetypeSummary>>(new Map<string, ArchetypeSummary>)
+        const [buildingStockSummary, setBuildingStockSummary] = useState<BuildingStockSummary>(new Map<string, ArchetypeSummary>)
 
         /**
          * Recursive function to get totals to propagate up the archetype taxonomy.
@@ -567,29 +587,29 @@ const MapDashboard: React.FC = () => {
          */
 
         async function getSummaryForBS() {
-            await api(ROUTES.app.getAggregateDatainPolygons, buildingSelectionState)
+            await api(ROUTES.app.getAggregateDataForBS, buildingSelectionState)
                 .then((res) => {
                     // console.log(res);
                     let rawdata = res.data;
                     let summaries = new Map(Object.entries(res.data));
                     //@ts-ignore
-                    setArchetypeSummaries(summaries)
+                    setBuildingStockSummary(summaries)
                 })
                 .catch(err => console.error(err));
         }
 
         useEffect(() => {
             getSummaryForBS();
-        }, [polygons])
+        }, [buildingSelectionState])
 
         function getArchetypeTotal(atype: Archetype, prop: string) {
             if (atype.bottom_level) {
-                if (archetypeSummaries.has(atype.name)) {
+                if (buildingStockSummary.has(atype.name)) {
                     if (prop === "totalHeatDemand") {
-                        let val = archetypeSummaries.get(atype.name)["totalFloorArea"] * atype.kWh_per_GFA / 1000000.0
+                        let val = buildingStockSummary.get(atype.name)["totalFloorArea"] * atype.kWh_per_GFA / 1000000.0
                         return val
                     } else {
-                        let val = archetypeSummaries.get(atype.name)[prop]
+                        let val = buildingStockSummary.get(atype.name)[prop]
                         return val
                     }
                 } else {
@@ -605,7 +625,7 @@ const MapDashboard: React.FC = () => {
 
         useEffect(() => {
             // Updates the totals for the archetype 'supertypes'.
-            if (archetypeSummaries?.size > 0) {
+            if (buildingStockSummary?.size > 0) {
                 archetypes.forEach((a) => {
                     a.totalGFA = getArchetypeTotal(a, "totalFloorArea")
                 })
@@ -616,12 +636,12 @@ const MapDashboard: React.FC = () => {
                     a.totalHeatDemand = getArchetypeTotal(a, "totalHeatDemand")
                 })
             }
-        }, [archetypeSummaries])
+        }, [buildingStockSummary])
 
         // console.log("polygons")
         // console.log(polygons)
         // console.log("Archetype summaries:")
-        // console.log(archetypeSummaries)
+        // console.log(buildingStockSummary)
         // console.log("archetypes")
         // console.log(archetypes)
 
@@ -688,13 +708,17 @@ const MapDashboard: React.FC = () => {
                     //   .openPopup();
                 },
                 mouseover: (e: any) => {
-                    const id = feature.properties["dashboard_index"]
-                    setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
+                    if (!drawingOngoing) {
+                        const id = feature.properties["dashboard_index"]
+                        setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
+                    }
                 },
                 mouseout: (e: any) => {
-                    const id = feature.properties["dashboard_index"]
-                    setMouseOverBuilding((current) => current.filter((item) => item !== id))
-                    // console.log("mouseover buildings: ", mouseOverBuilding)
+                    if (!drawingOngoing) {
+                        const id = feature.properties["dashboard_index"]
+                        setMouseOverBuilding((current) => current.filter((item) => item !== id))
+                        // console.log("mouseover buildings: ", mouseOverBuilding)
+                    }
                 },
             });
         };
@@ -748,6 +772,39 @@ const MapDashboard: React.FC = () => {
 
         const drawingOngoing = useRef<boolean>(false)
 
+        const _onPolygonCreated = (e) => {
+            const {layerType, layer} = e;
+            if (layerType === 'polygon') {
+                const newPolygon = {
+                    id: layer._leaflet_id, // New layers use Leaflet IDs
+                    latlngs: layer.getLatLngs()
+                };
+                setPolygons((prev) => [...prev, newPolygon]);
+            }
+        };
+
+        const _onPolygonEdited = (e) => {
+            const {layers} = e;
+            layers.eachLayer((layer) => {
+                // Note: Extant layers will match by their options.id property
+                const lookupId = layer.options.id || layer._leaflet_id;
+
+                setPolygons((prev) =>
+                    prev.map((poly) =>
+                        poly.id === lookupId ? {...poly, latlngs: layer.getLatLngs()} : poly
+                    )
+                );
+            });
+        };
+
+        const _onDeleted = (e) => {
+            const {layers} = e;
+            layers.eachLayer((layer) => {
+                const lookupId = layer.options.id || layer._leaflet_id;
+                setPolygons((prev) => prev.filter((poly) => poly.id !== lookupId));
+            });
+        };
+
 
         return (
             <div style={{display: "flex"}}>
@@ -798,7 +855,7 @@ const MapDashboard: React.FC = () => {
                                 <Button.Success
                                     onClickAsync={async () => {
                                         const new_id = await handleBSSaveAs(buildingSelectionState, saveBSasLabel)
-                                        setShowBSSaveAsConfirm(false)
+                                        setShowCSSaveClarify(false)
                                         handleCSsave(caseStudyWorking, new_id)
                                     }}
                                     disabled={!saveBSasLabel.trim()}
@@ -844,7 +901,7 @@ const MapDashboard: React.FC = () => {
                     {/*    >*/}
                     {/*    </BuildingSelectionCard>))}*/}
 
-                    {buildingSelections && (
+                    {buildingSelections && buildingSelectionState?.text && (
                         <SelectField
                             key={JSON.stringify(buildingSelections.map((bs) => bs?.name)) + buildingSelectionState.name}
                             value={buildingSelectionState.name}
@@ -857,6 +914,7 @@ const MapDashboard: React.FC = () => {
 
                                 // We set the working building selection state using the already populated bs document.
                                 setBuildingSelectionState(bs)
+                                setTriggerPolygonUpdate((current) => !current)
                                 // May want to set the id on caseStudyState at the same time???
                             }
                             }
@@ -881,77 +939,6 @@ const MapDashboard: React.FC = () => {
                         />
                     )}
 
-                    {/*<div className='flex flex-col items-center m-6 italic space-y-3'>*/}
-                    {/*    <Button className='w-full text-brand-300 italic' onClick={() => {*/}
-                    {/*        setShowBSSaveAsConfirm(true)*/}
-                    {/*    }}>*/}
-                    {/*        Save custom building subset...*/}
-                    {/*    </Button>*/}
-                    {/*</div>*/}
-
-
-                    {/*/!* Dataset selector *!/*/}
-                    {/*<FormControl fullWidth sx={{mt: 2}}>*/}
-                    {/*    <InputLabel>Dataset</InputLabel>*/}
-                    {/*    <Select*/}
-                    {/*        value={selectedDataset}*/}
-                    {/*        label="Dataset"*/}
-                    {/*        onChange={(e) => setSelectedDataset(e.target.value)}*/}
-                    {/*    >*/}
-                    {/*        {Object.keys(DATASETS).map((name) => (*/}
-                    {/*            <MenuItem key={name} value={name}>*/}
-                    {/*                {name}*/}
-                    {/*            </MenuItem>*/}
-                    {/*        ))}*/}
-                    {/*    </Select>*/}
-                    {/*</FormControl>*/}
-
-                    {/*/!* Value range slider *!/*/}
-                    {/*<Box sx={{mt: 4}}>*/}
-                    {/*    <Typography gutterBottom>Filter by value</Typography>*/}
-                    {/*    <Slider*/}
-                    {/*        value={valueRange}*/}
-                    {/*        onChange={(_, val) =>*/}
-                    {/*            Array.isArray(val) && setValueRange([val[0], val[1]])*/}
-                    {/*        }*/}
-                    {/*        valueLabelDisplay="auto"*/}
-                    {/*        min={*/}
-                    {/*            geoData ? Math.min(...geoData.features.map((f: any) => f.properties.value)) : 0*/}
-                    {/*        }*/}
-                    {/*        max={*/}
-                    {/*            geoData ? Math.max(...geoData.features.map((f: any) => f.properties.value)) : 100*/}
-                    {/*        }*/}
-                    {/*    />*/}
-                    {/*    <Typography variant="body2">*/}
-                    {/*        Showing values between <b>{valueRange[0]}</b> and <b>{valueRange[1]}</b>*/}
-                    {/*    </Typography>*/}
-                    {/*</Box>*/}
-
-                    {/*/!* Selected area info *!/*/}
-                    {/*<Box sx={{mt: 3}}>*/}
-                    {/*    {selectedArea ? (*/}
-                    {/*        <>*/}
-                    {/*            <Typography variant="subtitle1">{selectedArea.name}</Typography>*/}
-                    {/*            <Typography>Value: {selectedArea.value}</Typography>*/}
-                    {/*        </>*/}
-                    {/*    ) : (*/}
-                    {/*        <Typography variant="body2">Click an area for details</Typography>*/}
-                    {/*    )}*/}
-                    {/*</Box>*/}
-
-
-                    {/*<Button onClick={() => {*/}
-                    {/*    api(ROUTES.app.optimiseDHNlayout, {*/}
-                    {/*        param1: 5,*/}
-                    {/*        param2: 8,*/}
-                    {/*        param3: 4,*/}
-                    {/*        param4: 0,*/}
-                    {/*    });*/}
-                    {/*}}*/}
-                    {/*>*/}
-                    {/*    Optimise*/}
-                    {/*</Button>*/}
-
 
                 </div>
 
@@ -971,6 +958,12 @@ const MapDashboard: React.FC = () => {
                         Select building stock for your case study by clicking on individual buildings,
                         using the polygon tool, or choosing an existing selection from the sidebar.
                     </p>
+
+                    {(mapState.zoom < BUILDING_ZOOM_THRESHOLD) && (
+                        <p className={'pb-4 italic'}>
+                            Zoom in to view buildings.
+                        </p>
+                    )}
 
 
                     <MapContainer
@@ -1032,7 +1025,21 @@ const MapDashboard: React.FC = () => {
 
                         )}
 
+                        {/*{initialPolygons.map((feature, idx) => (*/}
+                        {/*    // <Polygon key={idx} positions={feature.geometry.coordinates}/>*/}
+                        {/*    <Polygon key={idx} positions={[*/}
+                        {/*        [0, 51.515],*/}
+                        {/*        [0.5, 52.52],*/}
+                        {/*        [0.5, 52, 52],*/}
+                        {/*    ]}/>*/}
+                        {/*))}*/}
+
                         <FeatureGroup>
+                            {initialPolygons.map((feature, idx) => (
+                                // <Polygon key={idx} positions={feature.geometry.coordinates}/>
+                                <Polygon key={idx} positions={feature.geometry.coordinates[0].map(([x, y]) => [y, x])}/>
+                            ))}
+
                             <EditControl
                                 position="topleft"
                                 draw={{
@@ -1068,11 +1075,29 @@ const MapDashboard: React.FC = () => {
                                         // The new polygon is added to the selected areas in the state.
                                         const newSelectionState = {
                                             ...buildingSelectionState,
-                                            polygons: [buildingSelectionState.polygons, geojson]
+                                            polygons: [...buildingSelectionState.polygons, geojson]
                                         }
+                                        console.log("New polygon added")
                                         setBuildingSelectionState(newSelectionState);
+                                        setTriggerPolygonUpdate((current) => !current)
                                         // We still need to think about how we *remove* polygons...
                                     }
+                                }}
+
+                                onDeleted={(e) => {
+                                    const layer = e.layer;
+                                    const geojson = e.layer.toGeoJSON();
+
+                                    //@ts-ignore
+                                    const newpolygons = buildingSelectionState.polygons.filter((p) => (p !== geojson))
+                                    let n = buildingSelectionState.polygons.length - newpolygons.length
+                                    console.log(`Removed ${n} polygon${n != 1 ? "s" : ""} from the building selection state.`)
+                                    const newSelectionState = {
+                                        ...buildingSelectionState,
+                                        polygons: newpolygons,
+                                    }
+                                    setBuildingSelectionState(newSelectionState);
+                                    setTriggerPolygonUpdate((current) => !current)
                                 }}
                             />
                         </FeatureGroup>
@@ -1102,9 +1127,11 @@ const MapDashboard: React.FC = () => {
                     {
                         (currentTabIndex == 0) && archetypesByName["Residential"] && (
                             <div className="pt-5 pb-5 text-brand-900">
-                                <ArchetypePanel key={"TopA"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
+                                <ArchetypePanel key={"TopA" + String(buildingStockSummary)}
+                                                buildingStockSummary={buildingStockSummary} archetypes={archetypes}
                                                 parentArchetype={archetypesByName["Residential"]} level={1}/>
-                                <ArchetypePanel key={"TopB"} archetypeSummaries={archetypeSummaries} archetypes={archetypes}
+                                <ArchetypePanel key={"TopB" + String(buildingStockSummary)}
+                                                buildingStockSummary={buildingStockSummary} archetypes={archetypes}
                                                 parentArchetype={archetypesByName["Non-residential"]} level={1}/>
                             </div>
                         )

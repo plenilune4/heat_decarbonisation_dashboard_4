@@ -43,15 +43,16 @@ export default function AnalysisCard({
                 <h1 className='w-full text-2xl font-bold text-gray-100 truncate'>
                     {casestudy.name || "Unnamed case study"}
                 </h1>
-                {/* {analysis.evaluationFunction && (
-                        <h2 className='flex gap-2 items-center font-mono text-lg text-gray-400'>
-                            <FrameworkBadge component='relationship' />
-                            <span>{analysis.evaluationFunction.name}</span>
-                        </h2>
-                    )} */}
+
                 {/* </div> */}
                 {casestudy?.owner && <Avatar.Base64 user={casestudy.owner} size={40} className='ml-auto'/>}
             </header>
+
+            {casestudy.buildingSelection && (
+                <h2 className='flex gap-2 items-center font-mono text-lg text-gray-400 italic'>
+                    <span>{casestudy.buildingSelection.name}</span>
+                </h2>
+            )}
 
             {/* Pill Row: Sampling, Inputs, Outputs */}
             {/* <div className='flex flex-wrap gap-y-2 gap-x-4 mt-1 text-base'> */}
