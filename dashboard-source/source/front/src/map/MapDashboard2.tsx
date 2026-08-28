@@ -777,9 +777,20 @@ const MapDashboard: React.FC = () => {
             if (layerType === 'polygon') {
                 const newPolygon = {
                     id: layer._leaflet_id, // New layers use Leaflet IDs
-                    latlngs: layer.getLatLngs()
+                    // latlngs: layer.getLatLngs()
+                    geojson: layer.toGeoJSON()
                 };
-                setPolygons((prev) => [...prev, newPolygon]);
+
+                const newSelectionState = {
+                    ...buildingSelectionState,
+                    polygons: [...buildingSelectionState.polygons, newPolygon]
+                }
+
+                setBuildingSelectionState(newSelectionState);
+                setTriggerPolygonUpdate((current) => !current)
+
+                console.log("New polygon added")
+                drawingOngoing.current = false
             }
         };
 
@@ -797,7 +808,7 @@ const MapDashboard: React.FC = () => {
             });
         };
 
-        const _onDeleted = (e) => {
+        const _onPolygonDeleted = (e) => {
             const {layers} = e;
             layers.eachLayer((layer) => {
                 const lookupId = layer.options.id || layer._leaflet_id;
@@ -1035,9 +1046,13 @@ const MapDashboard: React.FC = () => {
                         {/*))}*/}
 
                         <FeatureGroup>
-                            {initialPolygons.map((feature, idx) => (
+                            {polygons.map((polygon) => (
                                 // <Polygon key={idx} positions={feature.geometry.coordinates}/>
-                                <Polygon key={idx} positions={feature.geometry.coordinates[0].map(([x, y]) => [y, x])}/>
+                                <Polygon
+                                    key={polygon.id}
+                                    positions={polygon.geojson.geometry.coordinates[0].map(([x, y]) => [y, x])}
+                                    {...{ id: polygon.id }}
+                                />
                             ))}
 
                             <EditControl
@@ -1065,24 +1080,7 @@ const MapDashboard: React.FC = () => {
                                     drawingOngoing.current = false;
                                 }}
 
-                                onCreated={(e) => {
-                                    if (e.layerType === "polygon") {
-                                        const layer = e.layer;
-                                        const geojson = e.layer.toGeoJSON();
-                                        drawingOngoing.current = false
-                                        // setBuildingSelectionState((current) => [...current, geojson]);
-
-                                        // The new polygon is added to the selected areas in the state.
-                                        const newSelectionState = {
-                                            ...buildingSelectionState,
-                                            polygons: [...buildingSelectionState.polygons, geojson]
-                                        }
-                                        console.log("New polygon added")
-                                        setBuildingSelectionState(newSelectionState);
-                                        setTriggerPolygonUpdate((current) => !current)
-                                        // We still need to think about how we *remove* polygons...
-                                    }
-                                }}
+                                onCreated={_onPolygonCreated}
 
                                 onDeleted={(e) => {
                                     const layer = e.layer;
