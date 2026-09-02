@@ -54,6 +54,7 @@ import {json} from "react-router-dom";
 import ArchetypePanel from "@/components/ArchetypePanel.tsx";
 import {Text, Tooltip} from "recharts";
 import EditableTitle from "@/components/EditableTitle.tsx";
+import {ChangedBSdialog} from "@/components/Dialogs.tsx";
 
 interface FeatureProperties {
     name: string;
@@ -144,6 +145,7 @@ const MapDashboard: React.FC = () => {
 
         // If buildingSelection needs to be saved first, this will be used.
         const [showCSSaveClarify, setShowCSSaveClarify] = useState(false)
+        const [showChangedBSdialog, setShowChangedBSdialog] = useState(false)
 
         const [showCSSaveAsConfirm, setShowCSSaveAsConfirm] = useState(false)
         const [saveCSasLabel, setSaveCSasLabel] = useState('')
@@ -210,6 +212,18 @@ const MapDashboard: React.FC = () => {
         }, [caseStudyFromDB])
 
         /**
+         * The unedited building selection state that was either (i) loaded with the case study or (ii) chosen from the sidebar.
+         */
+        const [uneditedBuildingSelection, setUneditedBuildingSelection] = useState<IBuildingSelection>(caseStudyFromDB?.buildingSelection || {
+            owner: user,
+            text: "Custom selection",
+            polygons: [],
+            excludedPolygons: [],
+            additionalBuildingIDs: [],
+            excludedBuildingIDs: [],
+        })
+
+        /**
          * The current state of the building selection being used. If one is present on the saved case study we initialise to that.
          * To do: currently we do not work directly on caseStudyState.buildingSelection; but we probably could, with care, if we wanted.
          * Before saving, would need to check for the presence of _id and also whether the presaved selection had been tinkered with.
@@ -223,8 +237,6 @@ const MapDashboard: React.FC = () => {
             excludedBuildingIDs: [],
         })
 
-        const [initialPolygons, setInitialPolygons] = useState([])
-
         console.log("This is the building selection state.")
         console.log(buildingSelectionState)
 
@@ -233,15 +245,13 @@ const MapDashboard: React.FC = () => {
 
         useEffect(() => {
                 if (caseStudyFromDB?.buildingSelection) {
+                    setUneditedBuildingSelection(caseStudyFromDB.buildingSelection)
                     setBuildingSelectionState(caseStudyFromDB.buildingSelection)
-                    setInitialPolygons(caseStudyFromDB.buildingSelection.polygons)
                     setTriggerPolygonUpdate((current) => !current) // this can't be the best way to do this...would a direct call to the async function from here be better?
                 }
             },
             [caseStudyFromDB])
 
-        console.log("initial polygons:")
-        console.log(initialPolygons)
         // console.log("initial polygon coords")
         // console.log(initialPolygons.map((pg) => pg.geometry.coordinates[0]))
 
@@ -278,11 +288,32 @@ const MapDashboard: React.FC = () => {
             // Find a way to just store the object ID for the buildingset.
         }
 
-        async function handleCSsave(cs: ICaseStudy, buildingSelectionID = null) {
-            // Do we have to unpopulate the objectID in order to save? I don't think we do, I think it should be OK.
-            const update = buildingSelectionID ? {
+        async function handleBSsave(bs: IBuildingSelection) {
+
+            const response = await api<{ created?: IBuildingSelection }>(
+                ROUTES.app.user + '/' + user?._id + '/buildingSelections',
+                bs
+            )
+
+            //@ts-ignore
+            if (response.data.created) {
+                toast.success('Building selection saved successfully.')
+                //@ts-ignore
+            } else if (response.data.updated) {
+                toast.success('Building selection updated.')
+            } else {
+                toast.error('Error saving changes.')
+                console.log("Error with save")
+                console.log(response)
+            }
+        }
+
+        async function handleCSsave(cs: ICaseStudy, bs: IBuildingSelection = null) {
+            // Do we have to unpopulate the objectID in order to save? I don't think we do, apparently it figures it out by itself.
+            // The option to override the buildingSelectionState gives us a bit more control:
+            const update = bs ? {
                 ...cs,
-                buildingSelection: buildingSelectionID,
+                buildingSelection: bs,
             } : {
                 ...cs,
             }
@@ -297,7 +328,7 @@ const MapDashboard: React.FC = () => {
                 toast.success('Case study saved successfully.')
                 //@ts-ignore
             } else if (response.data.updated) {
-                setCasestudyFromDB({...update}) // I think this is necessary to ensure that caseStudy still reflects the most recently saved version??
+                setCasestudyFromDB({...update}) // I think this is necessary to ensure that caseStudy still reflects the most recently saved version?? Ah, when this is not populated we may have a problem.
                 toast.success('Case study saved.')
             } else {
                 toast.error('Error saving changes.')
@@ -526,7 +557,7 @@ const MapDashboard: React.FC = () => {
 
         //to do - can verticode's useresource hook avoid the need for this structure???
         async function getBuildingDatainPolygons() {
-            await api(ROUTES.app.getVBuildingDataInPolygons, polygons.map((p) => p.geometry))
+            await api(ROUTES.app.getVBuildingDataInPolygons, polygons.map((p) => p.geojson.geometry))
                 .then((res) => {
                     // console.log("Response from getVBuildingDataInPolygons:")
                     // console.log(res);
@@ -554,7 +585,7 @@ const MapDashboard: React.FC = () => {
                 const layer = L.geoJSON({
                     type: "FeatureCollection",
                     //@ts-ignore
-                    features: polygons,
+                    features: polygons.map(p => p.geojson),
                 });
 
                 // console.log("bounds of polygons:")
@@ -586,6 +617,8 @@ const MapDashboard: React.FC = () => {
          * @param prop
          */
 
+        const [triggerPanelUpdate, setTriggerPanelUpdate] = useState<boolean>(true)
+
         async function getSummaryForBS() {
             await api(ROUTES.app.getAggregateDataForBS, buildingSelectionState)
                 .then((res) => {
@@ -594,6 +627,7 @@ const MapDashboard: React.FC = () => {
                     let summaries = new Map(Object.entries(res.data));
                     //@ts-ignore
                     setBuildingStockSummary(summaries)
+                    setTriggerPanelUpdate((current) => !current)
                 })
                 .catch(err => console.error(err));
         }
@@ -616,7 +650,7 @@ const MapDashboard: React.FC = () => {
                     return 0
                 }
             } else {
-                console.log(atype.name, archetypes.filter((a) => (a.supertype === atype.name)))
+                // console.log(atype.name, archetypes.filter((a) => (a.supertype === atype.name)))
                 let val = archetypes.filter((a) => (a.supertype === atype.name)).reduce((partialSum, ar) => partialSum + getArchetypeTotal(ar, prop), 0);
                 return val
             }
@@ -640,13 +674,16 @@ const MapDashboard: React.FC = () => {
 
         // console.log("polygons")
         // console.log(polygons)
-        // console.log("Archetype summaries:")
-        // console.log(buildingStockSummary)
+        console.log("Archetype summaries:")
+        console.log(buildingStockSummary)
         // console.log("archetypes")
         // console.log(archetypes)
 
         const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
 // const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
+        console.log(`manual ${manuallySelectedBuildingIDs.length}`)
+        console.log(manuallySelectedBuildingIDs)
+
 
         const allSelectedBuildingIDs = useMemo<Set<string>>(() => {
             if (buildingIDsInPolygons?.size > 0) {
@@ -708,13 +745,14 @@ const MapDashboard: React.FC = () => {
                     //   .openPopup();
                 },
                 mouseover: (e: any) => {
-                    if (!drawingOngoing) {
+                    if (!drawingOngoing.current) {
                         const id = feature.properties["dashboard_index"]
+                        console.log(`This is ${id}`)
                         setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
                     }
                 },
                 mouseout: (e: any) => {
-                    if (!drawingOngoing) {
+                    if (!drawingOngoing.current) {
                         const id = feature.properties["dashboard_index"]
                         setMouseOverBuilding((current) => current.filter((item) => item !== id))
                         // console.log("mouseover buildings: ", mouseOverBuilding)
@@ -732,7 +770,7 @@ const MapDashboard: React.FC = () => {
             const id = feature.properties["dashboard_index"];
             try {
                 // if (buildingSelection.multiSelection.has(id)) { // original version
-                if (allSelectedBuildingIDs.has(id)) {
+                if (allSelectedBuildingIDs.has(""+id) || allSelectedBuildingIDs.has(id)) {
                     return {
                         fillColor: "#ff4444",
                         weight: 0,
@@ -800,11 +838,16 @@ const MapDashboard: React.FC = () => {
                 // Note: Extant layers will match by their options.id property
                 const lookupId = layer.options.id || layer._leaflet_id;
 
-                setPolygons((prev) =>
-                    prev.map((poly) =>
-                        poly.id === lookupId ? {...poly, latlngs: layer.getLatLngs()} : poly
+                const updated_polygons =
+                    buildingSelectionState.polygons.map((poly) =>
+                        poly.id === lookupId ? {...poly, geojson: layer.toGeoJSON()} : poly
                     )
-                );
+
+                const newSelectionState = {...buildingSelectionState, polygons: updated_polygons}
+
+                setBuildingSelectionState(newSelectionState)
+                setTriggerPolygonUpdate((current) => !current)
+
             });
         };
 
@@ -812,8 +855,28 @@ const MapDashboard: React.FC = () => {
             const {layers} = e;
             layers.eachLayer((layer) => {
                 const lookupId = layer.options.id || layer._leaflet_id;
-                setPolygons((prev) => prev.filter((poly) => poly.id !== lookupId));
+
+                const updated_polygons = buildingSelectionState.polygons.filter((poly) => poly.id !== lookupId);
+                const newSelectionState = {...buildingSelectionState, polygons: updated_polygons};
+
+                setBuildingSelectionState(newSelectionState);
+                setTriggerPolygonUpdate((current) => !current);
             });
+
+            // //My original code:
+            // const layer = e.layer;
+            // const geojson = e.layer.toGeoJSON();
+            //
+            // //@ts-ignore
+            // const newpolygons = buildingSelectionState.polygons.filter((p) => (p !== geojson))
+            // let n = buildingSelectionState.polygons.length - newpolygons.length
+            // console.log(`Removed ${n} polygon${n != 1 ? "s" : ""} from the building selection state.`)
+            // const newSelectionState = {
+            //     ...buildingSelectionState,
+            //     polygons: newpolygons,
+            // }
+            // setBuildingSelectionState(newSelectionState);
+            // setTriggerPolygonUpdate((current) => !current)
         };
 
 
@@ -827,15 +890,18 @@ const MapDashboard: React.FC = () => {
                     <div className='flex flex-col items-center m-6 italic space-y-3'>
 
                         <Button className='w-full text-brand-300 italic' onClick={() => {
-                            if (buildingSelectionState?._id) {
-                                handleCSsave(caseStudyWorking, buildingSelectionState)
-                                // This is incorrect if the buildingSelectionState has changed since it was populated.
-                                // but will do for a bit while we test. Sort this by comparing json.stringify of the bs and bsstate.
-                                console.log(`Saving case study with extant building selection ID ${buildingSelectionState._id}, name ${buildingSelectionState.name}`)
-                            } else {
-                                // Need also to save the buildung selection to database first, so we do this
+                            if (!buildingSelectionState?._id) {
+                                // Indicates that the bss has not been saved before, so we do this:
                                 console.log("Need new building selection ID in order to save case study.")
                                 setShowCSSaveClarify(true)
+                            } else if (JSON.stringify(buildingSelectionState) !== JSON.stringify(uneditedBuildingSelection)) {
+                                // The building selection has changed. Need to know whether we should overwrite it (if the user owns the bs), revert to original or save a new one.
+                                console.log("Building selection has changed. Clarify how to proceed.")
+                                setShowChangedBSdialog(true)
+                            } else {
+                                handleCSsave(caseStudyWorking, buildingSelectionState)
+                                // The bs is unchanged and we can just save the case study without any fuss.
+                                console.log(`Saving case study with extant building selection ID ${buildingSelectionState._id}, name ${buildingSelectionState.name}`)
                             }
                         }}>
                             Save case study
@@ -867,7 +933,9 @@ const MapDashboard: React.FC = () => {
                                     onClickAsync={async () => {
                                         const new_id = await handleBSSaveAs(buildingSelectionState, saveBSasLabel)
                                         setShowCSSaveClarify(false)
-                                        handleCSsave(caseStudyWorking, new_id)
+
+                                        // Doing this seems a bit dodgy but enables us to save the case study without querying the db for the building state.
+                                        handleCSsave(caseStudyWorking, {...buildingSelectionState, _id: new_id})
                                     }}
                                     disabled={!saveBSasLabel.trim()}
                                 >
@@ -875,6 +943,19 @@ const MapDashboard: React.FC = () => {
                                 </Button.Success>
                             </div>
                         </div>
+                    </Modal>
+
+                    <Modal open={showChangedBSdialog} onClose={() => setShowChangedBSdialog(false)}
+                           zIndexClass={"z-[1001]"}>
+                        <ChangedBSdialog
+                            onClose={() => setShowChangedBSdialog(false)}
+                            handleBSsaveAs={handleBSSaveAs}
+                            handleBSsave={handleBSsave}
+                            buildingSelectionState={buildingSelectionState}
+                            uneditedBSS={uneditedBuildingSelection}
+                            handleCSsave={handleCSsave}
+                            caseStudy={caseStudyWorking}
+                        />
                     </Modal>
 
 
@@ -925,6 +1006,7 @@ const MapDashboard: React.FC = () => {
 
                                 // We set the working building selection state using the already populated bs document.
                                 setBuildingSelectionState(bs)
+                                setUneditedBuildingSelection(bs)
                                 setTriggerPolygonUpdate((current) => !current)
                                 // May want to set the id on caseStudyState at the same time???
                             }
@@ -1051,7 +1133,7 @@ const MapDashboard: React.FC = () => {
                                 <Polygon
                                     key={polygon.id}
                                     positions={polygon.geojson.geometry.coordinates[0].map(([x, y]) => [y, x])}
-                                    {...{ id: polygon.id }}
+                                    {...{id: polygon.id}}
                                 />
                             ))}
 
@@ -1075,6 +1157,7 @@ const MapDashboard: React.FC = () => {
                                     console.log("you're drawing!");
                                     drawingOngoing.current = true;
                                 }}
+
                                 onDrawStop={(e) => {
                                     console.log("you've stopped drawing!");
                                     drawingOngoing.current = false;
@@ -1082,21 +1165,9 @@ const MapDashboard: React.FC = () => {
 
                                 onCreated={_onPolygonCreated}
 
-                                onDeleted={(e) => {
-                                    const layer = e.layer;
-                                    const geojson = e.layer.toGeoJSON();
+                                onEdited={_onPolygonEdited}
 
-                                    //@ts-ignore
-                                    const newpolygons = buildingSelectionState.polygons.filter((p) => (p !== geojson))
-                                    let n = buildingSelectionState.polygons.length - newpolygons.length
-                                    console.log(`Removed ${n} polygon${n != 1 ? "s" : ""} from the building selection state.`)
-                                    const newSelectionState = {
-                                        ...buildingSelectionState,
-                                        polygons: newpolygons,
-                                    }
-                                    setBuildingSelectionState(newSelectionState);
-                                    setTriggerPolygonUpdate((current) => !current)
-                                }}
+                                onDeleted={_onPolygonDeleted}
                             />
                         </FeatureGroup>
                     </MapContainer>
@@ -1125,12 +1196,16 @@ const MapDashboard: React.FC = () => {
                     {
                         (currentTabIndex == 0) && archetypesByName["Residential"] && (
                             <div className="pt-5 pb-5 text-brand-900">
-                                <ArchetypePanel key={"TopA" + String(buildingStockSummary)}
-                                                buildingStockSummary={buildingStockSummary} archetypes={archetypes}
-                                                parentArchetype={archetypesByName["Residential"]} level={1}/>
-                                <ArchetypePanel key={"TopB" + String(buildingStockSummary)}
-                                                buildingStockSummary={buildingStockSummary} archetypes={archetypes}
-                                                parentArchetype={archetypesByName["Non-residential"]} level={1}/>
+                                <ArchetypePanel
+                                    // key={"TopA" + triggerPanelUpdate}
+                                    key={"TopA" + JSON.stringify(archetypes)}
+                                    buildingStockSummary={buildingStockSummary} archetypes={archetypes}
+                                    parentArchetype={archetypesByName["Residential"]} level={1}/>
+                                <ArchetypePanel
+                                    // key={"TopB" + triggerPanelUpdate}
+                                    key={"TopB" + JSON.stringify(archetypes)}
+                                    buildingStockSummary={buildingStockSummary} archetypes={archetypes}
+                                    parentArchetype={archetypesByName["Non-residential"]} level={1}/>
                             </div>
                         )
                     }

@@ -262,7 +262,7 @@ export class BuildingService {
                 continue
             }
             const props = feature.properties ?? {};
-            const archetype = props.archetype ?? "Not found";
+            const archetype = props.archetype.replaceAll(",","") ?? "Not found";
             const floorArea =
                 Number(props.gross_area) || (props.premise_floor_count || 2) * (props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
 
@@ -315,7 +315,7 @@ export class BuildingService {
             if (!turf.booleanIntersects(item.feature, polygon))
                 continue;
             const props = item.feature.properties ?? {};
-            const archetype = props.archetype ?? "Not found";
+            const archetype = props.archetype.replaceAll(",","") ?? "Not found";
             const floorArea =
                 Number(props.gross_area) || (props.premise_floor_count || 2) * (props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
 
@@ -354,7 +354,7 @@ export class BuildingService {
         bs: IBuildingSelection
     ): BuildingStockSummary {
         // Handle case with no polygons.
-        const polygon_summaries = bs?.polygons? bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon)) : new Map<string, ArchetypeSummary>()
+        const polygon_summaries = bs?.polygons? bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon.geojson)) : new Map<string, ArchetypeSummary>()
         const aggregate_polygon_summary = this.combineBuildingStockSummaries(polygon_summaries)
         const additional_buildings_summary = this.summariseBuildingsByIDs(bs.additionalBuildingIDs)
         const overall_summary = this.combineBuildingStockSummaries([aggregate_polygon_summary, additional_buildings_summary])
