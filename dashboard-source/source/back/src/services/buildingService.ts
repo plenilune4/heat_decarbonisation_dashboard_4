@@ -26,7 +26,7 @@ export class BuildingService {
     private buildingCount = 0;
 
     private tree: RBushType<IndexedFeature> | null = null;
-    private buildingByID = new Map<string, Feature>();
+    private buildingById = new Map<string, Feature>();
     private readyPromise: Promise<void>;
 
     constructor() {
@@ -173,7 +173,7 @@ export class BuildingService {
                 const id = feature.properties['dashboard_index']
 
                 if (id !== undefined && id !== null) {
-                    this.buildingByID.set(String(id), feature);
+                    this.buildingById.set(String(id), feature);
                 }
             }
         }
@@ -252,8 +252,8 @@ export class BuildingService {
         const summary = new Map<string, ArchetypeSummary>();
 
         for (const id of ids) {
-            const feature = this.getBuildingByID(id)
-            console.log(Array.from(this.buildingByID).slice(0, 10))
+            const feature = this.getBuildingById(id)
+            console.log(Array.from(this.buildingById).slice(0,10))
             console.log("found this feature")
             console.log(feature)
 
@@ -262,7 +262,7 @@ export class BuildingService {
                 continue
             }
             const props = feature.properties ?? {};
-            const archetype = props.archetype.replaceAll(",", "") ?? "Not found";
+            const archetype = props.archetype.replaceAll(",","") ?? "Not found";
             const floorArea =
                 Number(props.gross_area) || (props.premise_floor_count || 2) * (props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
 
@@ -308,14 +308,14 @@ export class BuildingService {
             maxY: bbox[3]
         });
 
-        const building_stock_summary: BuildingStockSummary = new Map<string, ArchetypeSummary>();
+        const building_stock_summary:BuildingStockSummary = new Map<string, ArchetypeSummary>();
 
         for (const item of candidates) {
 
             if (!turf.booleanIntersects(item.feature, polygon))
                 continue;
             const props = item.feature.properties ?? {};
-            const archetype = props.archetype.replaceAll(",", "") ?? "Not found";
+            const archetype = props.archetype.replaceAll(",","") ?? "Not found";
             const floorArea =
                 Number(props.gross_area) || (props.premise_floor_count || 2) * (props.premise_area || 0); // note there are actually a lot of GFAs missing at present.
 
@@ -344,34 +344,24 @@ export class BuildingService {
         //     );
     }
 
-    public getBuildingByID(id: string): Feature | undefined {
-        const building = this.buildingByID.get("" + id);
+    public getBuildingById(id: string): Feature | undefined {
+        const building = this.buildingById.get("" + id);
         console.log(`ID: ${id}. Building: ${building}`)
         return building
-    }
-
-    public getBuildingsByIDs(ids: string[]): Feature[] | [] {
-        const features:Feature[] = []
-        ids.forEach((id) => {
-            let f = this.buildingByID.get("" + id)
-            if (f) {
-                features.push(f)
-            }
-        })
-        return features
     }
 
     public summariseBuildingSelection(
         bs: IBuildingSelection
     ): BuildingStockSummary {
         // Handle case with no polygons.
-        const polygon_summaries = bs?.polygons ? bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon.geojson)) : new Map<string, ArchetypeSummary>()
+        const polygon_summaries = bs?.polygons? bs.polygons.map((polygon) => this.summariseBuildingsInPolygon(polygon.geojson)) : new Map<string, ArchetypeSummary>()
         const aggregate_polygon_summary = this.combineBuildingStockSummaries(polygon_summaries)
         const additional_buildings_summary = this.summariseBuildingsByIDs(bs.additionalBuildingIDs)
         const overall_summary = this.combineBuildingStockSummaries([aggregate_polygon_summary, additional_buildings_summary])
 
         return overall_summary
     }
+
 
 
     /**

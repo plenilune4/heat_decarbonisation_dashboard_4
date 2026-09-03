@@ -537,19 +537,13 @@ router.get(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: 
     const cs = await CaseStudy.findOne({
         _id: req.params.id,
         user: targetUser._id,
-    }).populate(POPULATE_CASE_STUDY).lean()
-    // Calling .lean() means we get a plain JS object, enabling us to add the manuallyAddedFeatures as below:
+    }).populate(POPULATE_CASE_STUDY)
 
     if (!cs) {
         console.log(`Couldn't find case study ${req.params.id}.`)
         return res.status(404).json({message: 'Case study not found'})
     }
 
-    // Only the IDs of the features are stored in the database, so we do this on loading the case study:
-    const manuallyAddedFeatures = buildingService.getBuildingsByIDs(cs.buildingSelection.additionalBuildingIDs);
-    const updatedBuildingSelection = {...cs.buildingSelection,
-        manuallyAddedFeatures: manuallyAddedFeatures}
-    cs.buildingSelection = updatedBuildingSelection
     return res.status(200).json(cs)
 })
 

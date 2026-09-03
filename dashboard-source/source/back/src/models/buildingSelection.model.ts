@@ -22,7 +22,6 @@ export interface IBuildingSelection {
     excludedPolygons?: StoredPolygon[]
     additionalBuildingIDs?: string[]
     excludedBuildingIDs?: string[]
-    manuallyAddedFeatures?: Feature[]
     createdAt?: Date
     updatedAt?: Date
 }
@@ -36,7 +35,6 @@ const BuildingSelectionSchema = new Schema<IBuildingSelection>(
         excludedPolygons: { type: [Object], required: false },
         additionalBuildingIDs: { type: [String], required: false },
         excludedBuildingIDs: { type: [String], required: false },
-        manuallyAddedFeatures: {type: [Object], required:false},
     },
     {
         timestamps: true,

@@ -153,6 +153,11 @@ const MapDashboard: React.FC = () => {
         const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
         const [visibleTiles, setVisibleTiles] = useState<string[]>([]);
 
+        const [geoData, setGeoData] = useState<FeatureCollection | null>(null);
+        const [selectedArea, setSelectedArea] = useState<FeatureProperties | null>(null);
+        const [valueRange, setValueRange] = useState<[number, number]>([0, 100]);
+        const [selectedDataset, setSelectedDataset] = useState<string>("LSOA");
+
         const [triggerPolygonUpdate, setTriggerPolygonUpdate] = useState<Boolean>(false)
 
         const mapRef = useRef<L.Map | null>(null);//Do we need this?
@@ -341,8 +346,6 @@ const MapDashboard: React.FC = () => {
             setCaseStudyWorking((current) => ({...current, name: newname}))
         }
 
-        const [newTileDataTrigger, setNewTileDataTrigger] = useState<boolean>(false)
-
         /**
          * Gets building geojson for a specific tile.
          * @param x
@@ -382,7 +385,33 @@ const MapDashboard: React.FC = () => {
             tileCacheRef.current.set(key, tile);
 
             return tile;
+            //This is probably ready to test once you have checked the backend part again.
         }
+
+
+        // Original method of getting buildings, by comparing all of them to the bounding box:
+        // let bbox:string
+        // let nwTile:number[], seTile:number[]
+        // if (bounds && (mapState.zoom >= BUILDING_ZOOM_THRESHOLD))
+        // {
+        //     let x0 = bounds.getWest()
+        //     let x1 = bounds.getEast()
+        //     let y0 = bounds.getSouth()
+        //     let y1 = bounds.getNorth()
+        //     bbox = [
+        //     (1.5*x0 - 0.5*x1),
+        //     (1.5*y0 - 0.5*y1),
+        //     (1.5*x1 - 0.5*x0),
+        //     (1.5*y1 - 0.5*y0)
+        //     ].join(",");
+        // }
+        // else
+        // {
+        //     ;
+        //     bbox = "0,0,0,0"
+        // }
+        // console.log("bbox")
+        // console.log(bbox)
 
         /**
          * Uses the current bounds of the map to check which tiles are visible.
@@ -420,7 +449,7 @@ const MapDashboard: React.FC = () => {
          * Might need to make this asynchronous somehow?
          */
         useEffect(() => {
-            console.log(`getting the building data for visible tiles ${visibleTiles}`)
+            // console.log("getting the building data for visible tiles...")
             visibleTiles.forEach(async tileId => {
                 if (tileCacheRef.current.has(tileId))
                     return;
@@ -429,9 +458,7 @@ const MapDashboard: React.FC = () => {
                     tileId.split("_");
 
                 getBuildingsForTile(Number(x), Number(y))
-                    .then(() => setNewTileDataTrigger((current) => !current)
-                        // but this may trigger too many full renders...is there a better way?!?
-                    )
+
                 // setTileVersion(v => v + 1);
 
             });
@@ -451,14 +478,67 @@ const MapDashboard: React.FC = () => {
             visibleTiles.flatMap(tileId =>
                 tileCacheRef.current.get(tileId)?.features ?? []
             );
-
-        console.log(`visible buildings length ${visibleBuildings.length}`)
-
         const mergedCollection = {
             type: "FeatureCollection",
             features: visibleBuildings
         };
 
+
+        // const [filterValue, setFilterValue] = useState<number>(0);
+
+        // // Load GeoJSON data from public folder (or API)
+        // useEffect(() => {
+        //   fetch("/data/secondaries_for_dashboard.geojson")
+        //     .then((res) => {
+        //       if (!res.ok) throw new Error("Failed to fetch GeoJSON");
+        //       return res.json();
+        //     })
+        //     .then((data) => setGeoData(data))
+        //     .catch((err) => console.error(err));
+        // }, []);
+
+
+        // Highlight by range
+        const styleFeature = (feature: any) => {
+            const v = feature.properties.value;
+            const [minv, maxv] = valueRange;
+            const inRange = v >= minv && v <= maxv;
+            return {
+                fillColor: inRange ? "#e41a1c" : "#cccccc",
+                weight: 1,
+                color: "white",
+                fillOpacity: inRange ? 0.7 : 0.3,
+            };
+        };
+
+        /**
+         * Original version for working with LSOA geometries and similar.
+         * @param feature
+         * @param layer
+         */
+        const onEachFeature = (feature: any, layer: any) => {
+            layer.on({
+                click: () => {
+                    setSelectedArea(feature.properties);
+                    layer
+                        .bindPopup(
+                            `<b>${feature.properties.name}</b><br/>Value: ${feature.properties.value}`
+                        )
+                        .openPopup();
+                },
+            });
+        };
+
+        type IncludedBuildingsStatus = {
+            latestSelection: string | null;
+            multiSelection: Set<string>;
+        }
+
+        // To enable selection of multiple buildings.
+        const [includedBuildingsStatus, setIncludedBuildingsStatus] = useState<IncludedBuildingsStatus | null>({
+            latestSelection: null,
+            multiSelection: new Set(),
+        })
         const [mouseOverBuilding, setMouseOverBuilding] = useState<string[]>([])
 
         // console.log("building selection on this render:", buildingSelection);
@@ -467,7 +547,6 @@ const MapDashboard: React.FC = () => {
         // to update the list of included building indices.
         // console.log("rest and be thankful")
         const polygons = buildingSelectionState.polygons ?? []
-        const manuallyAddedFeatures = buildingSelectionState.manuallyAddedFeatures ?? []
 
         // ########## Checking which buildings are in the polygons. ##########
         // This is needed in order to highlight the relevant ones.
@@ -502,12 +581,11 @@ const MapDashboard: React.FC = () => {
 
         //need get this to run when first renders.
         useEffect(() => {
-            if (polygons.length + manuallyAddedFeatures.length > 0) {
+            if (polygons.length > 0) {
                 const layer = L.geoJSON({
                     type: "FeatureCollection",
                     //@ts-ignore
-                    features: [...polygons.map(p => p.geojson),
-                        ...manuallyAddedFeatures],
+                    features: polygons.map(p => p.geojson),
                 });
 
                 // console.log("bounds of polygons:")
@@ -528,7 +606,7 @@ const MapDashboard: React.FC = () => {
                     ;
                 }
             }
-        }, [polygons, manuallyAddedFeatures, caseStudyFromDB])
+        }, [polygons, caseStudyFromDB])
 
         // ########## Getting the summary of archetype data for the given polygons. ##########
         const [buildingStockSummary, setBuildingStockSummary] = useState<BuildingStockSummary>(new Map<string, ArchetypeSummary>)
@@ -603,7 +681,7 @@ const MapDashboard: React.FC = () => {
 
         const manuallySelectedBuildingIDs = buildingSelectionState.additionalBuildingIDs
 // const manuallyRemovedBuildingIDs = buildingSelectionState.excludedBuildingIDs
-        console.log(`manual ${manuallySelectedBuildingIDs?.length}`)
+        console.log(`manual ${manuallySelectedBuildingIDs.length}`)
         console.log(manuallySelectedBuildingIDs)
 
 
@@ -635,19 +713,16 @@ const MapDashboard: React.FC = () => {
                                 // And we are not using excludedBuildingIDs, although that has been built into the mongoose schema for that potential purpose.
                                 if (current.additionalBuildingIDs.includes(id)) {
                                     // Then the mouseclick *removes* the current building from the selection.
-                                    let newSelectedIDs: String[] = [...current.additionalBuildingIDs].filter((item) => item !== id)
-                                    let newSelectedFeatures: Feature[] = [...current.manuallyAddedFeatures].filter((item) => item.properties["dashboard_index"] !== id)
+                                    let newMultiselection: String[] = [...current.additionalBuildingIDs].filter((item) => item !== id)
                                     return {
                                         ...current,
-                                        additionalBuildingIDs: newSelectedIDs,
-                                        manuallyAddedFeatures: newSelectedFeatures,
+                                        additionalBuildingIDs: newMultiselection
                                     }
                                 } else {
                                     // Add the current building to the multiselection.
                                     return {
                                         ...current,
-                                        additionalBuildingIDs: [...current.additionalBuildingIDs, id],
-                                        manuallyAddedFeatures: [...current.manuallyAddedFeatures, feature]
+                                        additionalBuildingIDs: [...current.additionalBuildingIDs, id]
                                     }
                                 }
                             } catch (E) {
@@ -659,8 +734,7 @@ const MapDashboard: React.FC = () => {
                             // No multiselect.
                             return {
                                 ...current,
-                                additionalBuildingIDs: [id],
-                                manuallyAddedFeatures: [feature]
+                                additionalBuildingIDs: [id]
                             }
                         }
                     })
@@ -671,14 +745,14 @@ const MapDashboard: React.FC = () => {
                     //   .openPopup();
                 },
                 mouseover: (e: any) => {
-                    if (!drawingOngoing.current) {
+                    if (!(drawingOngoing.current || deletionOngoing.current)) {
                         const id = feature.properties["dashboard_index"]
                         console.log(`This is ${id}`)
                         setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
                     }
                 },
                 mouseout: (e: any) => {
-                    if (!drawingOngoing.current) {
+                    if (!(drawingOngoing.current || deletionOngoing.current)) {
                         const id = feature.properties["dashboard_index"]
                         setMouseOverBuilding((current) => current.filter((item) => item !== id))
                         // console.log("mouseover buildings: ", mouseOverBuilding)
@@ -696,7 +770,7 @@ const MapDashboard: React.FC = () => {
             const id = feature.properties["dashboard_index"];
             try {
                 // if (buildingSelection.multiSelection.has(id)) { // original version
-                if (allSelectedBuildingIDs.has("" + id) || allSelectedBuildingIDs.has(id)) {
+                if (allSelectedBuildingIDs.has(""+id) || allSelectedBuildingIDs.has(id)) {
                     return {
                         fillColor: "#ff4444",
                         weight: 0,
@@ -735,6 +809,7 @@ const MapDashboard: React.FC = () => {
         const [currentTabIndex, setCurrentTabIndex] = useState<number>(0)
 
         const drawingOngoing = useRef<boolean>(false)
+        const deletionOngoing = useRef<boolean>(false)
 
         const _onPolygonCreated = (e) => {
             const {layerType, layer} = e;
@@ -788,6 +863,7 @@ const MapDashboard: React.FC = () => {
                 setBuildingSelectionState(newSelectionState);
                 setTriggerPolygonUpdate((current) => !current);
             });
+            deletionOngoing.current = false
 
             // //My original code:
             // const layer = e.layer;
@@ -1000,18 +1076,15 @@ const MapDashboard: React.FC = () => {
 
 
                         <MapViewListener
-
                             onViewChange={(zoom, bounds) => {
-                                if (!drawingOngoing.current) {
+                                if (!(drawingOngoing.current || deletionOngoing.current)) {
                                     // if drawing is ongoing we mustn't triggder a rerender as we will lose our drawing...
                                     //...is there a more elegant way round this???
 
                                     setMapState({zoom, bounds});
                                     // console.log(`New zoom : ${zoom}`);
                                     // console.log(`New bounds: ${[bounds.getWest(), bounds.getEast(), bounds.getSouth(), bounds.getNorth()].join(", ")}`);
-                                    let vtiles = getVisibleTiles(bounds, zoom)
-                                    console.log("<<< Visible tiles are ", vtiles)
-                                    setVisibleTiles(vtiles);
+                                    setVisibleTiles(getVisibleTiles(bounds, zoom));
                                 }
                             }
                             }
@@ -1041,7 +1114,7 @@ const MapDashboard: React.FC = () => {
                                 data={mergedCollection as any}
                                 style={styleBuilding}
                                 // @ts-ignore
-                                pointerEvents={drawingOngoing.current ? "none" : true} // If polygon drawing is ongoing then individual building mouseover needs to be disabled. I think I had this the wrong way round before??
+                                pointerEvents={(drawingOngoing.current || deletionOngoing.current) ? "none" : true} // If polygon drawing is ongoing then individual building mouseover needs to be disabled. I think I had this the wrong way round before??
                                 onEachFeature={onEachBuilding}
                             />
 
@@ -1095,6 +1168,14 @@ const MapDashboard: React.FC = () => {
                                 onCreated={_onPolygonCreated}
 
                                 onEdited={_onPolygonEdited}
+
+                                onDeleteStart={(e) => {
+                                    deletionOngoing.current = true;
+                                }}
+
+                                onDeleteStop={(e) => {
+                                    deletionOngoing.current = false;
+                                }}
 
                                 onDeleted={_onPolygonDeleted}
                             />
