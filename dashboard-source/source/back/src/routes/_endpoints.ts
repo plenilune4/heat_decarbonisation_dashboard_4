@@ -14,6 +14,7 @@ const endpoints = {
         getAggregateDataForBS: '/getAggregateDataForBS',
         buildingSelections: '/buildingSelections',
         caseStudies: '/caseStudies',
+        getFeaturesByIDs: '/getFeaturesByIDs'
     },
     admin: {
         user: '/user',
