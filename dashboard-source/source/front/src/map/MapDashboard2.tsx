@@ -586,6 +586,8 @@ const MapDashboard: React.FC = () => {
                     type: "FeatureCollection",
                     //@ts-ignore
                     features: polygons.map(p => p.geojson),
+                    // even this...I've reverted way too much. what a mess.
+
                 });
 
                 // console.log("bounds of polygons:")
@@ -880,6 +882,11 @@ const MapDashboard: React.FC = () => {
             // setBuildingSelectionState(newSelectionState);
             // setTriggerPolygonUpdate((current) => !current)
         };
+
+        // I have managed to lose several of my changes that solved some problems.
+        // It has stopped panning to individual buildings again.
+        // Buildings are not showing straight after loading again.
+        // I will need to look in local history or pull from github.
 
 
         return (
