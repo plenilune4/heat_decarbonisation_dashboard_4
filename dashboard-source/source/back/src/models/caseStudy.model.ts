@@ -178,6 +178,8 @@ export type ArchetypeSummary = {
     peakHeatDemandMW?: number
 }
 
+export type BuildingStockSummary = Map<string, ArchetypeSummary>
+
 /*
 Defines a single strategy to be taken for one subset of buildings.
  */

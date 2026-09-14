@@ -11,8 +11,10 @@ const endpoints = {
         getVBuildingDataInPolygon: '/getVBuildingDataInPolygon',
         getVBuildingDataInPolygons: '/getVBuildingDataInPolygons',
         getAggregateDatainPolygons: '/getAggregateDataInPolygons',
+        getAggregateDataForBS: '/getAggregateDataForBS',
         buildingSelections: '/buildingSelections',
         caseStudies: '/caseStudies',
+        getFeaturesByIDs: '/getFeaturesByIDs'
     },
     admin: {
         user: '/user',

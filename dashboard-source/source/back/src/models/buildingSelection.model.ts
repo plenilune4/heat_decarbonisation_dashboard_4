@@ -7,6 +7,10 @@ import {
 } from "geojson";
 import {IUser} from "./user.model";
 
+export type StoredPolygon = {
+    id: string,
+    geojson: Feature<Polygon> | Feature<MultiPolygon>
+}
 
 // This is for the benefit of Typescript...it will closely match the actual schema.
 export interface IBuildingSelection {
@@ -14,10 +18,11 @@ export interface IBuildingSelection {
     owner: IUser
     name?: string
     text?:string
-    polygons?: Feature<Polygon>[] | Feature<MultiPolygon>[]
-    excludedPolygons?: Feature<Polygon>[] | Feature<MultiPolygon>[]
+    polygons?: StoredPolygon[]
+    excludedPolygons?: StoredPolygon[]
     additionalBuildingIDs?: string[]
     excludedBuildingIDs?: string[]
+    manuallyAddedFeatures?: Feature[]
     createdAt?: Date
     updatedAt?: Date
 }
@@ -31,6 +36,7 @@ const BuildingSelectionSchema = new Schema<IBuildingSelection>(
         excludedPolygons: { type: [Object], required: false },
         additionalBuildingIDs: { type: [String], required: false },
         excludedBuildingIDs: { type: [String], required: false },
+        manuallyAddedFeatures: {type: [Object], required:false},
     },
     {
         timestamps: true,

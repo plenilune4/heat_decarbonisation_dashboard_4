@@ -206,14 +206,24 @@ router.post(ROUTES.getVBuildingDataInPolygons,
     }
 );
 
+router.post(ROUTES.getAggregateDataForBS,
+    (req, res) => {
+        const bs = req.body;
+        console.log(`getAggregateDataForBS received ${bs?.name ?? "unnamed building selection"}.`)
+        console.log(bs)
+        const summary = buildingService.summariseBuildingSelection(bs);
+        console.log("getAggregateDataForBS() generated this building stock summary:")
+        console.log(summary)
+        res.json(Object.fromEntries(summary)); // we can worry about any sorting that is needed in the frontend.
+    }
+)
+
 router.post(ROUTES.getAggregateDatainPolygons,
     (req, res) => {
 
         const polygons = req.body;
         console.log(`getAggregateDatainPolygons received ${polygons.length} polygons`)
         console.log(polygons)
-
-        r:Response
 
         const summary = new Map<string, ArchetypeSummary>();
 
@@ -222,27 +232,12 @@ router.post(ROUTES.getAggregateDatainPolygons,
             return;
         }
 
-        polygons.forEach((polygon) => {
-            const summaries = buildingService.summariseBuildingsInPolygon(polygon);
-            summaries.forEach((s, atype) => {
-                let record = summary.get(atype);
-                if (!record) {
-                    record = {
-                        archetype: atype,
-                        numBuildings: 0,
-                        totalFloorArea: 0
-                    };
-                    summary.set(atype, record);
-                }
-                record.numBuildings += s.numBuildings;
-                record.totalFloorArea += s.totalFloorArea;
-            })
-        })
+        const combined_bss = buildingService.combineBuildingStockSummaries(polygons.map((polygon) => buildingService.summariseBuildingsInPolygon(polygon)))
 
         console.log("getAggregateDatainPolygons() generated this building stock summary:")
-        console.log(summary)
+        console.log(combined_bss)
 
-        res.json(Object.fromEntries(summary)); // we can worry about any sorting that is needed in the frontend.
+        res.json(Object.fromEntries(combined_bss)); // we can worry about any sorting that is needed in the frontend.
     }
 );
 
@@ -542,13 +537,19 @@ router.get(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: 
     const cs = await CaseStudy.findOne({
         _id: req.params.id,
         user: targetUser._id,
-    }).populate(POPULATE_CASE_STUDY)
+    }).populate(POPULATE_CASE_STUDY).lean()
+    // Calling .lean() means we get a plain JS object, enabling us to add the manuallyAddedFeatures as below:
 
     if (!cs) {
         console.log(`Couldn't find case study ${req.params.id}.`)
         return res.status(404).json({message: 'Case study not found'})
     }
 
+    // Only the IDs of the features are stored in the database, so we do this on loading the case study:
+    const manuallyAddedFeatures = buildingService.getBuildingsByIDs(cs.buildingSelection.additionalBuildingIDs);
+    const updatedBuildingSelection = {...cs.buildingSelection,
+        manuallyAddedFeatures: manuallyAddedFeatures}
+    cs.buildingSelection = updatedBuildingSelection
     return res.status(200).json(cs)
 })
 
