@@ -18,11 +18,11 @@ export function ChangedBSdialog({
                                     caseStudy,
                                 }: {
                                     onClose: () => void,
-                                    handleBSsaveAs: (bss: IBuildingSelection, label: string) => string | void,
+                                    handleBSsaveAs: (bss: IBuildingSelection, label: string) => Promise<string>,
                                     handleBSsave: (bss: IBuildingSelection) => void,
                                     buildingSelectionState: IBuildingSelection,
                                     uneditedBSS?: IBuildingSelection
-                                    handleCSsave: (cs: ICaseStudy, bs: IBuildingSelection) => void,
+                                    handleCSsave: (cs: ICaseStudy, bs: IBuildingSelection | string) => void,
                                     caseStudy: ICaseStudy
                                 }
 ) {
