@@ -140,6 +140,26 @@ const MapDashboard: React.FC = () => {
         // All available building selections:
         const [buildingSelections, , BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
 
+        const buildingSelectionOptions = useMemo<{ text: string, value: string }[]>(() => {
+                return !buildingSelections ? null : buildingSelections.map((bs) => ({
+                    text: bs.text,
+                    value: bs.name,
+                })).sort((a, b) => {
+                    const nameA = a.text.toUpperCase(); // ignore upper and lowercase
+                    const nameB = b.text.toUpperCase(); // ignore upper and lowercase
+                    if (nameA < nameB) {
+                        return -1;
+                    }
+                    if (nameA > nameB) {
+                        return 1;
+                    }
+                    // names must be equal
+                    return 0;
+                })
+            }, [buildingSelections]
+        )
+
+
         const [showBSSaveAsConfirm, setShowBSSaveAsConfirm] = useState(false)
         const [saveBSasLabel, setSaveBSasLabel] = useState('')
 
@@ -151,7 +171,7 @@ const MapDashboard: React.FC = () => {
         const [saveCSasLabel, setSaveCSasLabel] = useState('')
 
         const [vBuildingData, setVBuildingData] = useState<FeatureCollection | null>(null);
-        const [visibleTiles, setVisibleTiles] = useState<string[]>([]);
+        const [visibleTiles, setVisibleTiles] = useState<string[]>([]);//causing problem
 
         const [triggerPolygonUpdate, setTriggerPolygonUpdate] = useState<Boolean>(false)
 
@@ -159,7 +179,7 @@ const MapDashboard: React.FC = () => {
         const [mapState, setMapState] = useState({
             zoom: 10,
             bounds: null as L.LatLngBounds | null
-        });
+        });//causing problem
 
         // Bit of stuff for getting hold of archetype definitions:
         const [archetypeDataRaw, setArchetypeDataRaw] = useState<string>("")
@@ -520,7 +540,6 @@ const MapDashboard: React.FC = () => {
                         animate: true,
                         duration: 0.75
                     });
-
                     // mapRef.current.fitBounds(})
                     console.log("fitbounds ran successfully.")
                 } catch (error) {
@@ -528,7 +547,11 @@ const MapDashboard: React.FC = () => {
                     ;
                 }
             }
-        }, [polygons, manuallyAddedFeatures, caseStudyFromDB])
+        // }, [polygons, caseStudyFromDB])
+        }, [triggerPolygonUpdate, caseStudyFromDB])
+        // }, [triggerPolygonUpdate]) // runs OK with just this.
+        // }, [manuallyAddedFeatures]) // causes infinite render loop
+        // }, [caseStudyFromDB]) // runs OK
 
         // ########## Getting the summary of archetype data for the given polygons. ##########
         const [buildingStockSummary, setBuildingStockSummary] = useState<BuildingStockSummary>(new Map<string, ArchetypeSummary>)
@@ -919,10 +942,13 @@ const MapDashboard: React.FC = () => {
                     {/*    >*/}
                     {/*    </BuildingSelectionCard>))}*/}
 
-                    {buildingSelections && buildingSelectionState?.text && (
+                    {buildingSelections && buildingSelectionOptions && (
                         <SelectField
-                            key={JSON.stringify(buildingSelections.map((bs) => bs?.name)) + buildingSelectionState.name}
-                            value={buildingSelectionState.name}
+                            // key={JSON.stringify(buildingSelections.map((bs) => bs?.name))}
+                            // key={"this is the bs selector"}
+                            value={buildingSelectionOptions.map((opt) => opt.text).includes(buildingSelectionState?.name) ?
+                                buildingSelectionState?.name
+                                : null}
                             onChange={(value) => {
                                 // To do - what if 'Custom' is clicked on again?
                                 let bs: IBuildingSelection = buildingSelections.find((bs) => (bs.name === value));
@@ -937,23 +963,7 @@ const MapDashboard: React.FC = () => {
                                 // May want to set the id on caseStudyState at the same time???
                             }
                             }
-                            options={[buildingSelectionState, ...buildingSelections.filter((bs) => (bs.text !== buildingSelectionState.text))]
-                                .map((bs) => ({
-                                    text: bs.text,
-                                    value: bs.name,
-                                }))
-                                .sort((a, b) => {
-                                    const nameA = a.text.toUpperCase(); // ignore upper and lowercase
-                                    const nameB = b.text.toUpperCase(); // ignore upper and lowercase
-                                    if (nameA < nameB) {
-                                        return -1;
-                                    }
-                                    if (nameA > nameB) {
-                                        return 1;
-                                    }
-                                    // names must be equal
-                                    return 0;
-                                })}
+                            options={buildingSelectionOptions}
                             label={'Available building stock subsets'}
                         />
                     )}
@@ -1003,6 +1013,7 @@ const MapDashboard: React.FC = () => {
 
                             onViewChange={(zoom, bounds) => {
                                 if (!drawingOngoing.current) {
+                                    console.log("VIEWCHANGEDETECTED!!!")
                                     // if drawing is ongoing we mustn't triggder a rerender as we will lose our drawing...
                                     //...is there a more elegant way round this???
 
