@@ -140,6 +140,8 @@ const MapDashboard: React.FC = () => {
         // All available building selections:
         const [buildingSelections, , BuildingSelectionResource] = useResource<IBuildingSelection[]>(ROUTES.app.buildingSelections,) // ah, that's how you easily get something from the API!!
 
+        const featureGroupRef = useRef(null)
+
         const buildingSelectionOptions = useMemo<{ text: string, value: string }[]>(() => {
                 return !buildingSelections ? null : buildingSelections.map((bs) => ({
                     text: bs.text,
@@ -252,6 +254,8 @@ const MapDashboard: React.FC = () => {
             additionalBuildingIDs: [],
             excludedBuildingIDs: [],
         })
+
+        // const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
 
         console.log("This is the building selection state.")
         console.log(buildingSelectionState)
@@ -548,7 +552,7 @@ const MapDashboard: React.FC = () => {
                     ;
                 }
             }
-        // }, [polygons, caseStudyFromDB])
+            // }, [polygons, caseStudyFromDB])
         }, [triggerPolygonUpdate, caseStudyFromDB])
         // }, [triggerPolygonUpdate]) // runs OK with just this.
         // }, [manuallyAddedFeatures]) // causes infinite render loop
@@ -763,22 +767,28 @@ const MapDashboard: React.FC = () => {
 
         const _onPolygonCreated = (e) => {
             const {layerType, layer} = e;
+
             if (layerType === 'polygon') {
                 const newPolygon = {
-                    id: layer._leaflet_id, // New layers use Leaflet IDs
+                    id: layer._leaflet_id, // New layers use Leaflet IDs. or use crypto.randomUUID().
                     // latlngs: layer.getLatLngs()
                     geojson: layer.toGeoJSON()
                 };
 
-                const newSelectionState = {
-                    ...buildingSelectionState,
-                    polygons: [...buildingSelectionState.polygons, newPolygon]
+                if (featureGroupRef.current){
+                    // We remove the polygon that came from the drawing UI; now we only retain the one that has been added to state.
+                    featureGroupRef.current.removeLayer(layer);
                 }
 
-                setBuildingSelectionState(newSelectionState);
+                setBuildingSelectionState((current) => {
+                    return {
+                        ...current,
+                        polygons: [...current.polygons, newPolygon]
+                    }
+                });
                 setTriggerPolygonUpdate((current) => !current)
 
-                console.log("New polygon added")
+                console.log(`NEW POLYGON ADDED WITH ID ${layer._leaflet_id}`)
                 drawingOngoing.current = false
             }
         };
@@ -789,14 +799,21 @@ const MapDashboard: React.FC = () => {
                 // Note: Extant layers will match by their options.id property
                 const lookupId = layer.options.id || layer._leaflet_id;
 
-                const updated_polygons =
-                    buildingSelectionState.polygons.map((poly) =>
-                        poly.id === lookupId ? {...poly, geojson: layer.toGeoJSON()} : poly
-                    )
+                // const updated_polygons =
+                //     buildingSelectionState.polygons.map((poly) =>
+                //         poly.id === lookupId ? {...poly, geojson: layer.toGeoJSON()} : poly
+                //     )
+                //
+                // const newSelectionState = {...buildingSelectionState, polygons: updated_polygons}
 
-                const newSelectionState = {...buildingSelectionState, polygons: updated_polygons}
-
-                setBuildingSelectionState(newSelectionState)
+                setBuildingSelectionState((current) => {
+                    return {
+                        ...current,
+                        polygons: current.polygons.map((poly) =>
+                            poly.id === lookupId ? {...poly, geojson: layer.toGeoJSON()} : poly
+                        )
+                    }
+                })
                 setTriggerPolygonUpdate((current) => !current)
 
             });
@@ -809,12 +826,18 @@ const MapDashboard: React.FC = () => {
                 const lookupId = layer.options.id || layer._leaflet_id;
                 console.log(`YOU TRIED TO DELETE POLYGON WITH ID ${lookupId}`)
 
-                const updated_polygons = buildingSelectionState.polygons.filter((poly) => poly.id !== lookupId);
-                const newSelectionState = {...buildingSelectionState, polygons: updated_polygons};
+                // const updated_polygons = buildingSelectionState.polygons.filter((poly) => poly.id !== lookupId);
+                // const newSelectionState = {...buildingSelectionState, polygons: updated_polygons};
 
-                setBuildingSelectionState(newSelectionState);
-                setTriggerPolygonUpdate((current) => !current);
+                setBuildingSelectionState((current) => {
+                    return {
+                        ...current,
+                        polygons: current.polygons.filter((poly) => poly.id !== lookupId)
+                    }
+                });
             });
+
+            setTriggerPolygonUpdate((current) => !current);
 
             // //My original code:
             // const layer = e.layer;
@@ -1062,25 +1085,8 @@ const MapDashboard: React.FC = () => {
 
                         )}
 
-                        {/*{initialPolygons.map((feature, idx) => (*/}
-                        {/*    // <Polygon key={idx} positions={feature.geometry.coordinates}/>*/}
-                        {/*    <Polygon key={idx} positions={[*/}
-                        {/*        [0, 51.515],*/}
-                        {/*        [0.5, 52.52],*/}
-                        {/*        [0.5, 52, 52],*/}
-                        {/*    ]}/>*/}
-                        {/*))}*/}
 
-                        <FeatureGroup>
-                            {polygons.map((polygon) => (
-                                // <Polygon key={idx} positions={feature.geometry.coordinates}/>
-                                <Polygon
-                                    key={polygon.id}
-                                    positions={polygon.geojson.geometry.coordinates[0].map(([x, y]) => [y, x])}
-                                    {...{id: polygon.id}}
-                                />
-                            ))}
-
+                        <FeatureGroup ref = {featureGroupRef}>
                             <EditControl
                                 position="topleft"
                                 draw={{
@@ -1121,6 +1127,19 @@ const MapDashboard: React.FC = () => {
                                     deleteOngoing.current = false
                                 }}
                             />
+
+
+                            {/*{polygons.map((polygon) => (*/}
+                            {buildingSelectionState.polygons.map((polygon) => (
+                                // <Polygon key={idx} positions={feature.geometry.coordinates}/>
+                                <Polygon
+                                    key={polygon.id}
+                                    positions={polygon.geojson.geometry.coordinates[0].map(([x, y]) => [y, x])}
+                                    {...{id: polygon.id}}
+                                />
+                            ))}
+
+
                         </FeatureGroup>
                     </MapContainer>
 
@@ -1150,12 +1169,12 @@ const MapDashboard: React.FC = () => {
                             <div className="pt-5 pb-5 text-brand-900">
                                 <ArchetypePanel
                                     // key={"TopA" + triggerPanelUpdate}
-                                    key={"TopA" + JSON.stringify(archetypes)}
+                                    key={"TopA" + JSON.stringify(buildingStockSummary)}
                                     buildingStockSummary={buildingStockSummary} archetypes={archetypes}
                                     parentArchetype={archetypesByName["Residential"]} level={1}/>
                                 <ArchetypePanel
                                     // key={"TopB" + triggerPanelUpdate}
-                                    key={"TopB" + JSON.stringify(archetypes)}
+                                    key={"TopB" + JSON.stringify(buildingStockSummary)}
                                     buildingStockSummary={buildingStockSummary} archetypes={archetypes}
                                     parentArchetype={archetypesByName["Non-residential"]} level={1}/>
                             </div>
