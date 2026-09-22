@@ -546,7 +546,7 @@ router.get(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: 
     }
 
     // Only the IDs of the features are stored in the database, so we do this on loading the case study:
-    const manuallyAddedFeatures = buildingService.getBuildingsByIDs(cs.buildingSelection.additionalBuildingIDs);
+    const manuallyAddedFeatures = buildingService.getBuildingsByIDs(cs.buildingSelection.additionalBuildingIDs || []);
     const updatedBuildingSelection = {...cs.buildingSelection,
         manuallyAddedFeatures: manuallyAddedFeatures}
     cs.buildingSelection = updatedBuildingSelection
