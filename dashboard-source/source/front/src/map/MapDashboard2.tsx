@@ -695,14 +695,14 @@ const MapDashboard: React.FC = () => {
                     //   .openPopup();
                 },
                 mouseover: (e: any) => {
-                    if (!drawingOngoing.current) {
+                    if (!(drawingOngoing.current || deleteOngoing.current)) {
                         const id = feature.properties["dashboard_index"]
                         console.log(`This is ${id}`)
                         setMouseOverBuilding((current) => [...current, id]);//might want to change to use IDs.
                     }
                 },
                 mouseout: (e: any) => {
-                    if (!drawingOngoing.current) {
+                    if (!(drawingOngoing.current || deleteOngoing.current)) {
                         const id = feature.properties["dashboard_index"]
                         setMouseOverBuilding((current) => current.filter((item) => item !== id))
                         // console.log("mouseover buildings: ", mouseOverBuilding)
@@ -759,6 +759,7 @@ const MapDashboard: React.FC = () => {
         const [currentTabIndex, setCurrentTabIndex] = useState<number>(0)
 
         const drawingOngoing = useRef<boolean>(false)
+        const deleteOngoing = useRef<boolean>(false)
 
         const _onPolygonCreated = (e) => {
             const {layerType, layer} = e;
@@ -803,6 +804,7 @@ const MapDashboard: React.FC = () => {
 
         const _onPolygonDeleted = (e) => {
             const {layers} = e;
+            deleteOngoing.current = false
             layers.eachLayer((layer) => {
                 const lookupId = layer.options.id || layer._leaflet_id;
                 console.log(`YOU TRIED TO DELETE POLYGON WITH ID ${lookupId}`)
@@ -1014,7 +1016,7 @@ const MapDashboard: React.FC = () => {
                         <MapViewListener
 
                             onViewChange={(zoom, bounds) => {
-                                if (!drawingOngoing.current) {
+                                if (!(drawingOngoing.current || deleteOngoing.current)) {
                                     console.log("VIEWCHANGEDETECTED!!!")
                                     // if drawing is ongoing we mustn't triggder a rerender as we will lose our drawing...
                                     //...is there a more elegant way round this???
@@ -1054,7 +1056,7 @@ const MapDashboard: React.FC = () => {
                                 data={mergedCollection as any}
                                 style={styleBuilding}
                                 // @ts-ignore
-                                pointerEvents={drawingOngoing.current ? "none" : true} // If polygon drawing is ongoing then individual building mouseover needs to be disabled. I think I had this the wrong way round before??
+                                pointerEvents={(drawingOngoing.current || deleteOngoing.current) ? "none" : true} // If polygon drawing is ongoing then individual building mouseover needs to be disabled. I think I had this the wrong way round before??
                                 onEachFeature={onEachBuilding}
                             />
 
@@ -1110,6 +1112,14 @@ const MapDashboard: React.FC = () => {
                                 onEdited={_onPolygonEdited}
 
                                 onDeleted={_onPolygonDeleted}
+
+                                onDeleteStart={() => {
+                                    deleteOngoing.current = true
+                                }}
+
+                                onDeleteStop={() => {
+                                    deleteOngoing.current = false
+                                }}
                             />
                         </FeatureGroup>
                     </MapContainer>
