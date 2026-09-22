@@ -805,6 +805,7 @@ const MapDashboard: React.FC = () => {
             const {layers} = e;
             layers.eachLayer((layer) => {
                 const lookupId = layer.options.id || layer._leaflet_id;
+                console.log(`YOU TRIED TO DELETE POLYGON WITH ID ${lookupId}`)
 
                 const updated_polygons = buildingSelectionState.polygons.filter((poly) => poly.id !== lookupId);
                 const newSelectionState = {...buildingSelectionState, polygons: updated_polygons};
