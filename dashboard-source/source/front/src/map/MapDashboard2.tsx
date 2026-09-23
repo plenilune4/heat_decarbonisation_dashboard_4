@@ -502,6 +502,7 @@ const MapDashboard: React.FC = () => {
         const [buildingIDsInPolygons, setBuildingIDsInPolygons] = useState<Set<string>>(new Set([]))
 
         //to do - can verticode's useresource hook avoid the need for this structure???
+        // This may need changing to only get the IDs of the buildings.
         async function getBuildingDatainPolygons() {
             await api(ROUTES.app.getVBuildingDataInPolygons, polygons.map((p) => p.geojson.geometry))
                 .then((res) => {
@@ -518,7 +519,13 @@ const MapDashboard: React.FC = () => {
                 console.log("getting building data!")
                 console.log("These polygons")
                 console.log(polygons)
-                getBuildingDatainPolygons();
+
+                if (polygons.length == 0){
+                    setBuildingIDsInPolygons(new Set())
+                }
+                else {
+                    getBuildingDatainPolygons();
+                }
             }, [triggerPolygonUpdate]
         )
 
@@ -814,9 +821,9 @@ const MapDashboard: React.FC = () => {
                         )
                     }
                 })
-                setTriggerPolygonUpdate((current) => !current)
 
             });
+            setTriggerPolygonUpdate((current) => !current)
         };
 
         const _onPolygonDeleted = (e) => {
@@ -1143,7 +1150,7 @@ const MapDashboard: React.FC = () => {
                         </FeatureGroup>
                     </MapContainer>
 
-                    <ul className='flex gap-2 px-2 mb-4 border-b border-gray-700 pt-5'>
+                    <ul className='flex gap-2 px-2 mb-4 border-b border-gray-700 pt-5 pb-20'>
                         {["Building stock report", "Decarbonisation strategies", "Results"].map((tabname, index) => (
                             <li
                                 key={index}
@@ -1165,7 +1172,8 @@ const MapDashboard: React.FC = () => {
                     </ul>
 
                     {
-                        (currentTabIndex == 0) && archetypesByName["Residential"] && (
+                        // (currentTabIndex == 0) && (!console.log("behhold", buildingStockSummary)) && archetypesByName["Residential"] && (
+                        (currentTabIndex == 0) && (buildingStockSummary.size > 0) && archetypesByName["Residential"] && (
                             <div className="pt-5 pb-5 text-brand-900">
                                 <ArchetypePanel
                                     // key={"TopA" + triggerPanelUpdate}
