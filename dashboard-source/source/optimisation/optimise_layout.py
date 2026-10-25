@@ -3,6 +3,7 @@ import json
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 import pandas as pd
+import sys
 
 # needs MongoClient dependency
 # client = MongoClient("mongodb://localhost:27017")
@@ -14,6 +15,8 @@ jobs = db["jobs"]
 
 try:
     # Send a ping to confirm a successful connection
+    print("Connecting to Redis...")
+    redis = redis.Redis(decode_responses=True)
     client.admin.command("ping")
     print("Pinged your deployment. You successfully connected to MongoDB!")
 
