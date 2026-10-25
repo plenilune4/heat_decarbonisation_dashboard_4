@@ -5,6 +5,8 @@ import helmet from 'helmet'
 import { logRouter, morganMiddleware } from './logger'
 import BaseRouter from './routes/api'
 import {buildingService} from "./services";
+import { connectRedis } from "./redis.js";
+import { startJobNotifications } from "./services/job-notifications.js";
 
 import { Server } from "socket.io";
 
@@ -12,6 +14,8 @@ import { Server } from "socket.io";
 
 async function start() {
     await buildingService.ready();
+    await connectRedis();
+    await startJobNotifications();
 
     console.log(
         `Loaded ${
