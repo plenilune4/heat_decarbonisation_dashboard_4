@@ -77,6 +77,7 @@ while True:
         }
     )
 
+    # Notify Node that results are ready:
     redis_client.publish(
         "job_complete",
         json.dumps({

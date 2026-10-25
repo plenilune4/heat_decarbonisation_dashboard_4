@@ -33,7 +33,10 @@ const ROUTES = ENDPOINTS.app
 
 
 // Bits for the backend optimisations:
-// const Job = require("../models/Job");
+const Job = require("../models/Job");
+import {redis} from "../redis.js"
+
+
 // const optimisationQueue =
 //   require("../queues/optimisationQueue");
 
@@ -545,11 +548,15 @@ router.get(ROUTES.user + '/:user_id/caseStudies/:id', async (req: Request, res: 
         return res.status(404).json({message: 'Case study not found'})
     }
 
-    // Only the IDs of the features are stored in the database, so we do this on loading the case study:
-    const manuallyAddedFeatures = buildingService.getBuildingsByIDs(cs.buildingSelection.additionalBuildingIDs);
-    const updatedBuildingSelection = {...cs.buildingSelection,
-        manuallyAddedFeatures: manuallyAddedFeatures}
-    cs.buildingSelection = updatedBuildingSelection
+    if (cs?.buildingSelection) {
+        // Only the IDs of the features are stored in the database, so we do this on loading the case study:
+        const manuallyAddedFeatures = buildingService.getBuildingsByIDs(cs.buildingSelection?.additionalBuildingIDs || []);
+        const updatedBuildingSelection = {
+            ...cs.buildingSelection,
+            manuallyAddedFeatures: manuallyAddedFeatures
+        }
+        cs.buildingSelection = updatedBuildingSelection
+    }
     return res.status(200).json(cs)
 })
 
