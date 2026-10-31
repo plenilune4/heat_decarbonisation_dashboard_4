@@ -15,8 +15,10 @@ jobs = db["jobs"]
 
 try:
     # Send a ping to confirm a successful connection
-    print("Connecting to Redis...")
+    print("Connecting to Redis...", end="")
     redis = redis.Redis(decode_responses=True)
+    print("successful.")
+    print("Connecting to MongoDB...", end="")
     client.admin.command("ping")
     print("Pinged your deployment. You successfully connected to MongoDB!")
 
