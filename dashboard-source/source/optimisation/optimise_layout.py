@@ -4,19 +4,25 @@ from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 import pandas as pd
 import sys
+import os
 
 # needs MongoClient dependency
 # client = MongoClient("mongodb://localhost:27017")
 
-uri = "mongodb+srv://plenilune_db_user:m1lrxZRTfz7IHgiB@development-db.ajenkbo.mongodb.net/?appName=development-db"
+# uri = "mongodb+srv://plenilune_db_user:m1lrxZRTfz7IHgiB@development-db.ajenkbo.mongodb.net/?appName=development-db"
+uri = os.getenv("MONGO_URI")
+print(f"Python connecting to db at {uri}.")
+
 client = MongoClient(uri, server_api=ServerApi("1"))
 db = client["my_database"]
 jobs = db["jobs"]
 
 try:
     # Send a ping to confirm a successful connection
-    print("Connecting to Redis...")
+    print("Connecting to Redis...", end="")
     redis = redis.Redis(decode_responses=True)
+    print("successful.")
+    print("Connecting to MongoDB...", end="")
     client.admin.command("ping")
     print("Pinged your deployment. You successfully connected to MongoDB!")
 
