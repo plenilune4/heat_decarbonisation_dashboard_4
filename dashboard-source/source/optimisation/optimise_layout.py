@@ -5,11 +5,13 @@ from pymongo.server_api import ServerApi
 import pandas as pd
 import sys
 import os
+from dotenv import load_dotenv
 
 # needs MongoClient dependency
 # client = MongoClient("mongodb://localhost:27017")
 
 # uri = "mongodb+srv://plenilune_db_user:m1lrxZRTfz7IHgiB@development-db.ajenkbo.mongodb.net/?appName=development-db"
+load_dotenv()
 uri = os.getenv("MONGO_URI")
 print(f"Python connecting to db at {uri}.")
 
