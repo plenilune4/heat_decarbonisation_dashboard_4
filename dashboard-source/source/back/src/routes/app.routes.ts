@@ -12,6 +12,8 @@ import fs from "fs";
 import RefreshToken from '../models/refreshToken.model'
 import Token from '../models/token.model'
 import User from '../models/user.model'
+import Job from '../models/job.model'
+
 import BuildingSelection from "../models/buildingSelection.model";
 import CaseStudy, {ArchetypeSummary} from "../models/caseStudy.model"
 import LoggingService from "../services/logging.service";
@@ -33,7 +35,7 @@ const ROUTES = ENDPOINTS.app
 
 
 // Bits for the backend optimisations:
-const Job = require("../models/job.model");
+
 import {redis} from "../redis.js"
 
 
