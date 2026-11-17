@@ -8,7 +8,7 @@ import sys
 import os
 from dotenv import load_dotenv
 from time import sleep
-from datetime import datetime
+from datetime import datetime, UTC
 
 # needs MongoClient dependency
 # client = MongoClient("mongodb://localhost:27017")
@@ -64,7 +64,7 @@ while True:
             {
                 "$set": {
                     "status": "running",
-                    "startedAt": datetime.utcnow()
+                    "startedAt": datetime.now(UTC)
                 }
             }
         )
@@ -95,7 +95,7 @@ while True:
         {
             "$set": {
                 "status": "completed",
-                "completedAt": datetime.utcnow(),
+                "completedAt": datetime.now(UTC),
                 "results": records
             }
         }
