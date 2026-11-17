@@ -37,4 +37,4 @@ const DHNoptimisationJobSchema = new mongoose.Schema({
   completedAt: Date
 });
 
-module.exports = mongoose.model("Job", JobSchema);
+module.exports = mongoose.model("DHNoptimisationJob", DHNoptimisationJobSchema);
