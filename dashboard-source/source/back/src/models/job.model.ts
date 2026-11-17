@@ -4,7 +4,7 @@ import {model, Schema} from "mongoose";
 
 const JobSchema = new Schema({
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: Schema.Types.ObjectId,
     required: true
   },
 
