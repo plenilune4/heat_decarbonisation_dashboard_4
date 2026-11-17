@@ -2,7 +2,7 @@
 // const mongoose = require("mongoose");
 import {model, Schema} from "mongoose";
 
-const JobSchema = new mongoose.Schema({
+const JobSchema = new Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true
@@ -38,5 +38,5 @@ const JobSchema = new mongoose.Schema({
 });
 
 // module.exports = mongoose.model("Job", JobSchema);
-const Job= mongoose.model("Job", JobSchema)
+const Job= model("Job", JobSchema)
 export default Job
