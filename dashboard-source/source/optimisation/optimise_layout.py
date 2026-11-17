@@ -8,6 +8,7 @@ import sys
 import os
 from dotenv import load_dotenv
 from time import sleep
+from datetime import datetime
 
 # needs MongoClient dependency
 # client = MongoClient("mongodb://localhost:27017")
