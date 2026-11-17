@@ -6,6 +6,7 @@ import {ToastContainer} from 'react-toastify'
 import 'regenerator-runtime'
 import './index.css'
 
+import TestPythonBackend from "@/app/TestPythonBackend";
 import ConfirmAccountPage from '@/auth/ConfirmAccount'
 import LoginPage from '@/auth/LoginPage'
 import LogoutPage from '@/auth/LogoutPage'
@@ -59,6 +60,7 @@ root.render(
 
                                 {/*<Route index element={<App/>}/>                                */}
                                 <Route index element={<DashboardPage/>}/>
+                                <Route path={'test-python-backend'} element={<TestPythonBackend/>}/>
                                 {/*<Route index element={<MapDashboard/>}/>*/}
 
                                 {/*<Route path='buildingstock'>*/}
