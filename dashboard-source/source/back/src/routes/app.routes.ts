@@ -65,6 +65,8 @@ router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
             submittedAt: new Date()
         });
 
+        job.save()
+
         // Here we add the job to the Redis queue.
         // We don't really need to save params here as well. We can get them from Mongo, all being well.
         await redis.rPush(
