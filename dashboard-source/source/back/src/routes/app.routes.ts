@@ -48,20 +48,21 @@ router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
 
         const {param1, param2, param3, param4} = req.body;
 
-        const job = await Job.create({
-
+        // Here we add the job to the mongo database:
+        // const job = await Job.create({
+        const job = new Job({
             status: "queued",
-
             params: {
                 param1,
                 param2,
                 param3,
                 param4
             },
-
             submittedAt: new Date()
         });
 
+        // Here we add the job to the Redis queue.
+        // It is probably superfluous to save the parameters here as well.
         await redis.rPush(
             "optimisation_queue",
             JSON.stringify({
