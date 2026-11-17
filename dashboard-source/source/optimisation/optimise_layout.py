@@ -47,7 +47,8 @@ except Exception as e:
 
 finally:
     # Always close the connection when finished
-    client.close()
+    pass
+    #client.close()
 
 redis_client = redis.Redis()
 
