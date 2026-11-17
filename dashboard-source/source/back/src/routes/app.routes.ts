@@ -33,7 +33,7 @@ const ROUTES = ENDPOINTS.app
 
 
 // Bits for the backend optimisations:
-const Job = require("../models/Job");
+const Job = require("../models/job.model");
 import {redis} from "../redis.js"
 
 
