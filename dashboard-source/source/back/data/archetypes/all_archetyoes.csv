@@ -1,0 +1,44 @@
+﻿archetype,category,supertype,MWh/GFA_stage_0,kWh/GFA_stage_1,kWh/GFA_stage_2,kWh/GFA_stage_3,kWh/GFA_stage_4,Gross Floor Areas,Treated Floor Areas
+B-DT,Residential,Bungalow,85.1,77.2,72.5,42.2,13.5,170,153
+B-SD,Residential,Bungalow,80.6,76.0,70.5,41.1,17.1,89,76
+DT-L,Residential,Detached,79.5,65.4,61.6,33.2,11.6,341,285
+DT-R,Residential,Detached,80.4,77.6,73.0,25.1,7.1,139,121
+DT-V,Residential,Detached,89.2,80.6,77.1,32.4,13.6,370,300
+SD-R,Residential,Semidetached,86.2,84.0,78.7,32.4,12.6,83,70
+SD-S,Residential,Semidetached,82.3,77.2,72.4,32.0,12.2,115,96
+SD-V,Residential,Semidetached,109.6,100.2,96.1,39.7,19.3,225,194
+T-GE,Residential,Terraced,87.5,85.2,80.4,25.4,9.3,287,349
+T-GM,Residential,Terraced,81.3,78.4,72.6,27.2,11.0,287,349
+T-RE,Residential,Terraced,102.1,94.3,86.8,33.9,10.3,82,97
+T-RM,Residential,Terraced,64.0,55.5,48.8,21.9,8.0,82,97
+T-VE,Residential,Terraced,162.9,155.4,149.0,45.6,18.7,95,113
+T-VM,Residential,Terraced,157.6,147.5,140.1,53.9,25.4,95,113
+"Arts, Community and Leisure",Non-residential,Non-residential,115.29,,,,,,
+Education,Non-residential,Non-residential,160.83,,,,,,
+Emergency Services,Non-residential,Non-residential,168.73,,,,,,
+Factories,Non-residential,Non-residential,69.95,,,,,,
+Health,Non-residential,Non-residential,165.37,,,,,,
+Hospitality,Non-residential,Non-residential,291.84,,,,,,
+Offices,Non-residential,Non-residential,150.9,,,,,,
+Shops,Non-residential,Non-residential,194.11,,,,,,
+Warehouses,Non-residential,Non-residential,53.08,,,,,,
+Other,Non-residential,Non-residential,98.94,,,,,,
+Care homes,Non-residential,Non-residential,430,,,,,,
+University buildings,Non-residential,Non-residential,215,,,,,,
+General accommodation,Residential,,300,,,,,,
+Swimming pool,Non-residential,Non-residential,1130,,,,,,
+Dry leisure centre,Non-residential,Non-residential,330,,,,,,
+Place of worship,Non-residential,Non-residential,96.94,,,,,,
+Derelict,Non-residential,Non-residential,0,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
+,,,,,,,,,
