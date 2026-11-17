@@ -47,12 +47,14 @@ import {redis} from "../redis.js"
  */
 router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
     try {
-
+        const {sessionUser} = res.locals
+        const uid = sessionUser._id
         const {param1, param2, param3, param4} = req.body;
 
         // Here we add the job to the mongo database:
         // const job = await Job.create({
         const job = new Job({
+            userId: uid.toString(),
             status: "queued",
             params: {
                 param1,
@@ -64,15 +66,12 @@ router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
         });
 
         // Here we add the job to the Redis queue.
-        // It is probably superfluous to save the parameters here as well.
+        // We don't really need to save params here as well. We can get them from Mongo, all being well.
         await redis.rPush(
             "optimisation_queue",
             JSON.stringify({
+                userId: uid.toString(),
                 jobId: job._id.toString(),
-                param1,
-                param2,
-                param3,
-                param4
             })
         );
 

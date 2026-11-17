@@ -57,7 +57,17 @@ while True:
 
     if job_json:
         job = json.loads(job_json)
-        print(job)
+
+        # redis has only the jobId and UserId for the job.
+        jobId = job["jobId"]
+        userId = job["userId"]
+
+        # The details are in mongodb.
+        jobdetails = jobs.find_one({"_id": ObjectId(jobId)})
+
+        param1, param2, param3, param4 = jobdetails["params"]
+
+        print(jobdetails)
 
         jobs.update_one(
             {"_id": ObjectId(job["jobId"])},
@@ -105,6 +115,7 @@ while True:
     redis_client.publish(
         "job_complete",
         json.dumps({
+            "userId": job["userId"],
             "jobId": job["jobId"]
         })
     )

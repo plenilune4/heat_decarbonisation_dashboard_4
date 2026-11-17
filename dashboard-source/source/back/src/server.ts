@@ -15,7 +15,7 @@ import { Server } from "socket.io";
 async function start() {
     await buildingService.ready();
     await connectRedis();
-    await startJobNotifications();
+    await startJobNotifications().then(console.log("Job notifications service started."));
 
     console.log(
         `Loaded ${
