@@ -65,7 +65,8 @@ while True:
         print(f"Received job with userID {userId} and jobID {jobId}.")
 
         # The details are in mongodb.
-        jobdetails = jobs.find_one({"_id": ObjectId(jobId)})
+        # jobdetails = jobs.find_one({"_id": ObjectId(jobId)})
+        jobdetails = jobs.find_one(ObjectId(jobId))
 
         print("Retrieved these details from Mongo: ", jobdetails)
 
