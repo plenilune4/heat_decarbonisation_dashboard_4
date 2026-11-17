@@ -62,8 +62,12 @@ while True:
         jobId = job["jobId"]
         userId = job["userId"]
 
+        print("Received this job: ", job_json)
+
         # The details are in mongodb.
         jobdetails = jobs.find_one({"_id": ObjectId(jobId)})
+
+        print("Retrieved these details from Mongo: ", jobdetails)
 
         param1, param2, param3, param4 = jobdetails["params"]
 
