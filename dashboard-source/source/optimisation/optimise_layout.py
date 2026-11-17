@@ -62,7 +62,7 @@ while True:
         jobId = job["jobId"]
         userId = job["userId"]
 
-        print("Received this job: ", job_json)
+        print(f"Received job with userID {userId} and jobID {jobId}.")
 
         # The details are in mongodb.
         jobdetails = jobs.find_one({"_id": ObjectId(jobId)})
