@@ -6,6 +6,7 @@ import pandas as pd
 import sys
 import os
 from dotenv import load_dotenv
+from time import sleep
 
 # needs MongoClient dependency
 # client = MongoClient("mongodb://localhost:27017")
@@ -45,23 +46,27 @@ finally:
     # Always close the connection when finished
     client.close()
 
-
 redis_client = redis.Redis()
 
 while True:
     _, job_json = redis_client.blpop("optimisation_queue")
-    job = json.loads(job_json)
-    print(job)
 
-    jobs.update_one(
-        {"_id": ObjectId(job["jobId"])},
-        {
-            "$set": {
-                "status": "running",
-                "startedAt": datetime.utcnow()
+    if job_json:
+        job = json.loads(job_json)
+        print(job)
+
+        jobs.update_one(
+            {"_id": ObjectId(job["jobId"])},
+            {
+                "$set": {
+                    "status": "running",
+                    "startedAt": datetime.utcnow()
+                }
             }
-        }
-    )
+        )
+    else:
+        sleep(0.05) # doubt that this is strictly necessary.
+        continue
 
     # results = optimise(
     #     job["param1"],
@@ -70,12 +75,16 @@ while True:
     #     job["param4"]
     # )
 
+    print(f"Starting optimisation job {job['jobId']}...")
+
     results = pd.DataFrame()
     results["col1"] = [1,2,3]
     results["col2"] = [5,10,15]
 
     # Convert results dataframe to a usable format:
     records = results.to_dict("records")
+
+    print(f"Completed optimisation job {job['jobId']}.")
 
     jobs.update_one(
         {"_id": ObjectId(job["jobId"])},
