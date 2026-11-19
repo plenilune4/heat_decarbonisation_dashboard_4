@@ -9,7 +9,7 @@ export default function TestPythonBackend() {
             {
                 param1: 1,
                 param2: 20,
-                param3: 30,
+                param3: '30',
                 param4: true,
             })}
     >

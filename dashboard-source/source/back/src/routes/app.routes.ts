@@ -47,8 +47,12 @@ import {redis} from "../redis.js"
  */
 router.post(ROUTES.optimiseDHNlayout, async (req, res) => {
     try {
+
         const {sessionUser} = res.locals
         const uid = sessionUser._id
+
+        console.log(`Creating new optimisation job for user ${uid}.`)
+
         const {param1, param2, param3, param4} = req.body;
 
         // Here we add the job to the mongo database:

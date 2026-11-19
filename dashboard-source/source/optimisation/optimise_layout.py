@@ -19,7 +19,7 @@ uri = os.getenv("MONGO_URI")
 print(f"Python connecting to db at {uri}.")
 
 client = MongoClient(uri, server_api=ServerApi("1"))
-db = client["my_database"]
+db = client["test"]
 jobs = db["jobs"]
 
 try:
@@ -70,10 +70,7 @@ while True:
         # jobdetails = jobs.find_one(ObjectId(jobId))
 
         print("Retrieved these details from Mongo: ", jobdetails)
-
         param1, param2, param3, param4 = jobdetails["params"]
-
-        print(jobdetails)
 
         jobs.update_one(
             {"_id": ObjectId(job["jobId"])},
